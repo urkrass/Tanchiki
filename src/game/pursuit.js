@@ -1,7 +1,8 @@
 import { DIRECTIONS } from "./movement.js";
 import { findGridPath } from "./pathfinding.js";
+import { ENEMY_PURSUIT_SPEED_CELLS_PER_SECOND } from "./combatTuning.js";
 
-const DEFAULT_PURSUIT_SPEED_CELLS_PER_SECOND = 1.5;
+const DEFAULT_PURSUIT_SPEED_CELLS_PER_SECOND = ENEMY_PURSUIT_SPEED_CELLS_PER_SECOND;
 const PURSUIT_GOAL_OFFSETS = [
   { x: 0, y: -1 },
   { x: 1, y: 0 },

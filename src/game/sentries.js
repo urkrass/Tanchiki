@@ -2,7 +2,9 @@ import { createProjectile } from "./projectiles.js";
 import {
   ENEMY_FIRE_COOLDOWN_SECONDS,
   ENEMY_FIRE_WINDUP_SECONDS,
+  ENEMY_LINE_OF_SIGHT_RANGE_CELLS,
   ENEMY_PROJECTILE_DAMAGE,
+  ENEMY_PROJECTILE_MAX_RANGE_CELLS,
   ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
   PLAYER_INVULNERABILITY_SECONDS,
   PLAYER_MAX_HP
@@ -11,14 +13,29 @@ import {
 export {
   ENEMY_FIRE_COOLDOWN_SECONDS,
   ENEMY_FIRE_WINDUP_SECONDS,
+  ENEMY_LINE_OF_SIGHT_RANGE_CELLS,
   ENEMY_PROJECTILE_DAMAGE,
+  ENEMY_PROJECTILE_MAX_RANGE_CELLS,
   ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
   PLAYER_INVULNERABILITY_SECONDS,
   PLAYER_MAX_HP
 };
 
-export function hasLineOfSight(level, fromX, fromY, toX, toY, solidEntities = []) {
+export function hasLineOfSight(
+  level,
+  fromX,
+  fromY,
+  toX,
+  toY,
+  solidEntities = [],
+  maxRangeCells = Infinity
+) {
   if (fromX !== toX && fromY !== toY) {
+    return false;
+  }
+
+  const distanceCells = Math.abs(toX - fromX) + Math.abs(toY - fromY);
+  if (distanceCells > maxRangeCells) {
     return false;
   }
 
@@ -74,7 +91,15 @@ export function updateEnemySentries({
     const direction = directionToTarget(entity.gridX, entity.gridY, player.gridX, player.gridY);
     const blockers = entities.filter((candidate) => candidate.id !== entity.id);
     const hasSight = direction
-      && hasLineOfSight(level, entity.gridX, entity.gridY, player.gridX, player.gridY, blockers);
+      && hasLineOfSight(
+        level,
+        entity.gridX,
+        entity.gridY,
+        player.gridX,
+        player.gridY,
+        blockers,
+        entity.lineOfSightRangeCells ?? ENEMY_LINE_OF_SIGHT_RANGE_CELLS
+      );
 
     if (!hasSight || entity.fireCooldownRemaining > 0) {
       resetAim(entity);
@@ -95,7 +120,7 @@ export function updateEnemySentries({
     projectileStore.projectiles.push(createProjectile({
       ...projectileSpawnFromEntity(entity, direction),
       speedCellsPerSecond: ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
-      maxRangeCells: 8,
+      maxRangeCells: ENEMY_PROJECTILE_MAX_RANGE_CELLS,
       team: entity.team
     }));
     entity.fireCooldownRemaining = entity.fireCooldownSeconds ?? ENEMY_FIRE_COOLDOWN_SECONDS;

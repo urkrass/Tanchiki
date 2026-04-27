@@ -24,9 +24,7 @@ export const TEST_MISSION_SCHEMA = {
       gridX: 4,
       gridY: 3,
       hp: 2,
-      solid: true,
-      fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6
+      solid: true
     },
     {
       id: "dummy-2",
@@ -35,9 +33,7 @@ export const TEST_MISSION_SCHEMA = {
       gridX: 8,
       gridY: 3,
       hp: 2,
-      solid: true,
-      fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6
+      solid: true
     },
     {
       id: "dummy-3",
@@ -47,15 +43,12 @@ export const TEST_MISSION_SCHEMA = {
       gridY: 9,
       hp: 2,
       solid: true,
-      fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6,
       patrolRoute: [
         { x: 10, y: 9 },
         { x: 9, y: 9 },
         { x: 8, y: 9 },
         { x: 9, y: 9 }
-      ],
-      patrolSpeedCellsPerSecond: 2
+      ]
     },
     {
       id: "enemy-base",
@@ -95,9 +88,7 @@ export const CHECKPOINT_MISSION_SCHEMA = {
       gridX: 8,
       gridY: 3,
       hp: 2,
-      solid: true,
-      fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6
+      solid: true
     },
     {
       id: "checkpoint-sentry-2",
@@ -107,10 +98,7 @@ export const CHECKPOINT_MISSION_SCHEMA = {
       gridY: 7,
       hp: 2,
       solid: true,
-      fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6,
-      pursuitTarget: "player",
-      pursuitSpeedCellsPerSecond: 1.25
+      pursuitTarget: "player"
     },
     {
       id: "checkpoint-base",
@@ -150,9 +138,7 @@ export const BASE_APPROACH_MISSION_SCHEMA = {
       gridX: 7,
       gridY: 5,
       hp: 2,
-      solid: true,
-      fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6
+      solid: true
     },
     {
       id: "approach-sentry-2",
@@ -161,9 +147,7 @@ export const BASE_APPROACH_MISSION_SCHEMA = {
       gridX: 12,
       gridY: 3,
       hp: 2,
-      solid: true,
-      fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6
+      solid: true
     },
     {
       id: "approach-sentry-3",
@@ -172,9 +156,7 @@ export const BASE_APPROACH_MISSION_SCHEMA = {
       gridX: 3,
       gridY: 9,
       hp: 2,
-      solid: true,
-      fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6
+      solid: true
     },
     {
       id: "approach-base",

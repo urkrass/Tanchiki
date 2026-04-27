@@ -293,9 +293,13 @@ test("debug state exposes combat fairness tuning", () => {
 
   assert.deepEqual(harness.debugState().combatTuning, {
     enemyProjectileDamage: 1,
-    enemyProjectileSpeedCellsPerSecond: 3,
-    enemyFireCooldownSeconds: 1.45,
-    enemyFireWindupSeconds: 0.6,
+    enemyProjectileSpeedCellsPerSecond: 2.75,
+    enemyProjectileMaxRangeCells: 7,
+    enemyFireCooldownSeconds: 1.6,
+    enemyFireWindupSeconds: 0.7,
+    enemyLineOfSightRangeCells: 6,
+    enemyPatrolSpeedCellsPerSecond: 1.5,
+    enemyPursuitSpeedCellsPerSecond: 1.25,
     playerInvulnerabilitySeconds: 0.7,
     playerDamageFlashSeconds: 0.24
   });
