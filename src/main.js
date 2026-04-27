@@ -1,4 +1,4 @@
-import { createGame } from "./game.js";
+import { createCampaignGame } from "./game.js";
 import { createInput } from "./input.js";
 import { renderGame } from "./render.js";
 
@@ -6,7 +6,7 @@ const canvas = document.querySelector("#game");
 const status = document.querySelector("#status");
 const context = canvas.getContext("2d");
 const input = createInput(window);
-let game = createGame();
+const game = createCampaignGame();
 
 const fixedStep = 1 / 60;
 let previousTime = performance.now();
@@ -36,12 +36,15 @@ function frame(time) {
 renderGame(context, game.snapshot());
 window.addEventListener("keydown", (event) => {
   if (event.code === "KeyR") {
-    game = createGame();
-    accumulator = 0;
-    previousTime = performance.now();
-    deterministicMode = false;
-    renderGame(context, game.snapshot());
-    status.textContent = game.statusText(input);
+    game.restartLevel();
+    resetTimingAndRender();
+    return;
+  }
+
+  if (event.code === "KeyN" || event.code === "Enter") {
+    if (game.advanceLevel()) {
+      resetTimingAndRender();
+    }
   }
 });
 window.advanceTime = (milliseconds) => {
@@ -55,3 +58,11 @@ window.advanceTime = (milliseconds) => {
 };
 window.render_game_to_text = () => JSON.stringify(game.debugState());
 requestAnimationFrame(frame);
+
+function resetTimingAndRender() {
+  accumulator = 0;
+  previousTime = performance.now();
+  deterministicMode = false;
+  renderGame(context, game.snapshot());
+  status.textContent = game.statusText(input);
+}

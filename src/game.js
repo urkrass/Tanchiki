@@ -1,10 +1,17 @@
 import {
-  createMovementState,
   getVisualPosition,
+  createMovementState,
   requestMove,
   updateMovement
 } from "./game/movement.js";
-import { createTestMission, isBlockedCell, validatePlayerSpawn } from "./game/level.js";
+import {
+  createCampaignMission,
+  createTestMission,
+  getCampaignLevelCount,
+  isBlockedCell,
+  validateCampaignMissions,
+  validatePlayerSpawn
+} from "./game/level.js";
 import {
   FIRE_COOLDOWN_SECONDS,
   PROJECTILE_SPEED_CELLS_PER_SECOND,
@@ -34,6 +41,62 @@ import { updateEnemySentries } from "./game/sentries.js";
 import { validateMissionSpawn } from "./game/spawnValidation.js";
 
 const tileSize = 48;
+
+export function createCampaignGame(options = {}) {
+  validateCampaignMissions();
+
+  const levelCount = getCampaignLevelCount();
+  let currentLevelIndex = normalizeLevelIndex(options.levelIndex ?? 0, levelCount);
+  let levelGame = createLevelGame(options, currentLevelIndex);
+
+  function currentStatus() {
+    const missionStatus = levelGame.snapshot().missionStatus;
+    if (missionStatus === "won" && currentLevelIndex === levelCount - 1) {
+      return "campaign-complete";
+    }
+    return missionStatus;
+  }
+
+  return {
+    update(deltaSeconds, input) {
+      levelGame.update(deltaSeconds, input);
+    },
+
+    snapshot() {
+      return addCampaignState(levelGame.snapshot(), currentLevelIndex, levelCount, currentStatus());
+    },
+
+    statusText(input) {
+      const status = currentStatus();
+      if (status === "campaign-complete") {
+        return `Campaign complete - Level ${currentLevelIndex + 1}/${levelCount} - Press R to replay the final level.`;
+      }
+
+      const nextText = status === "won" && currentLevelIndex < levelCount - 1
+        ? " Press N or Enter for next level."
+        : "";
+      return `Level ${currentLevelIndex + 1}/${levelCount} - ${levelGame.statusText(input)}${nextText}`;
+    },
+
+    debugState() {
+      return addCampaignState(levelGame.debugState(), currentLevelIndex, levelCount, currentStatus());
+    },
+
+    restartLevel() {
+      levelGame = createLevelGame(options, currentLevelIndex);
+    },
+
+    advanceLevel() {
+      if (currentStatus() !== "won" || currentLevelIndex >= levelCount - 1) {
+        return false;
+      }
+
+      currentLevelIndex += 1;
+      levelGame = createLevelGame(options, currentLevelIndex);
+      return true;
+    }
+  };
+}
 
 export function createGame(options = {}) {
   const testMission = options.level && options.targets ? null : createTestMission();
@@ -261,6 +324,42 @@ export function createGame(options = {}) {
         }
       };
     }
+  };
+}
+
+function createLevelGame(options, levelIndex) {
+  const mission = createCampaignMission(levelIndex);
+  const {
+    level,
+    targets,
+    playerSpawn,
+    ...gameOptions
+  } = options;
+
+  return createGame({
+    ...gameOptions,
+    level: mission.level,
+    targets: mission.targets,
+    playerSpawn: mission.level.playerSpawn
+  });
+}
+
+function normalizeLevelIndex(levelIndex, levelCount) {
+  if (!Number.isInteger(levelIndex) || levelIndex < 0 || levelIndex >= levelCount) {
+    throw new Error(`Invalid campaign level index ${levelIndex}.`);
+  }
+
+  return levelIndex;
+}
+
+function addCampaignState(state, currentLevelIndex, levelCount, missionStatus) {
+  return {
+    ...state,
+    missionStatus,
+    currentLevelIndex,
+    levelNumber: currentLevelIndex + 1,
+    levelCount,
+    canAdvanceLevel: missionStatus === "won" && currentLevelIndex < levelCount - 1
   };
 }
 

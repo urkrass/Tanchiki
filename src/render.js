@@ -153,7 +153,7 @@ function colorForTarget(target) {
 }
 
 function drawMissionMessage(context, missionStatus, width, height) {
-  if (missionStatus !== "won" && missionStatus !== "lost") {
+  if (missionStatus !== "won" && missionStatus !== "lost" && missionStatus !== "campaign-complete") {
     return;
   }
 
@@ -162,10 +162,31 @@ function drawMissionMessage(context, missionStatus, width, height) {
   context.fillStyle = "#1f241d";
   context.font = "700 34px system-ui, sans-serif";
   context.textAlign = "center";
-  context.fillText(missionStatus === "won" ? "Mission complete" : "Mission failed", width / 2, height / 2 - 4);
+  context.fillText(titleForMissionStatus(missionStatus), width / 2, height / 2 - 4);
   context.font = "16px system-ui, sans-serif";
-  context.fillText(missionStatus === "won" ? "Enemy base destroyed" : "Player tank destroyed", width / 2, height / 2 + 26);
-  context.fillText("Press R to restart", width / 2, height / 2 + 50);
+  context.fillText(detailForMissionStatus(missionStatus), width / 2, height / 2 + 26);
+  context.fillText(promptForMissionStatus(missionStatus), width / 2, height / 2 + 50);
+}
+
+function titleForMissionStatus(missionStatus) {
+  if (missionStatus === "campaign-complete") {
+    return "Campaign complete";
+  }
+  return missionStatus === "won" ? "Mission complete" : "Mission failed";
+}
+
+function detailForMissionStatus(missionStatus) {
+  if (missionStatus === "campaign-complete") {
+    return "All enemy bases destroyed";
+  }
+  return missionStatus === "won" ? "Enemy base destroyed" : "Player tank destroyed";
+}
+
+function promptForMissionStatus(missionStatus) {
+  if (missionStatus === "campaign-complete") {
+    return "Press R to replay final level";
+  }
+  return missionStatus === "won" ? "Press N or Enter for next level, R to restart" : "Press R to restart";
 }
 
 function drawProjectiles(context, projectiles, tileSize) {

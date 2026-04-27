@@ -20,6 +20,8 @@ Progress:
 - Adjusted the first sentry from `(4,1)` to `(4,3)` so the player no longer spawns in immediate enemy line of sight.
 - MAR-48 combat fairness follow-up: centralized combat tuning, lengthened enemy warning to 0.6s, cooldown to 1.45s, player invulnerability to 0.7s, slowed enemy shells to 3 cells/sec, and added status/debug visibility for sentry warnings and invulnerability.
 - MAR-51 level schema pass: moved the current test mission into `TEST_MISSION_SCHEMA`, added `loadLevelSchema()` normalization/validation, routed default game setup through `createTestMission()`, preserved current level/entity behavior, and added loader tests.
+- MAR-52 multiple levels and progression: added a three-level campaign using the existing level schema, validated every campaign level before play, added current-level tracking with `N`/`Enter` advancement after victory, kept `R` scoped to current-level restart, added a final campaign-complete state, and covered progression with tests.
+- MAR-52 validation pass: `npm test`, `npm run build`, and `npm run lint` all passed; `src/game/movement.js` remained unchanged.
 
 TODO:
 - Next patch candidates: projectile cleanup policy, target score/rewards, moving enemy AI, destructible props, or sound effects.

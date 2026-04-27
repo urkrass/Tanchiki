@@ -61,3 +61,126 @@ export const TEST_MISSION_SCHEMA = {
     }
   ]
 };
+
+export const CHECKPOINT_MISSION_SCHEMA = {
+  id: "checkpoint-mission",
+  width: 15,
+  height: 11,
+  tiles: [
+    "###############",
+    "#P....#.......#",
+    "#.##..#.#####.#",
+    "#...#...#.....#",
+    "###.#.###.###.#",
+    "#...#.....#...#",
+    "#.###.#####.#.#",
+    "#.....#.....#.#",
+    "#.###.#.###.#.#",
+    "#.....#.......#",
+    "###############"
+  ],
+  playerSpawn: { x: 1, y: 1 },
+  entities: [
+    {
+      id: "checkpoint-sentry-1",
+      type: "dummy",
+      team: "enemy",
+      gridX: 8,
+      gridY: 3,
+      hp: 2,
+      solid: true,
+      fireCooldownSeconds: 1.45,
+      windupSeconds: 0.6
+    },
+    {
+      id: "checkpoint-sentry-2",
+      type: "dummy",
+      team: "enemy",
+      gridX: 4,
+      gridY: 7,
+      hp: 2,
+      solid: true,
+      fireCooldownSeconds: 1.45,
+      windupSeconds: 0.6
+    },
+    {
+      id: "checkpoint-base",
+      type: "base",
+      team: "enemy",
+      gridX: 12,
+      gridY: 9,
+      hp: 6,
+      solid: true
+    }
+  ]
+};
+
+export const BASE_APPROACH_MISSION_SCHEMA = {
+  id: "base-approach-mission",
+  width: 15,
+  height: 11,
+  tiles: [
+    "###############",
+    "#P....#.......#",
+    "#.###.#.###.#.#",
+    "#...#...#...#.#",
+    "###.#####.#.#.#",
+    "#...#.....#...#",
+    "#.#.###.###.###",
+    "#.#...#.......#",
+    "#.###.#.#####.#",
+    "#.....#.......#",
+    "###############"
+  ],
+  playerSpawn: { x: 1, y: 1 },
+  entities: [
+    {
+      id: "approach-sentry-1",
+      type: "dummy",
+      team: "enemy",
+      gridX: 7,
+      gridY: 5,
+      hp: 2,
+      solid: true,
+      fireCooldownSeconds: 1.45,
+      windupSeconds: 0.6
+    },
+    {
+      id: "approach-sentry-2",
+      type: "dummy",
+      team: "enemy",
+      gridX: 12,
+      gridY: 3,
+      hp: 2,
+      solid: true,
+      fireCooldownSeconds: 1.45,
+      windupSeconds: 0.6
+    },
+    {
+      id: "approach-sentry-3",
+      type: "dummy",
+      team: "enemy",
+      gridX: 3,
+      gridY: 9,
+      hp: 2,
+      solid: true,
+      fireCooldownSeconds: 1.45,
+      windupSeconds: 0.6
+    },
+    {
+      id: "approach-base",
+      type: "base",
+      team: "enemy",
+      gridX: 12,
+      gridY: 9,
+      hp: 6,
+      solid: true
+    }
+  ]
+};
+
+export const CAMPAIGN_LEVEL_SCHEMAS = [
+  TEST_MISSION_SCHEMA,
+  CHECKPOINT_MISSION_SCHEMA,
+  BASE_APPROACH_MISSION_SCHEMA
+];
