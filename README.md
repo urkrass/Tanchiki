@@ -124,3 +124,38 @@ When Codex starts a Level 2 issue, it must move the issue to `In Progress`, crea
 Codex must not pick `Backlog` issues and must not move an issue to `Done` until the PR is merged or a human explicitly approves closing it.
 
 Use `prompts/codex-next-agent-ready.md` to start a Level 2 agent-ready run.
+
+## Level 3 Planner Workflow
+
+Level 3 lets Codex turn a high-level campaign brief into small Linear issues without implementing gameplay.
+
+The Linear source of truth is `Tanchiki Level 3 Planner Protocol` in the Tanchiki project.
+
+https://linear.app/marsel/document/tanchiki-level-3-planner-protocol-ec0d116846fd
+
+Planner agents may:
+
+- read the brief and repository documentation
+- create Linear issues
+- suggest labels, risk levels, and dependencies
+
+Planner agents must not:
+
+- edit source code
+- implement gameplay
+- mark issues `agent-ready` automatically unless explicitly instructed
+- move issues into implementation states
+
+Every planned issue must be classified as one of:
+
+- `agent-ready candidate`
+- `human-review required`
+- `human-only`
+- `blocked/dependency`
+
+Use these files for Level 3 planning:
+
+- `ops/prompts/planner-agent.md`
+- `ops/policies/planner-boundaries.md`
+- `ops/checklists/planner-output-checklist.md`
+- `prompts/codex-plan-campaign.md`

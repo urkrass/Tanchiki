@@ -1,0 +1,84 @@
+# Level 3 Planner Boundaries
+
+Level 3 is a planning workflow. It exists to convert campaign-scale ideas into small Linear issues without changing gameplay code.
+
+## Allowed
+
+- Read repository documentation and existing source to understand current state.
+- Read the campaign brief supplied by the user.
+- Create Linear issues.
+- Suggest labels, risk levels, dependencies, and review gates.
+- Call out missing decisions or assets that block implementation.
+
+## Prohibited
+
+- Do not edit source code.
+- Do not implement gameplay.
+- Do not create branches or pull requests for gameplay work.
+- Do not mark issues `agent-ready` unless explicitly instructed by a human.
+- Do not move implementation issues to `In Progress`, `In Review`, or `Done`.
+- Do not create broad catch-all issues.
+- Do not add dependencies or tooling.
+- Do not rewrite the campaign brief into a large design document unless explicitly asked.
+
+## Issue Size Standard
+
+Each issue should fit one Level 2 implementation pass:
+
+- one primary gameplay or documentation objective
+- a clear file area
+- explicit acceptance criteria
+- focused tests
+- no broad refactors
+- no unrelated cleanup
+
+If an item touches several systems, split it into dependency-ordered issues.
+
+## Required Classification
+
+Every issue must be classified as one of:
+
+- `agent-ready candidate`: likely suitable for Level 2 after human approval and labeling.
+- `human-review required`: needs product, design, tuning, or architecture review before implementation.
+- `human-only`: requires creative direction, credentials, external assets, business judgment, or safety-critical review.
+- `blocked/dependency`: cannot be implemented until another issue or decision is completed.
+
+## Label Rules
+
+The planner may suggest labels in the issue body. The planner must not apply `agent-ready` automatically unless explicitly instructed.
+
+Recommended labels include:
+
+- `gameplay`
+- `testing`
+- `level-design`
+- `ai`
+- `assets`
+- `polish`
+- `harness`
+- `human-review`
+- `human-only`
+- `blocked`
+
+## Dependency Rules
+
+Use dependency notes when one issue must land before another. Prefer explicit wording:
+
+```text
+Depends on: TAN-123 Add campaign mission schema.
+Blocks: Follow-up level content issues.
+```
+
+Do not hide blocked work behind an `agent-ready candidate` classification.
+
+## Anti-Patterns
+
+Do not create issues titled like:
+
+- Improve AI
+- Polish the game
+- Add campaign
+- Make levels better
+- Add RPG systems
+
+Rewrite them into small tasks with concrete files, scope, acceptance criteria, and tests.
