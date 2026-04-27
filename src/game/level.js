@@ -1,26 +1,12 @@
-const tiles = [
-  "###############",
-  "#P....#.......#",
-  "#.###.#.#####.#",
-  "#...#...#.....#",
-  "###.#.###.###.#",
-  "#...#.....#...#",
-  "#.#####.###.#.#",
-  "#.....#.....#.#",
-  "#.###.#####.#.#",
-  "#...#.........#",
-  "###############"
-];
+import { loadLevelSchema } from "./levelLoader.js";
+import { TEST_MISSION_SCHEMA } from "./levels/testMission.js";
+
+export function createTestMission() {
+  return loadLevelSchema(TEST_MISSION_SCHEMA);
+}
 
 export function createTestLevel() {
-  const playerSpawn = findPlayerSpawn(tiles);
-
-  return {
-    width: tiles[0].length,
-    height: tiles.length,
-    tiles,
-    playerSpawn
-  };
+  return createTestMission().level;
 }
 
 export function isBlockedCell(level, x, y) {
@@ -37,15 +23,4 @@ export function validatePlayerSpawn(level) {
   if (isBlockedCell(level, x, y)) {
     throw new Error(`Invalid player spawn at ${x}, ${y}`);
   }
-}
-
-function findPlayerSpawn(sourceTiles) {
-  for (let y = 0; y < sourceTiles.length; y += 1) {
-    const x = sourceTiles[y].indexOf("P");
-    if (x !== -1) {
-      return { x, y };
-    }
-  }
-
-  throw new Error("Test level must include a player spawn tile.");
 }

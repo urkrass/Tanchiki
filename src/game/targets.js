@@ -2,6 +2,7 @@ import {
   ENEMY_FIRE_COOLDOWN_SECONDS,
   ENEMY_FIRE_WINDUP_SECONDS
 } from "./combatTuning.js";
+import { TEST_MISSION_SCHEMA } from "./levels/testMission.js";
 
 export const TARGET_MAX_HP = 2;
 export const ENEMY_BASE_HP = 6;
@@ -58,13 +59,18 @@ export function createBase(options) {
   });
 }
 
+export function createEntityFromSchema(entitySchema) {
+  return createEntity({
+    hp: entitySchema.type === "base" ? ENEMY_BASE_HP : TARGET_MAX_HP,
+    team: "enemy",
+    type: "dummy",
+    solid: true,
+    ...entitySchema
+  });
+}
+
 export function createTestTargets() {
-  return [
-    createTarget({ id: "dummy-1", gridX: 4, gridY: 3 }),
-    createTarget({ id: "dummy-2", gridX: 8, gridY: 3 }),
-    createTarget({ id: "dummy-3", gridX: 10, gridY: 9 }),
-    createBase({ id: "enemy-base", gridX: 12, gridY: 9 })
-  ];
+  return TEST_MISSION_SCHEMA.entities.map(createEntityFromSchema);
 }
 
 export function findTargetHitOnSegment(targets, fromX, fromY, toX, toY, projectileTeam = "player") {

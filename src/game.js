@@ -4,7 +4,7 @@ import {
   requestMove,
   updateMovement
 } from "./game/movement.js";
-import { createTestLevel, isBlockedCell, validatePlayerSpawn } from "./game/level.js";
+import { createTestMission, isBlockedCell, validatePlayerSpawn } from "./game/level.js";
 import {
   FIRE_COOLDOWN_SECONDS,
   PROJECTILE_SPEED_CELLS_PER_SECOND,
@@ -16,7 +16,6 @@ import {
 import {
   ENEMY_BASE_HP,
   PROJECTILE_DAMAGE,
-  createTestTargets,
   damageTarget,
   findTargetHitOnSegment,
   isEnemyBaseDestroyed,
@@ -37,7 +36,8 @@ import { validateMissionSpawn } from "./game/spawnValidation.js";
 const tileSize = 48;
 
 export function createGame(options = {}) {
-  const level = options.level ?? createTestLevel();
+  const testMission = options.level && options.targets ? null : createTestMission();
+  const level = options.level ?? testMission.level;
   validatePlayerSpawn(level);
 
   const player = createMovementState({
@@ -48,7 +48,7 @@ export function createGame(options = {}) {
   });
 
   const playerTeam = "player";
-  const targets = options.targets ?? createTestTargets();
+  const targets = options.targets ?? testMission.targets;
   if (options.validateSpawn !== false) {
     validateMissionSpawn(level, { x: player.gridX, y: player.gridY }, targets, isBlockedCell);
   }
