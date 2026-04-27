@@ -173,6 +173,18 @@ Level 2 command-center workflow:
 - Codex must not move the issue to `Done` until the PR is merged or a human explicitly approves closing it.
 - Use `prompts/codex-next-agent-ready.md` as the reusable prompt for this workflow.
 
+Level 3 planner workflow:
+
+- Use Level 3 only to turn a high-level campaign brief into small Linear issues.
+- The planner may create Linear issues only.
+- The planner must not edit source code or implement gameplay.
+- The planner must not mark issues `agent-ready` automatically unless explicitly instructed.
+- The planner must classify every issue as `agent-ready candidate`, `human-review required`, `human-only`, or `blocked/dependency`.
+- Each planned issue must include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, and Dependencies or blockers.
+- Issues must be small enough for one Level 2 implementation pass.
+- Avoid broad vague issues like "improve AI", "polish game", or "add campaign".
+- Use `ops/prompts/planner-agent.md`, `ops/policies/planner-boundaries.md`, `ops/checklists/planner-output-checklist.md`, and `prompts/codex-plan-campaign.md` for this workflow.
+
 ## Git Discipline
 
 - Before editing files, inspect `git status --short`.
@@ -207,6 +219,17 @@ When no issue is named and the user asks Codex to continue agent-ready work:
 4. Move the issue to `In Progress` before editing.
 5. Open a draft PR after validation and move the issue to `In Review`.
 6. Leave the issue out of `Done` until merge or explicit human approval.
+
+## Level 3 campaign planning
+When the user asks Codex to plan a campaign brief:
+
+1. Use Linear MCP and read the campaign brief.
+2. Read `ops/policies/planner-boundaries.md` and `ops/checklists/planner-output-checklist.md`.
+3. Create 5-8 small Linear issues when the brief is large enough.
+4. Preserve dependencies between issues.
+5. Do not implement gameplay or edit source code.
+6. Do not apply `agent-ready` unless a human explicitly instructs it.
+7. Stop after creating issues and reporting the summary.
 
 ## Before implementation
 1. Use the Linear MCP server to read the assigned issue.
