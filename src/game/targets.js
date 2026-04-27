@@ -1,3 +1,8 @@
+import {
+  ENEMY_FIRE_COOLDOWN_SECONDS,
+  ENEMY_FIRE_WINDUP_SECONDS
+} from "./combatTuning.js";
+
 export const TARGET_MAX_HP = 2;
 export const ENEMY_BASE_HP = 6;
 export const PROJECTILE_DAMAGE = 1;
@@ -10,9 +15,9 @@ export function createEntity({
   team = "enemy",
   type = "dummy",
   solid = true,
-  fireCooldownSeconds = 1.2,
+  fireCooldownSeconds = ENEMY_FIRE_COOLDOWN_SECONDS,
   fireCooldownRemaining = 0,
-  windupSeconds = 0.45,
+  windupSeconds = ENEMY_FIRE_WINDUP_SECONDS,
   aimDirection = null,
   aimRemainingSeconds = 0
 }) {

@@ -18,6 +18,7 @@ Progress:
 - Added enemy sentry firing, player HP, loss state, enemy projectile damage, and row/column line-of-sight checks. Solid live entities block sentry line of sight.
 - Added combat fairness pass: spawn safety validation, 0.45s enemy wind-up, red warning line, 0.55s player invulnerability, slower 3.5 cells/sec enemy shells, and loss/victory restart prompts.
 - Adjusted the first sentry from `(4,1)` to `(4,3)` so the player no longer spawns in immediate enemy line of sight.
+- MAR-48 combat fairness follow-up: centralized combat tuning, lengthened enemy warning to 0.6s, cooldown to 1.45s, player invulnerability to 0.7s, slowed enemy shells to 3 cells/sec, and added status/debug visibility for sentry warnings and invulnerability.
 
 TODO:
 - Next patch candidates: projectile cleanup policy, target score/rewards, moving enemy AI, destructible props, or sound effects.

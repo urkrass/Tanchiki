@@ -1,11 +1,21 @@
 import { createProjectile } from "./projectiles.js";
+import {
+  ENEMY_FIRE_COOLDOWN_SECONDS,
+  ENEMY_FIRE_WINDUP_SECONDS,
+  ENEMY_PROJECTILE_DAMAGE,
+  ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
+  PLAYER_INVULNERABILITY_SECONDS,
+  PLAYER_MAX_HP
+} from "./combatTuning.js";
 
-export const PLAYER_MAX_HP = 3;
-export const ENEMY_PROJECTILE_DAMAGE = 1;
-export const PLAYER_INVULNERABILITY_SECONDS = 0.55;
-export const ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND = 3.5;
-export const ENEMY_FIRE_COOLDOWN_SECONDS = 1.2;
-export const ENEMY_FIRE_WINDUP_SECONDS = 0.45;
+export {
+  ENEMY_FIRE_COOLDOWN_SECONDS,
+  ENEMY_FIRE_WINDUP_SECONDS,
+  ENEMY_PROJECTILE_DAMAGE,
+  ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
+  PLAYER_INVULNERABILITY_SECONDS,
+  PLAYER_MAX_HP
+};
 
 export function hasLineOfSight(level, fromX, fromY, toX, toY, solidEntities = []) {
   if (fromX !== toX && fromY !== toY) {

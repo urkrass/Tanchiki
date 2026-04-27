@@ -271,6 +271,36 @@ test("enemy projectile damages player", () => {
   assert.equal(harness.debugState().player.hp, 2);
 });
 
+test("status text calls out sentry warning and player invulnerability", () => {
+  const sentry = createTarget({ id: "sentry", gridX: 3, gridY: 1 });
+  const harness = createHarness({
+    x: 1,
+    y: 1,
+    facing: "right",
+    targets: [sentry],
+    validateSpawn: false
+  });
+
+  harness.advance(0.1);
+  assert.match(harness.statusText(), /Sentry warning/);
+
+  harness.advance(1);
+  assert.match(harness.statusText(), /Invulnerable/);
+});
+
+test("debug state exposes combat fairness tuning", () => {
+  const harness = createHarness({ x: 1, y: 1, facing: "right" });
+
+  assert.deepEqual(harness.debugState().combatTuning, {
+    enemyProjectileDamage: 1,
+    enemyProjectileSpeedCellsPerSecond: 3,
+    enemyFireCooldownSeconds: 1.45,
+    enemyFireWindupSeconds: 0.6,
+    playerInvulnerabilitySeconds: 0.7,
+    playerDamageFlashSeconds: 0.24
+  });
+});
+
 test("player HP reaching zero sets mission status to lost", () => {
   const sentry = createTarget({ id: "sentry", gridX: 3, gridY: 1 });
   const harness = createHarness({
@@ -388,6 +418,10 @@ function createHarness({ x, y, facing, targets = [], playerHp, validateSpawn = t
 
     debugState() {
       return game.debugState();
+    },
+
+    statusText() {
+      return game.statusText(input);
     }
   };
 }

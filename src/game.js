@@ -23,11 +23,15 @@ import {
   isSolidEntityAt
 } from "./game/targets.js";
 import {
+  ENEMY_FIRE_COOLDOWN_SECONDS,
+  ENEMY_FIRE_WINDUP_SECONDS,
   ENEMY_PROJECTILE_DAMAGE,
+  ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
+  PLAYER_DAMAGE_FLASH_SECONDS,
   PLAYER_MAX_HP,
-  PLAYER_INVULNERABILITY_SECONDS,
-  updateEnemySentries
-} from "./game/sentries.js";
+  PLAYER_INVULNERABILITY_SECONDS
+} from "./game/combatTuning.js";
+import { updateEnemySentries } from "./game/sentries.js";
 import { validateMissionSpawn } from "./game/spawnValidation.js";
 
 const tileSize = 48;
@@ -93,7 +97,7 @@ export function createGame(options = {}) {
             playerState.hp = Math.max(0, playerState.hp - ENEMY_PROJECTILE_DAMAGE);
             playerState.invulnerabilityRemaining = PLAYER_INVULNERABILITY_SECONDS;
           }
-          playerState.damageFlashSeconds = 0.18;
+          playerState.damageFlashSeconds = PLAYER_DAMAGE_FLASH_SECONDS;
           const visual = getVisualPosition(player);
           return {
             x: visual.x + 0.5,
@@ -190,7 +194,18 @@ export function createGame(options = {}) {
         && target.alive
       )).length;
       const baseText = base ? ` Enemy base HP ${base.hp}/${ENEMY_BASE_HP}.` : "";
-      return `Mission ${missionStatus} - HP ${playerState.hp}/${playerState.maxHp} - Cell ${player.gridX}, ${player.gridY} - Facing ${player.facing} - Enemy tanks ${liveEnemyTanks}. ${shotText}${cooldownText}${baseText}`;
+      const aimingEnemy = targets.find((target) => (
+        target.alive
+        && target.aimDirection
+        && (target.aimRemainingSeconds ?? 0) > 0
+      ));
+      const aimText = aimingEnemy
+        ? ` Sentry warning ${Math.ceil(aimingEnemy.aimRemainingSeconds * 1000)}ms.`
+        : "";
+      const invulnerabilityText = playerState.invulnerabilityRemaining > 0
+        ? ` Invulnerable ${Math.ceil(playerState.invulnerabilityRemaining * 1000)}ms.`
+        : "";
+      return `Mission ${missionStatus} - HP ${playerState.hp}/${playerState.maxHp} - Cell ${player.gridX}, ${player.gridY} - Facing ${player.facing} - Enemy tanks ${liveEnemyTanks}. ${shotText}${cooldownText}${baseText}${aimText}${invulnerabilityText}`;
     },
 
     debugState() {
@@ -235,7 +250,15 @@ export function createGame(options = {}) {
         })),
         missionStatus,
         cooldownRemaining: Number(projectiles.cooldownRemaining.toFixed(3)),
-        projectileSpeedCellsPerSecond: PROJECTILE_SPEED_CELLS_PER_SECOND
+        projectileSpeedCellsPerSecond: PROJECTILE_SPEED_CELLS_PER_SECOND,
+        combatTuning: {
+          enemyProjectileDamage: ENEMY_PROJECTILE_DAMAGE,
+          enemyProjectileSpeedCellsPerSecond: ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
+          enemyFireCooldownSeconds: ENEMY_FIRE_COOLDOWN_SECONDS,
+          enemyFireWindupSeconds: ENEMY_FIRE_WINDUP_SECONDS,
+          playerInvulnerabilitySeconds: PLAYER_INVULNERABILITY_SECONDS,
+          playerDamageFlashSeconds: PLAYER_DAMAGE_FLASH_SECONDS
+        }
       };
     }
   };

@@ -6,6 +6,7 @@ import {
   ENEMY_FIRE_WINDUP_SECONDS,
   ENEMY_PROJECTILE_DAMAGE,
   ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
+  PLAYER_INVULNERABILITY_SECONDS,
   hasLineOfSight,
   updateEnemySentries
 } from "../src/game/sentries.js";
@@ -108,6 +109,13 @@ test("enemy fires only after wind-up and cooldown", () => {
 
 test("enemy projectile damage value is defined", () => {
   assert.equal(ENEMY_PROJECTILE_DAMAGE, 1);
+});
+
+test("enemy combat tuning keeps readable warning windows", () => {
+  assert.equal(ENEMY_FIRE_WINDUP_SECONDS, 0.6);
+  assert.equal(ENEMY_FIRE_COOLDOWN_SECONDS, 1.45);
+  assert.equal(ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND, 3);
+  assert.equal(PLAYER_INVULNERABILITY_SECONDS, 0.7);
 });
 
 test("enemy projectile does not damage enemy entities", () => {
