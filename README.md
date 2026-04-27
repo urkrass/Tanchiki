@@ -78,3 +78,5 @@ npm run lint
 CI uses Node.js 20. It installs dependencies with `npm ci` when `package-lock.json` exists, otherwise it uses `npm install`.
 
 Use `.github/pull_request_template.md` for PR descriptions and `ops/policies/level-1-agent-boundaries.md` for agent boundaries. Do not push directly to `main`, force push, start broad refactors, or include unrelated cleanup in a Level 1 PR.
+
+Harness smoke-test PRs should use an `agent/` branch, be opened as drafts with the PR template filled out, and remain unmerged until reviewed.
