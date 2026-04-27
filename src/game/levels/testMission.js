@@ -108,7 +108,9 @@ export const CHECKPOINT_MISSION_SCHEMA = {
       hp: 2,
       solid: true,
       fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6
+      windupSeconds: 0.6,
+      pursuitTarget: "player",
+      pursuitSpeedCellsPerSecond: 1.25
     },
     {
       id: "checkpoint-base",

@@ -1,4 +1,5 @@
 import { DIRECTIONS } from "./movement.js";
+import { entityOccupiesPursuitCell } from "./pursuit.js";
 
 const VALID_DIRECTIONS = Object.keys(DIRECTIONS);
 const DEFAULT_PATROL_SPEED_CELLS_PER_SECOND = 2;
@@ -37,6 +38,7 @@ export function getPatrolVisualPosition(entity) {
 export function isPatrolEnemy(entity) {
   return entity.alive
     && entity.team === "enemy"
+    && entity.pursuitTarget !== "player"
     && Array.isArray(entity.patrolRoute)
     && entity.patrolRoute.length > 1;
 }
@@ -138,7 +140,8 @@ function playerOccupiesCell(player, x, y) {
 
 export function entityOccupiesCell(entity, x, y) {
   return (entity.gridX === x && entity.gridY === y)
-    || (entity.isPatrolling && entity.toX === x && entity.toY === y);
+    || (entity.isPatrolling && entity.toX === x && entity.toY === y)
+    || entityOccupiesPursuitCell(entity, x, y);
 }
 
 function advancePatrolTarget(entity) {
