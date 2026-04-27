@@ -49,6 +49,10 @@ import {
   collectPickupAtCell,
   consumeShieldCharge
 } from "./game/pickups.js";
+import {
+  cloneProgressionState,
+  createProgressionState
+} from "./game/progression.js";
 
 const tileSize = 48;
 
@@ -57,6 +61,7 @@ export function createCampaignGame(options = {}) {
 
   const levelCount = getCampaignLevelCount();
   let currentLevelIndex = normalizeLevelIndex(options.levelIndex ?? 0, levelCount);
+  const progression = createProgressionState(options.progression);
   let levelGame = createLevelGame(options, currentLevelIndex);
 
   function currentStatus() {
@@ -73,7 +78,13 @@ export function createCampaignGame(options = {}) {
     },
 
     snapshot() {
-      return addCampaignState(levelGame.snapshot(), currentLevelIndex, levelCount, currentStatus());
+      return addCampaignState(
+        levelGame.snapshot(),
+        currentLevelIndex,
+        levelCount,
+        currentStatus(),
+        progression
+      );
     },
 
     statusText(input) {
@@ -89,7 +100,13 @@ export function createCampaignGame(options = {}) {
     },
 
     debugState() {
-      return addCampaignState(levelGame.debugState(), currentLevelIndex, levelCount, currentStatus());
+      return addCampaignState(
+        levelGame.debugState(),
+        currentLevelIndex,
+        levelCount,
+        currentStatus(),
+        progression
+      );
     },
 
     restartLevel() {
@@ -445,14 +462,15 @@ function normalizeLevelIndex(levelIndex, levelCount) {
   return levelIndex;
 }
 
-function addCampaignState(state, currentLevelIndex, levelCount, missionStatus) {
+function addCampaignState(state, currentLevelIndex, levelCount, missionStatus, progression) {
   const campaignState = {
     ...state,
     missionStatus,
     currentLevelIndex,
     levelNumber: currentLevelIndex + 1,
     levelCount,
-    canAdvanceLevel: missionStatus === "won" && currentLevelIndex < levelCount - 1
+    canAdvanceLevel: missionStatus === "won" && currentLevelIndex < levelCount - 1,
+    progression: cloneProgressionState(progression)
   };
   return {
     ...campaignState,

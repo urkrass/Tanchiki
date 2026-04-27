@@ -188,6 +188,97 @@ test("R-style restart resets the current level without rewinding campaign progre
   assert.equal(baseAfterRestart.alive, true);
 });
 
+test("campaign snapshots expose default progression state", () => {
+  const harness = createCampaignHarness({ levelIndex: 0 });
+
+  assert.deepEqual(harness.game.snapshot().progression, {
+    xp: 0,
+    level: 1,
+    availableUpgradePoints: 0,
+    appliedUpgrades: {}
+  });
+  assert.deepEqual(harness.game.debugState().progression, {
+    xp: 0,
+    level: 1,
+    availableUpgradePoints: 0,
+    appliedUpgrades: {}
+  });
+});
+
+test("campaign progression snapshots are detached from game state", () => {
+  const harness = createCampaignHarness({
+    progression: {
+      xp: 50,
+      level: 2,
+      availableUpgradePoints: 1,
+      appliedUpgrades: {
+        armor: 1
+      }
+    }
+  });
+
+  const snapshot = harness.game.snapshot();
+  snapshot.progression.xp = 999;
+  snapshot.progression.appliedUpgrades.armor = 99;
+
+  const nextSnapshot = harness.game.snapshot();
+  assert.equal(nextSnapshot.progression.xp, 50);
+  assert.equal(nextSnapshot.progression.appliedUpgrades.armor, 1);
+});
+
+test("restarting the current level preserves in-memory campaign progression", () => {
+  const harness = createCampaignHarness({
+    levelIndex: 0,
+    progression: {
+      xp: 50,
+      level: 2,
+      availableUpgradePoints: 1,
+      appliedUpgrades: {
+        armor: 1
+      }
+    }
+  });
+
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+  assert.equal(harness.game.advanceLevel(), true);
+
+  harness.game.restartLevel();
+  const state = harness.game.debugState();
+
+  assert.equal(state.currentLevelIndex, 1);
+  assert.deepEqual(state.progression, {
+    xp: 50,
+    level: 2,
+    availableUpgradePoints: 1,
+    appliedUpgrades: {
+      armor: 1
+    }
+  });
+});
+
+test("creating a new campaign game starts with clean progression", () => {
+  const progressed = createCampaignHarness({
+    progression: {
+      xp: 50,
+      level: 2,
+      availableUpgradePoints: 1,
+      appliedUpgrades: {
+        armor: 1
+      }
+    }
+  });
+  const fresh = createCampaignHarness();
+
+  assert.equal(progressed.game.snapshot().progression.xp, 50);
+  assert.deepEqual(fresh.game.snapshot().progression, {
+    xp: 0,
+    level: 1,
+    availableUpgradePoints: 0,
+    appliedUpgrades: {}
+  });
+});
+
 test("movement.js remains unchanged for campaign progression", () => {
   const diff = spawnSync("git", ["diff", "--exit-code", "HEAD", "--", "src/game/movement.js"], {
     encoding: "utf8"
