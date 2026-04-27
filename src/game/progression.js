@@ -1,9 +1,69 @@
+export const UPGRADE_EFFECT_KEYS = Object.freeze([
+  "maxHp",
+  "repairAmount",
+  "fireCooldownSeconds",
+  "projectileMaxRangeCells",
+  "shieldCapacity"
+]);
+
+export const UPGRADE_CATALOG = Object.freeze([
+  createUpgradeDefinition({
+    id: "armor",
+    label: "Reinforced armor",
+    description: "Increase max armor by 1 per rank.",
+    maxRank: 2,
+    effects: [
+      { key: "maxHp", amount: 1 }
+    ]
+  }),
+  createUpgradeDefinition({
+    id: "repair",
+    label: "Field repairs",
+    description: "Repair pickups restore 1 extra armor per rank.",
+    maxRank: 2,
+    effects: [
+      { key: "repairAmount", amount: 1 }
+    ]
+  }),
+  createUpgradeDefinition({
+    id: "reload",
+    label: "Faster reload",
+    description: "Reduce shell cooldown by 0.1 seconds per rank.",
+    maxRank: 3,
+    effects: [
+      { key: "fireCooldownSeconds", amount: -0.1 }
+    ]
+  }),
+  createUpgradeDefinition({
+    id: "shellRange",
+    label: "Longer shell range",
+    description: "Increase shell travel range by 1 cell per rank.",
+    maxRank: 2,
+    effects: [
+      { key: "projectileMaxRangeCells", amount: 1 }
+    ]
+  }),
+  createUpgradeDefinition({
+    id: "shieldCapacity",
+    label: "Shield rack",
+    description: "Carry 1 extra shield charge per rank.",
+    maxRank: 2,
+    effects: [
+      { key: "shieldCapacity", amount: 1 }
+    ]
+  })
+]);
+
 export const DEFAULT_PROGRESSION_STATE = Object.freeze({
   xp: 0,
   level: 1,
   availableUpgradePoints: 0,
   appliedUpgrades: Object.freeze({})
 });
+
+validateUpgradeCatalog(UPGRADE_CATALOG);
+
+const UPGRADE_BY_ID = createUpgradeIndex(UPGRADE_CATALOG);
 
 export function createProgressionState(overrides = {}) {
   validateProgressionSource(overrides);
@@ -29,6 +89,39 @@ export function resetProgressionState() {
   return createProgressionState();
 }
 
+export function getUpgradeCatalog() {
+  return UPGRADE_CATALOG;
+}
+
+export function getUpgradeDefinition(upgradeId) {
+  if (typeof upgradeId !== "string" || upgradeId.length === 0) {
+    throw new Error("Upgrade id must be a non-empty string.");
+  }
+
+  const upgrade = UPGRADE_BY_ID.get(upgradeId);
+  if (!upgrade) {
+    throw new Error(`Unknown upgrade id ${upgradeId}.`);
+  }
+  return upgrade;
+}
+
+export function validateUpgradeCatalog(catalog) {
+  if (!Array.isArray(catalog)) {
+    throw new Error("Upgrade catalog must be an array.");
+  }
+
+  const seenIds = new Set();
+  for (const upgrade of catalog) {
+    validateUpgradeDefinition(upgrade);
+    if (seenIds.has(upgrade.id)) {
+      throw new Error(`Upgrade catalog contains duplicate upgrade id ${upgrade.id}.`);
+    }
+    seenIds.add(upgrade.id);
+  }
+
+  return catalog;
+}
+
 function validateProgressionSource(source) {
   if (!source || typeof source !== "object" || Array.isArray(source)) {
     throw new Error("Progression state must be an object.");
@@ -45,9 +138,73 @@ function normalizeAppliedUpgrades(appliedUpgrades) {
     if (!upgradeId) {
       throw new Error("Progression appliedUpgrades cannot include an empty id.");
     }
-    normalized[upgradeId] = normalizeNonNegativeInteger(rank, `appliedUpgrades.${upgradeId}`);
+    const upgrade = getUpgradeDefinition(upgradeId);
+    const normalizedRank = normalizeNonNegativeInteger(rank, `appliedUpgrades.${upgradeId}`);
+    if (normalizedRank > upgrade.maxRank) {
+      throw new Error(`Progression appliedUpgrades.${upgradeId} cannot exceed max rank ${upgrade.maxRank}.`);
+    }
+    normalized[upgradeId] = normalizedRank;
   }
   return normalized;
+}
+
+function createUpgradeDefinition({
+  id,
+  label,
+  description,
+  maxRank,
+  effects
+}) {
+  return Object.freeze({
+    id,
+    label,
+    description,
+    maxRank,
+    effects: Object.freeze(effects.map((effect) => Object.freeze({ ...effect })))
+  });
+}
+
+function createUpgradeIndex(catalog) {
+  return new Map(catalog.map((upgrade) => [upgrade.id, upgrade]));
+}
+
+function validateUpgradeDefinition(upgrade) {
+  if (!upgrade || typeof upgrade !== "object" || Array.isArray(upgrade)) {
+    throw new Error("Upgrade definition must be an object.");
+  }
+
+  validateNonEmptyString(upgrade.id, "id");
+  validateNonEmptyString(upgrade.label, "label");
+  validateNonEmptyString(upgrade.description, "description");
+  normalizePositiveInteger(upgrade.maxRank, `upgrade ${upgrade.id} maxRank`);
+
+  if (!Array.isArray(upgrade.effects) || upgrade.effects.length === 0) {
+    throw new Error(`Upgrade ${upgrade.id} effects must be a non-empty array.`);
+  }
+
+  for (const effect of upgrade.effects) {
+    validateUpgradeEffect(upgrade.id, effect);
+  }
+}
+
+function validateUpgradeEffect(upgradeId, effect) {
+  if (!effect || typeof effect !== "object" || Array.isArray(effect)) {
+    throw new Error(`Upgrade ${upgradeId} effect must be an object.`);
+  }
+
+  if (!UPGRADE_EFFECT_KEYS.includes(effect.key)) {
+    throw new Error(`Upgrade ${upgradeId} has unknown effect key ${effect.key}.`);
+  }
+
+  if (typeof effect.amount !== "number" || !Number.isFinite(effect.amount) || effect.amount === 0) {
+    throw new Error(`Upgrade ${upgradeId} effect amount must be a non-zero finite number.`);
+  }
+}
+
+function validateNonEmptyString(value, fieldName) {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Upgrade ${fieldName} must be a non-empty string.`);
+  }
 }
 
 function normalizePositiveInteger(value, fieldName) {
