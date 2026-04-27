@@ -1,0 +1,260 @@
+import {
+  createMovementState,
+  getVisualPosition,
+  requestMove,
+  updateMovement
+} from "./game/movement.js";
+import { createTestLevel, isBlockedCell, validatePlayerSpawn } from "./game/level.js";
+import {
+  FIRE_COOLDOWN_SECONDS,
+  PROJECTILE_SPEED_CELLS_PER_SECOND,
+  createProjectileStore,
+  spawnPointFromTank,
+  tryFireProjectile,
+  updateProjectileStore
+} from "./game/projectiles.js";
+import {
+  ENEMY_BASE_HP,
+  PROJECTILE_DAMAGE,
+  createTestTargets,
+  damageTarget,
+  findTargetHitOnSegment,
+  isEnemyBaseDestroyed,
+  isSolidEntityAt
+} from "./game/targets.js";
+import {
+  ENEMY_PROJECTILE_DAMAGE,
+  PLAYER_MAX_HP,
+  PLAYER_INVULNERABILITY_SECONDS,
+  updateEnemySentries
+} from "./game/sentries.js";
+import { validateMissionSpawn } from "./game/spawnValidation.js";
+
+const tileSize = 48;
+
+export function createGame(options = {}) {
+  const level = options.level ?? createTestLevel();
+  validatePlayerSpawn(level);
+
+  const player = createMovementState({
+    gridX: options.playerSpawn?.x ?? level.playerSpawn.x,
+    gridY: options.playerSpawn?.y ?? level.playerSpawn.y,
+    facing: options.facing ?? "right",
+    speedCellsPerSecond: options.speedCellsPerSecond ?? 4
+  });
+
+  const playerTeam = "player";
+  const targets = options.targets ?? createTestTargets();
+  if (options.validateSpawn !== false) {
+    validateMissionSpawn(level, { x: player.gridX, y: player.gridY }, targets, isBlockedCell);
+  }
+  const isBlocked = (x, y) => isBlockedCell(level, x, y);
+  const isSolid = (x, y) => isBlocked(x, y) || isSolidEntityAt(targets, x, y);
+  const canEnter = (x, y) => !isBlocked(x, y);
+  const projectiles = createProjectileStore();
+  const canEnterWithEntities = (x, y) => !isSolid(x, y);
+  const playerState = {
+    hp: options.playerHp ?? PLAYER_MAX_HP,
+    maxHp: options.playerMaxHp ?? PLAYER_MAX_HP,
+    damageFlashSeconds: 0,
+    invulnerabilityRemaining: 0
+  };
+  let missionStatus = "playing";
+  let lastShotAccepted = false;
+
+  return {
+    update(deltaSeconds, input) {
+      lastShotAccepted = false;
+      if (missionStatus === "won" || missionStatus === "lost") {
+        updateProjectileStore(projectiles, deltaSeconds, isBlocked);
+        input.consumeMoveDirection();
+        input.consumeShootIntent();
+        return;
+      }
+
+      playerState.damageFlashSeconds = Math.max(0, playerState.damageFlashSeconds - deltaSeconds);
+      playerState.invulnerabilityRemaining = Math.max(
+        0,
+        playerState.invulnerabilityRemaining - deltaSeconds
+      );
+      const wasMoving = player.isMoving;
+      updateMovement(player, deltaSeconds, canEnterWithEntities);
+      const justFinishedMove = wasMoving && !player.isMoving;
+      updateEnemySentries({
+        level,
+        entities: targets,
+        player,
+        projectileStore: projectiles,
+        deltaSeconds
+      });
+      updateProjectileStore(projectiles, deltaSeconds, isBlocked, (fromX, fromY, toX, toY, projectile) => {
+        if (projectile.team === "enemy" && segmentHitsPlayer(fromX, fromY, toX, toY, player)) {
+          if (playerState.invulnerabilityRemaining <= 0) {
+            playerState.hp = Math.max(0, playerState.hp - ENEMY_PROJECTILE_DAMAGE);
+            playerState.invulnerabilityRemaining = PLAYER_INVULNERABILITY_SECONDS;
+          }
+          playerState.damageFlashSeconds = 0.18;
+          const visual = getVisualPosition(player);
+          return {
+            x: visual.x + 0.5,
+            y: visual.y + 0.5,
+            player
+          };
+        }
+
+        const target = findTargetHitOnSegment(
+          targets,
+          fromX,
+          fromY,
+          toX,
+          toY,
+          projectile.team
+        );
+        if (!target) {
+          return null;
+        }
+
+        damageTarget(target, PROJECTILE_DAMAGE);
+        return {
+          x: target.gridX + 0.5,
+          y: target.gridY + 0.5,
+          target
+        };
+      });
+
+      if (playerState.hp <= 0) {
+        missionStatus = "lost";
+        input.consumeMoveDirection();
+        input.consumeShootIntent();
+        return;
+      }
+
+      if (isEnemyBaseDestroyed(targets)) {
+        missionStatus = "won";
+        input.consumeMoveDirection();
+        input.consumeShootIntent();
+        return;
+      }
+
+      const moveIntent = input.consumeMoveDirection();
+      if (moveIntent) {
+        requestMove(player, moveIntent, canEnterWithEntities);
+      } else if (!player.isMoving && !justFinishedMove) {
+        const heldDirection = input.getHeldMoveDirection();
+        if (heldDirection) {
+          requestMove(player, heldDirection, canEnterWithEntities);
+        }
+      }
+
+      if (input.consumeShootIntent()) {
+        lastShotAccepted = tryFireProjectile(
+          projectiles,
+          spawnPointFromTank({
+            ...player,
+            visual: getVisualPosition(player)
+          })
+        );
+      }
+    },
+
+    snapshot() {
+      return {
+        level,
+        player: {
+          ...player,
+          visual: getVisualPosition(player),
+          hp: playerState.hp,
+          maxHp: playerState.maxHp,
+          damageFlashSeconds: playerState.damageFlashSeconds,
+          invulnerabilityRemaining: playerState.invulnerabilityRemaining
+        },
+        projectiles: projectiles.projectiles,
+        impacts: projectiles.impacts,
+        targets,
+        missionStatus,
+        cooldownRemaining: projectiles.cooldownRemaining,
+        tileSize
+      };
+    },
+
+    statusText(input) {
+      const cooldownMs = Math.ceil(projectiles.cooldownRemaining * 1000);
+      const shotText = lastShotAccepted
+        ? "Shell fired."
+        : `Space: fire shell (${Math.round(FIRE_COOLDOWN_SECONDS * 1000)}ms cooldown).`;
+      const cooldownText = cooldownMs > 0 ? ` Cooldown ${cooldownMs}ms.` : "";
+      const base = targets.find((target) => target.type === "base" && target.team === "enemy");
+      const liveEnemyTanks = targets.filter((target) => (
+        target.type === "dummy"
+        && target.team === "enemy"
+        && target.alive
+      )).length;
+      const baseText = base ? ` Enemy base HP ${base.hp}/${ENEMY_BASE_HP}.` : "";
+      return `Mission ${missionStatus} - HP ${playerState.hp}/${playerState.maxHp} - Cell ${player.gridX}, ${player.gridY} - Facing ${player.facing} - Enemy tanks ${liveEnemyTanks}. ${shotText}${cooldownText}${baseText}`;
+    },
+
+    debugState() {
+      return {
+        coordinateSystem: "grid units, origin top-left, x right, y down",
+        player: {
+          gridX: player.gridX,
+          gridY: player.gridY,
+          facing: player.facing,
+          visual: getVisualPosition(player),
+          isMoving: player.isMoving,
+          moveProgress: player.moveProgress,
+          team: playerTeam,
+          type: "tank",
+          hp: playerState.hp,
+          maxHp: playerState.maxHp,
+          damageFlashSeconds: Number(playerState.damageFlashSeconds.toFixed(3)),
+          invulnerabilityRemaining: Number(playerState.invulnerabilityRemaining.toFixed(3))
+        },
+        projectiles: projectiles.projectiles
+          .filter((projectile) => projectile.active)
+          .map((projectile) => ({
+            x: Number(projectile.x.toFixed(3)),
+            y: Number(projectile.y.toFixed(3)),
+            direction: projectile.direction,
+            team: projectile.team
+          })),
+        targets: targets.map((target) => ({
+          id: target.id,
+          type: target.type,
+          team: target.team,
+          gridX: target.gridX,
+          gridY: target.gridY,
+          hp: target.hp,
+          maxHp: target.maxHp,
+          alive: target.alive,
+          destroyed: target.destroyed,
+          solid: target.solid,
+          fireCooldownRemaining: Number((target.fireCooldownRemaining ?? 0).toFixed(3)),
+          aimDirection: target.aimDirection ?? null,
+          aimRemainingSeconds: Number((target.aimRemainingSeconds ?? 0).toFixed(3))
+        })),
+        missionStatus,
+        cooldownRemaining: Number(projectiles.cooldownRemaining.toFixed(3)),
+        projectileSpeedCellsPerSecond: PROJECTILE_SPEED_CELLS_PER_SECOND
+      };
+    }
+  };
+}
+
+function segmentHitsPlayer(fromX, fromY, toX, toY, player) {
+  const visual = getVisualPosition(player);
+  const gridX = Math.floor(visual.x);
+  const gridY = Math.floor(visual.y);
+
+  if (fromY === toY && fromY >= gridY && fromY < gridY + 1) {
+    return (toX > fromX && fromX < gridX + 1 && toX >= gridX)
+      || (toX < fromX && fromX >= gridX && toX < gridX + 1);
+  }
+
+  if (fromX === toX && fromX >= gridX && fromX < gridX + 1) {
+    return (toY > fromY && fromY < gridY + 1 && toY >= gridY)
+      || (toY < fromY && fromY >= gridY && toY < gridY + 1);
+  }
+
+  return false;
+}

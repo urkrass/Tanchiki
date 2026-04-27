@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tanchiki Prototype</title>
+    <link rel="stylesheet" href="./src/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="game-view" aria-labelledby="title">
+        <div class="game-copy">
+          <p class="eyebrow">Prototype</p>
+          <h1 id="title">Tanchiki</h1>
+          <p>Move cell by cell through a compact test maze. Hold or tap Arrow keys/WASD; Space is reserved for shooting.</p>
+        </div>
+        <canvas id="game" width="720" height="528" aria-label="Playable Tanchiki canvas"></canvas>
+        <p id="status" class="status" aria-live="polite"></p>
+      </section>
+    </main>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

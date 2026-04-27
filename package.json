@@ -1,0 +1,12 @@
+{
+  "name": "tanchiki",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev-server.js",
+    "build": "node --check scripts/dev-server.js && node --check src/main.js && node --check src/game.js && node --check src/input.js && node --check src/render.js && node --check src/game/level.js && node --check src/game/movement.js && node --check src/game/projectiles.js && node --check src/game/sentries.js && node --check src/game/spawnValidation.js && node --check src/game/targets.js && node --check test/game.test.js && node --check test/movement.test.js && node --check test/projectiles.test.js && node --check test/sentries.test.js && node --check test/spawnValidation.test.js && node --check test/targets.test.js",
+    "test": "node --test",
+    "lint": "node --check scripts/dev-server.js && node --check src/main.js && node --check src/game.js && node --check src/input.js && node --check src/render.js && node --check src/game/level.js && node --check src/game/movement.js && node --check src/game/projectiles.js && node --check src/game/sentries.js && node --check src/game/spawnValidation.js && node --check src/game/targets.js && node --check test/game.test.js && node --check test/movement.test.js && node --check test/projectiles.test.js && node --check test/sentries.test.js && node --check test/spawnValidation.test.js && node --check test/targets.test.js"
+  }
+}
