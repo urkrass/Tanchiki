@@ -24,6 +24,7 @@ Progress:
 - MAR-52 validation pass: `npm test`, `npm run build`, and `npm run lint` all passed; `src/game/movement.js` remained unchanged.
 - MAR-53 mission summary screen: added snapshot-driven victory, failure, and campaign-complete summaries with level, HP, enemy base status, enemies destroyed, and next action data. Campaign-complete uses the current supported `R` behavior: replay the final level rather than restart the full campaign.
 - MAR-53 validation pass: `npm test`, `npm run build`, and `npm run lint` all passed; `src/game/movement.js` remained unchanged.
+- MAR-53 PR follow-up: added regression coverage that the loss summary remains failure-only, does not advance levels, and never advertises the victory continue action.
 
 TODO:
 - Next patch candidates: projectile cleanup policy, target score/rewards, moving enemy AI, destructible props, or sound effects.

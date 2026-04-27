@@ -117,6 +117,23 @@ test("loss does not advance the current level", () => {
   assert.equal(harness.game.debugState().currentLevelIndex, 0);
 });
 
+test("loss summary remains separate from victory and continue actions", () => {
+  const harness = createCampaignHarness({ levelIndex: 0, playerHp: 0 });
+
+  harness.advanceStep();
+
+  const state = harness.game.debugState();
+  const summary = harness.game.snapshot().missionSummary;
+
+  assert.equal(state.missionStatus, "lost");
+  assert.equal(state.canAdvanceLevel, false);
+  assert.equal(summary.result, "failed");
+  assert.equal(summary.title, "Mission failed");
+  assert.equal(summary.nextAction, "Press R to restart current level");
+  assert.notEqual(summary.result, "victory");
+  assert.doesNotMatch(summary.nextAction, /next level/i);
+});
+
 test("enemy destroyed count and HP remaining are tracked in the summary", () => {
   const harness = createCampaignHarness({ levelIndex: 0, playerHp: 2 });
   const state = harness.game.snapshot();
