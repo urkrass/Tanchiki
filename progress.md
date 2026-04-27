@@ -16,6 +16,8 @@ Progress:
 - Added mission status, enemy base win condition, solid live enemy entities, and `R` restart.
 - HTTP check confirmed the dev server responds on `http://localhost:5173`; Playwright MCP transport was closed during this pass, so browser visual verification could not be completed.
 - Added enemy sentry firing, player HP, loss state, enemy projectile damage, and row/column line-of-sight checks. Solid live entities block sentry line of sight.
+- Added combat fairness pass: spawn safety validation, 0.45s enemy wind-up, red warning line, 0.55s player invulnerability, slower 3.5 cells/sec enemy shells, and loss/victory restart prompts.
+- Adjusted the first sentry from `(4,1)` to `(4,3)` so the player no longer spawns in immediate enemy line of sight.
 
 TODO:
 - Next patch candidates: projectile cleanup policy, target score/rewards, moving enemy AI, destructible props, or sound effects.

@@ -18,10 +18,12 @@ It contains:
 - `src/game/movement.js` - minimal grid movement state module.
 - `src/game/projectiles.js` - shell spawning, cooldown, travel, range, and wall collisions.
 - `src/game/sentries.js` - stationary enemy line-of-sight firing and player damage constants.
+- `src/game/spawnValidation.js` - mission-start safety checks.
 - `src/game/targets.js` - stationary dummy targets and damage rules.
 - `test/movement.test.js` - movement behavior tests.
 - `test/projectiles.test.js` - projectile and shooting behavior tests.
 - `test/sentries.test.js` - enemy sentry and line-of-sight behavior tests.
+- `test/spawnValidation.test.js` - safe mission-start validation tests.
 - `test/targets.test.js` - dummy target hit/damage behavior tests.
 
 Important: the included PNG is a style board/reference. It contains labels, grey background, and irregular layout. Codex should not treat it as a finished transparent sprite atlas unless it first builds a clean slicing/extraction workflow or replaces it with clean generated assets.

@@ -23,10 +23,12 @@ Do not implement additional gameplay until the handoff files have been read and 
 - `src/game/movement.js` owns canonical grid movement state and visual interpolation.
 - `src/game/projectiles.js` owns shell spawning, cooldown, travel, range, and wall collisions.
 - `src/game/sentries.js` owns stationary enemy line-of-sight firing rules.
+- `src/game/spawnValidation.js` owns mission-start safety validation.
 - `src/game/targets.js` owns stationary target state and damage rules.
 - `test/movement.test.js` verifies movement invariants.
 - `test/projectiles.test.js` verifies projectile and shooting invariants.
 - `test/sentries.test.js` verifies sentry line-of-sight and firing behavior.
+- `test/spawnValidation.test.js` verifies safe mission-start constraints.
 - `test/targets.test.js` verifies dummy target hit and damage behavior.
 - `AGENTS.md` records repository working rules for future agents.
 
