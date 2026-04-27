@@ -1,0 +1,73 @@
+{
+  "meta": {
+    "tileSize": 32,
+    "style": "top-down tactical pixel art",
+    "background": "transparent",
+    "note": "Template manifest. Replace coordinates after clean production sprite sheets are created."
+  },
+  "sheets": {
+    "player_tank": {
+      "image": "sprites/tanks/player.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "animations": {
+        "idle": {
+          "up": [[0, 0]],
+          "right": [[32, 0]],
+          "down": [[64, 0]],
+          "left": [[96, 0]]
+        },
+        "move": {
+          "up": [[0, 32], [32, 32], [64, 32], [96, 32]],
+          "right": [[0, 64], [32, 64], [64, 64], [96, 64]],
+          "down": [[0, 96], [32, 96], [64, 96], [96, 96]],
+          "left": [[0, 128], [32, 128], [64, 128], [96, 128]]
+        },
+        "shoot": {
+          "up": [[0, 160], [32, 160]],
+          "right": [[64, 160], [96, 160]],
+          "down": [[128, 160], [160, 160]],
+          "left": [[192, 160], [224, 160]]
+        },
+        "destroyed": {
+          "any": [[0, 192], [32, 192], [64, 192], [96, 192], [128, 192], [160, 192]]
+        }
+      }
+    },
+    "projectiles": {
+      "image": "sprites/projectiles/projectiles.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "animations": {
+        "bullet": {
+          "up": [[0, 0]],
+          "right": [[32, 0]],
+          "down": [[64, 0]],
+          "left": [[96, 0]]
+        },
+        "shell": {
+          "up": [[0, 32]],
+          "right": [[32, 32]],
+          "down": [[64, 32]],
+          "left": [[96, 32]]
+        }
+      }
+    },
+    "effects": {
+      "image": "sprites/effects/effects.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "animations": {
+        "muzzle_flash": {
+          "any": [[0, 0], [32, 0], [64, 0]]
+        },
+        "explosion": {
+          "any": [[0, 32], [32, 32], [64, 32], [96, 32], [128, 32], [160, 32]]
+        },
+        "smoke": {
+          "any": [[0, 64], [32, 64], [64, 64], [96, 64]]
+        }
+      }
+    }
+  }
+}
