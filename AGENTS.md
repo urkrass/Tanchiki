@@ -147,6 +147,18 @@ Current history uses a plain descriptive commit style, for example `Initial Tanc
 
 Pull requests should include a concise summary, changed files or systems, manual test steps, and screenshots or clips for visible gameplay or asset changes. Link issues when available.
 
+Level 1 PR workflow:
+
+- Use one issue per PR.
+- Keep PRs small and reviewable.
+- Use `.github/pull_request_template.md`.
+- Follow `ops/policies/level-1-agent-boundaries.md`.
+- GitHub Actions must pass `npm test`, `npm run build`, and `npm run lint` before merge.
+- Do not push to `main`.
+- Do not force push unless explicitly approved.
+- Do not include broad refactors or unrelated cleanup.
+- Do not rewrite `src/game/movement.js` unless the issue explicitly requires it or a failing test proves it is necessary.
+
 ## Git Discipline
 
 - Before editing files, inspect `git status --short`.
