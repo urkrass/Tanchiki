@@ -25,6 +25,15 @@ test("spawn validation fails if enemy has direct LOS to spawn", () => {
   );
 });
 
+test("spawn validation uses the tuned enemy LOS range", () => {
+  assert.doesNotThrow(() => validateMissionSpawn(
+    wideSafeLevel(),
+    { x: 1, y: 1 },
+    [createTarget({ id: "distant-sentry", gridX: 8, gridY: 1 })],
+    isBlockedCell
+  ));
+});
+
 test("spawn validation fails if spawn is inside a wall", () => {
   assert.throws(
     () => validateMissionSpawn(safeLevel(), { x: 0, y: 0 }, [], isBlockedCell),
@@ -72,6 +81,21 @@ function safeLevel() {
       "#.###.#",
       "#.....#",
       "#######"
+    ],
+    playerSpawn: { x: 1, y: 1 }
+  };
+}
+
+function wideSafeLevel() {
+  return {
+    width: 10,
+    height: 5,
+    tiles: [
+      "##########",
+      "#P.......#",
+      "#.###....#",
+      "#........#",
+      "##########"
     ],
     playerSpawn: { x: 1, y: 1 }
   };

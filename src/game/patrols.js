@@ -1,8 +1,9 @@
 import { DIRECTIONS } from "./movement.js";
 import { entityOccupiesPursuitCell } from "./pursuit.js";
+import { ENEMY_PATROL_SPEED_CELLS_PER_SECOND } from "./combatTuning.js";
 
 const VALID_DIRECTIONS = Object.keys(DIRECTIONS);
-const DEFAULT_PATROL_SPEED_CELLS_PER_SECOND = 2;
+const DEFAULT_PATROL_SPEED_CELLS_PER_SECOND = ENEMY_PATROL_SPEED_CELLS_PER_SECOND;
 
 export function updateEnemyPatrols({
   level,

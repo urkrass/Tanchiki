@@ -1,4 +1,4 @@
-import { hasLineOfSight } from "./sentries.js";
+import { ENEMY_LINE_OF_SIGHT_RANGE_CELLS, hasLineOfSight } from "./sentries.js";
 import { isSolidEntityAt } from "./targets.js";
 
 const adjacentOffsets = [
@@ -22,7 +22,15 @@ export function validateMissionSpawn(level, spawn, entities, isBlockedCell) {
       continue;
     }
     const blockers = entities.filter((candidate) => candidate.id !== entity.id);
-    if (hasLineOfSight(level, entity.gridX, entity.gridY, spawn.x, spawn.y, blockers)) {
+    if (hasLineOfSight(
+      level,
+      entity.gridX,
+      entity.gridY,
+      spawn.x,
+      spawn.y,
+      blockers,
+      entity.lineOfSightRangeCells ?? ENEMY_LINE_OF_SIGHT_RANGE_CELLS
+    )) {
       throw new Error(`Invalid player spawn in enemy line of sight from ${entity.id}`);
     }
   }

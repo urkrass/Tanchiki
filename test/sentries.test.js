@@ -4,7 +4,9 @@ import { createProjectile, updateProjectile } from "../src/game/projectiles.js";
 import {
   ENEMY_FIRE_COOLDOWN_SECONDS,
   ENEMY_FIRE_WINDUP_SECONDS,
+  ENEMY_LINE_OF_SIGHT_RANGE_CELLS,
   ENEMY_PROJECTILE_DAMAGE,
+  ENEMY_PROJECTILE_MAX_RANGE_CELLS,
   ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
   PLAYER_INVULNERABILITY_SECONDS,
   hasLineOfSight,
@@ -31,6 +33,13 @@ test("solid entities block line of sight", () => {
   const blocker = createTarget({ id: "blocker", gridX: 2, gridY: 1 });
 
   assert.equal(hasLineOfSight(openLevel(), 1, 1, 4, 1, [blocker]), false);
+});
+
+test("enemy line of sight respects tuned maximum range", () => {
+  assert.equal(
+    hasLineOfSight(wideOpenLevel(), 1, 1, 8, 1, [], ENEMY_LINE_OF_SIGHT_RANGE_CELLS),
+    false
+  );
 });
 
 test("enemy wind-up starts when LOS exists", () => {
@@ -105,6 +114,7 @@ test("enemy fires only after wind-up and cooldown", () => {
   assert.equal(store.projectiles.length, 1);
   assert.equal(store.projectiles[0].team, "enemy");
   assert.equal(store.projectiles[0].speedCellsPerSecond, ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND);
+  assert.equal(store.projectiles[0].maxRangeCells, ENEMY_PROJECTILE_MAX_RANGE_CELLS);
 });
 
 test("patrol enemy still uses sentry line-of-sight firing rules", () => {
@@ -143,9 +153,11 @@ test("enemy projectile damage value is defined", () => {
 });
 
 test("enemy combat tuning keeps readable warning windows", () => {
-  assert.equal(ENEMY_FIRE_WINDUP_SECONDS, 0.6);
-  assert.equal(ENEMY_FIRE_COOLDOWN_SECONDS, 1.45);
-  assert.equal(ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND, 3);
+  assert.equal(ENEMY_FIRE_WINDUP_SECONDS, 0.7);
+  assert.equal(ENEMY_FIRE_COOLDOWN_SECONDS, 1.6);
+  assert.equal(ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND, 2.75);
+  assert.equal(ENEMY_PROJECTILE_MAX_RANGE_CELLS, 7);
+  assert.equal(ENEMY_LINE_OF_SIGHT_RANGE_CELLS, 6);
   assert.equal(PLAYER_INVULNERABILITY_SECONDS, 0.7);
 });
 
@@ -182,6 +194,20 @@ function openLevel() {
       "#.....#",
       "#.....#",
       "#######"
+    ]
+  };
+}
+
+function wideOpenLevel() {
+  return {
+    width: 10,
+    height: 5,
+    tiles: [
+      "##########",
+      "#........#",
+      "#........#",
+      "#........#",
+      "##########"
     ]
   };
 }

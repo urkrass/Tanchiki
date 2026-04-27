@@ -31,8 +31,12 @@ import {
 import {
   ENEMY_FIRE_COOLDOWN_SECONDS,
   ENEMY_FIRE_WINDUP_SECONDS,
+  ENEMY_LINE_OF_SIGHT_RANGE_CELLS,
   ENEMY_PROJECTILE_DAMAGE,
+  ENEMY_PROJECTILE_MAX_RANGE_CELLS,
   ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
+  ENEMY_PATROL_SPEED_CELLS_PER_SECOND,
+  ENEMY_PURSUIT_SPEED_CELLS_PER_SECOND,
   PLAYER_DAMAGE_FLASH_SECONDS,
   PLAYER_MAX_HP,
   PLAYER_INVULNERABILITY_SECONDS
@@ -333,8 +337,12 @@ export function createGame(options = {}) {
         combatTuning: {
           enemyProjectileDamage: ENEMY_PROJECTILE_DAMAGE,
           enemyProjectileSpeedCellsPerSecond: ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
+          enemyProjectileMaxRangeCells: ENEMY_PROJECTILE_MAX_RANGE_CELLS,
           enemyFireCooldownSeconds: ENEMY_FIRE_COOLDOWN_SECONDS,
           enemyFireWindupSeconds: ENEMY_FIRE_WINDUP_SECONDS,
+          enemyLineOfSightRangeCells: ENEMY_LINE_OF_SIGHT_RANGE_CELLS,
+          enemyPatrolSpeedCellsPerSecond: ENEMY_PATROL_SPEED_CELLS_PER_SECOND,
+          enemyPursuitSpeedCellsPerSecond: ENEMY_PURSUIT_SPEED_CELLS_PER_SECOND,
           playerInvulnerabilitySeconds: PLAYER_INVULNERABILITY_SECONDS,
           playerDamageFlashSeconds: PLAYER_DAMAGE_FLASH_SECONDS
         }
