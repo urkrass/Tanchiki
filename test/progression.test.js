@@ -2,9 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULT_PROGRESSION_STATE,
+  UPGRADE_CATALOG,
+  UPGRADE_EFFECT_KEYS,
   cloneProgressionState,
   createProgressionState,
-  resetProgressionState
+  getUpgradeCatalog,
+  getUpgradeDefinition,
+  resetProgressionState,
+  validateUpgradeCatalog
 } from "../src/game/progression.js";
 
 test("default progression state is empty and deterministic", () => {
@@ -72,5 +77,92 @@ test("progression state rejects invalid values", () => {
   assert.throws(
     () => createProgressionState({ appliedUpgrades: { armor: -1 } }),
     /appliedUpgrades\.armor must be a non-negative integer/
+  );
+});
+
+test("upgrade catalog defines small deterministic upgrades", () => {
+  assert.equal(getUpgradeCatalog(), UPGRADE_CATALOG);
+  assert.equal(UPGRADE_CATALOG.length, 5);
+
+  const ids = UPGRADE_CATALOG.map((upgrade) => upgrade.id);
+  assert.deepEqual(ids, [
+    "armor",
+    "repair",
+    "reload",
+    "shellRange",
+    "shieldCapacity"
+  ]);
+
+  for (const upgrade of UPGRADE_CATALOG) {
+    assert.equal(typeof upgrade.id, "string");
+    assert.equal(typeof upgrade.label, "string");
+    assert.equal(typeof upgrade.description, "string");
+    assert.ok(upgrade.maxRank > 0);
+    assert.ok(upgrade.effects.length > 0);
+
+    for (const effect of upgrade.effects) {
+      assert.ok(UPGRADE_EFFECT_KEYS.includes(effect.key));
+      assert.equal(typeof effect.amount, "number");
+    }
+  }
+});
+
+test("upgrade definitions are looked up by known id only", () => {
+  assert.equal(getUpgradeDefinition("armor").label, "Reinforced armor");
+  assert.throws(() => getUpgradeDefinition("unknown"), /Unknown upgrade id unknown/);
+  assert.throws(() => getUpgradeDefinition(""), /non-empty string/);
+});
+
+test("progression state rejects unknown upgrade ids and ranks above max", () => {
+  assert.throws(
+    () => createProgressionState({ appliedUpgrades: { unknown: 1 } }),
+    /Unknown upgrade id unknown/
+  );
+  assert.throws(
+    () => createProgressionState({ appliedUpgrades: { armor: 3 } }),
+    /armor cannot exceed max rank 2/
+  );
+});
+
+test("upgrade catalog validation rejects duplicate ids and invalid definitions", () => {
+  assert.equal(validateUpgradeCatalog(UPGRADE_CATALOG), UPGRADE_CATALOG);
+  assert.throws(
+    () => validateUpgradeCatalog([
+      ...UPGRADE_CATALOG,
+      {
+        ...UPGRADE_CATALOG[0],
+        effects: [...UPGRADE_CATALOG[0].effects]
+      }
+    ]),
+    /duplicate upgrade id armor/
+  );
+  assert.throws(() => validateUpgradeCatalog({}), /must be an array/);
+  assert.throws(
+    () => validateUpgradeCatalog([
+      {
+        id: "bad",
+        label: "Bad",
+        description: "Invalid test upgrade.",
+        maxRank: 0,
+        effects: [
+          { key: "maxHp", amount: 1 }
+        ]
+      }
+    ]),
+    /maxRank must be a positive integer/
+  );
+  assert.throws(
+    () => validateUpgradeCatalog([
+      {
+        id: "bad",
+        label: "Bad",
+        description: "Invalid test upgrade.",
+        maxRank: 1,
+        effects: [
+          { key: "mystery", amount: 1 }
+        ]
+      }
+    ]),
+    /unknown effect key mystery/
   );
 });
