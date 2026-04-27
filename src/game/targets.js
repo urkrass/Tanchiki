@@ -16,11 +16,21 @@ export function createEntity({
   team = "enemy",
   type = "dummy",
   solid = true,
+  facing = "up",
   fireCooldownSeconds = ENEMY_FIRE_COOLDOWN_SECONDS,
   fireCooldownRemaining = 0,
   windupSeconds = ENEMY_FIRE_WINDUP_SECONDS,
   aimDirection = null,
-  aimRemainingSeconds = 0
+  aimRemainingSeconds = 0,
+  patrolRoute = null,
+  patrolSpeedCellsPerSecond,
+  patrolTargetIndex = 1,
+  isPatrolling = false,
+  fromX = gridX,
+  fromY = gridY,
+  toX = gridX,
+  toY = gridY,
+  patrolProgress = 0
 }) {
   return {
     id,
@@ -31,11 +41,21 @@ export function createEntity({
     team,
     type,
     solid,
+    facing,
     fireCooldownSeconds,
     fireCooldownRemaining,
     windupSeconds,
     aimDirection,
     aimRemainingSeconds,
+    patrolRoute: patrolRoute ? patrolRoute.map((cell) => ({ x: cell.x, y: cell.y })) : null,
+    patrolSpeedCellsPerSecond,
+    patrolTargetIndex,
+    isPatrolling,
+    fromX,
+    fromY,
+    toX,
+    toY,
+    patrolProgress,
     alive: true,
     destroyed: false
   };
@@ -112,8 +132,10 @@ export function isSolidEntityAt(entities, x, y) {
   return entities.some((entity) => (
     entity.alive
     && entity.solid
-    && entity.gridX === x
-    && entity.gridY === y
+    && (
+      (entity.gridX === x && entity.gridY === y)
+      || (entity.isPatrolling && entity.toX === x && entity.toY === y)
+    )
   ));
 }
 

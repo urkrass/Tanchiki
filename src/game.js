@@ -38,6 +38,7 @@ import {
   PLAYER_INVULNERABILITY_SECONDS
 } from "./game/combatTuning.js";
 import { updateEnemySentries } from "./game/sentries.js";
+import { getPatrolVisualPosition, updateEnemyPatrols } from "./game/patrols.js";
 import { validateMissionSpawn } from "./game/spawnValidation.js";
 
 const tileSize = 48;
@@ -147,6 +148,13 @@ export function createGame(options = {}) {
       const wasMoving = player.isMoving;
       updateMovement(player, deltaSeconds, canEnterWithEntities);
       const justFinishedMove = wasMoving && !player.isMoving;
+      updateEnemyPatrols({
+        level,
+        entities: targets,
+        player,
+        deltaSeconds,
+        isBlockedCell
+      });
       updateEnemySentries({
         level,
         entities: targets,
@@ -237,7 +245,7 @@ export function createGame(options = {}) {
         },
         projectiles: projectiles.projectiles,
         impacts: projectiles.impacts,
-        targets,
+        targets: targets.map(addTargetVisual),
         missionStatus,
         cooldownRemaining: projectiles.cooldownRemaining,
         tileSize
@@ -310,21 +318,7 @@ export function createGame(options = {}) {
             direction: projectile.direction,
             team: projectile.team
           })),
-        targets: targets.map((target) => ({
-          id: target.id,
-          type: target.type,
-          team: target.team,
-          gridX: target.gridX,
-          gridY: target.gridY,
-          hp: target.hp,
-          maxHp: target.maxHp,
-          alive: target.alive,
-          destroyed: target.destroyed,
-          solid: target.solid,
-          fireCooldownRemaining: Number((target.fireCooldownRemaining ?? 0).toFixed(3)),
-          aimDirection: target.aimDirection ?? null,
-          aimRemainingSeconds: Number((target.aimRemainingSeconds ?? 0).toFixed(3))
-        })),
+        targets: targets.map(createDebugTargetSnapshot),
         missionStatus,
         cooldownRemaining: Number(projectiles.cooldownRemaining.toFixed(3)),
         projectileSpeedCellsPerSecond: PROJECTILE_SPEED_CELLS_PER_SECOND,
@@ -368,6 +362,36 @@ function createLevelGame(options, levelIndex) {
     targets: mission.targets,
     playerSpawn: mission.level.playerSpawn
   });
+}
+
+function addTargetVisual(target) {
+  target.visual = getPatrolVisualPosition(target);
+  return target;
+}
+
+function createDebugTargetSnapshot(target) {
+  const visual = getPatrolVisualPosition(target);
+  return {
+    id: target.id,
+    type: target.type,
+    team: target.team,
+    gridX: target.gridX,
+    gridY: target.gridY,
+    visual,
+    facing: target.facing ?? "up",
+    hp: target.hp,
+    maxHp: target.maxHp,
+    alive: target.alive,
+    destroyed: target.destroyed,
+    solid: target.solid,
+    patrolRoute: target.patrolRoute ?? null,
+    patrolTargetIndex: target.patrolTargetIndex ?? null,
+    isPatrolling: target.isPatrolling ?? false,
+    patrolProgress: Number((target.patrolProgress ?? 0).toFixed(3)),
+    fireCooldownRemaining: Number((target.fireCooldownRemaining ?? 0).toFixed(3)),
+    aimDirection: target.aimDirection ?? null,
+    aimRemainingSeconds: Number((target.aimRemainingSeconds ?? 0).toFixed(3))
+  };
 }
 
 function normalizeLevelIndex(levelIndex, levelCount) {

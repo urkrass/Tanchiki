@@ -107,6 +107,37 @@ test("enemy fires only after wind-up and cooldown", () => {
   assert.equal(store.projectiles[0].speedCellsPerSecond, ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND);
 });
 
+test("patrol enemy still uses sentry line-of-sight firing rules", () => {
+  const sentry = createTarget({
+    id: "patrol-sentry",
+    gridX: 1,
+    gridY: 1,
+    patrolRoute: [
+      { x: 1, y: 1 },
+      { x: 2, y: 1 }
+    ]
+  });
+  const store = { projectiles: [] };
+
+  updateEnemySentries({
+    level: openLevel(),
+    entities: [sentry],
+    player: { gridX: 4, gridY: 1 },
+    projectileStore: store,
+    deltaSeconds: 0.1
+  });
+  updateEnemySentries({
+    level: openLevel(),
+    entities: [sentry],
+    player: { gridX: 4, gridY: 1 },
+    projectileStore: store,
+    deltaSeconds: ENEMY_FIRE_WINDUP_SECONDS
+  });
+
+  assert.equal(store.projectiles.length, 1);
+  assert.equal(store.projectiles[0].team, "enemy");
+});
+
 test("enemy projectile damage value is defined", () => {
   assert.equal(ENEMY_PROJECTILE_DAMAGE, 1);
 });

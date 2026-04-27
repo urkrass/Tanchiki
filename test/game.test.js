@@ -301,6 +301,86 @@ test("debug state exposes combat fairness tuning", () => {
   });
 });
 
+test("snapshot exposes interpolated patrol target visual position", () => {
+  const patrol = createTarget({
+    id: "patrol",
+    gridX: 1,
+    gridY: 1,
+    patrolRoute: [
+      { x: 1, y: 1 },
+      { x: 2, y: 1 }
+    ],
+    patrolSpeedCellsPerSecond: 2
+  });
+  const harness = createHarness({
+    x: 5,
+    y: 3,
+    facing: "left",
+    targets: [patrol]
+  });
+
+  harness.advance(0.13);
+
+  const [target] = harness.snapshot().targets;
+  assert.equal(target.gridX, 1);
+  assert.ok(target.visual.x > 1 && target.visual.x < 2);
+  assert.equal(target.visual.y, 1);
+});
+
+test("player cannot move into a patrol enemy reserved target cell", () => {
+  const patrol = createTarget({
+    id: "patrol",
+    gridX: 3,
+    gridY: 1,
+    patrolRoute: [
+      { x: 3, y: 1 },
+      { x: 2, y: 1 }
+    ],
+    patrolSpeedCellsPerSecond: 1
+  });
+  const harness = createHarness({
+    x: 1,
+    y: 1,
+    facing: "right",
+    targets: [patrol],
+    validateSpawn: false
+  });
+
+  harness.advance(0.1);
+  harness.keyDown("ArrowRight");
+  harness.keyUp("ArrowRight");
+  harness.advance(0.5);
+
+  assert.equal(harness.player().gridX, 1);
+  assert.equal(harness.player().gridY, 1);
+});
+
+test("patrol enemy waits when the player occupies the next route cell", () => {
+  const patrol = createTarget({
+    id: "patrol",
+    gridX: 2,
+    gridY: 1,
+    patrolRoute: [
+      { x: 2, y: 1 },
+      { x: 1, y: 1 }
+    ],
+    patrolSpeedCellsPerSecond: 2
+  });
+  const harness = createHarness({
+    x: 1,
+    y: 1,
+    facing: "right",
+    targets: [patrol],
+    validateSpawn: false
+  });
+
+  harness.advance(0.5);
+
+  const [target] = harness.snapshot().targets;
+  assert.equal(target.gridX, 2);
+  assert.equal(target.isPatrolling, false);
+});
+
 test("player HP reaching zero sets mission status to lost", () => {
   const sentry = createTarget({ id: "sentry", gridX: 3, gridY: 1 });
   const harness = createHarness({

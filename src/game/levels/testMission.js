@@ -48,7 +48,14 @@ export const TEST_MISSION_SCHEMA = {
       hp: 2,
       solid: true,
       fireCooldownSeconds: 1.45,
-      windupSeconds: 0.6
+      windupSeconds: 0.6,
+      patrolRoute: [
+        { x: 10, y: 9 },
+        { x: 9, y: 9 },
+        { x: 8, y: 9 },
+        { x: 9, y: 9 }
+      ],
+      patrolSpeedCellsPerSecond: 2
     },
     {
       id: "enemy-base",
