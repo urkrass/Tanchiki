@@ -225,7 +225,7 @@ export function createGame(options = {}) {
     },
 
     snapshot() {
-      return {
+      const state = {
         level,
         player: {
           ...player,
@@ -241,6 +241,15 @@ export function createGame(options = {}) {
         missionStatus,
         cooldownRemaining: projectiles.cooldownRemaining,
         tileSize
+      };
+      return {
+        ...state,
+        missionSummary: createMissionSummary({
+          ...state,
+          levelNumber: 1,
+          levelCount: 1,
+          canAdvanceLevel: false
+        })
       };
     },
 
@@ -272,8 +281,13 @@ export function createGame(options = {}) {
     },
 
     debugState() {
-      return {
+      const state = {
         coordinateSystem: "grid units, origin top-left, x right, y down",
+        level: {
+          id: level.id,
+          width: level.width,
+          height: level.height
+        },
         player: {
           gridX: player.gridX,
           gridY: player.gridY,
@@ -323,6 +337,18 @@ export function createGame(options = {}) {
           playerDamageFlashSeconds: PLAYER_DAMAGE_FLASH_SECONDS
         }
       };
+      return {
+        ...state,
+        missionSummary: createMissionSummary({
+          level,
+          player: state.player,
+          targets,
+          missionStatus,
+          levelNumber: 1,
+          levelCount: 1,
+          canAdvanceLevel: false
+        })
+      };
     }
   };
 }
@@ -353,7 +379,7 @@ function normalizeLevelIndex(levelIndex, levelCount) {
 }
 
 function addCampaignState(state, currentLevelIndex, levelCount, missionStatus) {
-  return {
+  const campaignState = {
     ...state,
     missionStatus,
     currentLevelIndex,
@@ -361,6 +387,90 @@ function addCampaignState(state, currentLevelIndex, levelCount, missionStatus) {
     levelCount,
     canAdvanceLevel: missionStatus === "won" && currentLevelIndex < levelCount - 1
   };
+  return {
+    ...campaignState,
+    missionSummary: createMissionSummary(campaignState)
+  };
+}
+
+export function createMissionSummary({
+  missionStatus,
+  level,
+  player,
+  targets,
+  levelNumber = 1,
+  levelCount = 1,
+  canAdvanceLevel = false
+}) {
+  if (missionStatus !== "won" && missionStatus !== "lost" && missionStatus !== "campaign-complete") {
+    return null;
+  }
+
+  const enemyBase = targets.find((target) => target.type === "base" && target.team === "enemy");
+  const hpRemaining = player.hp;
+  const maxHp = player.maxHp;
+  const enemiesDestroyed = targets.filter((target) => (
+    target.team === "enemy"
+    && target.type !== "base"
+    && target.destroyed
+  )).length;
+
+  if (missionStatus === "campaign-complete") {
+    return {
+      result: "campaign complete",
+      title: "Campaign complete",
+      levelLabel: `Level ${levelNumber}/${levelCount}`,
+      levelId: level?.id ?? null,
+      hpRemaining,
+      maxHp,
+      enemyBaseStatus: describeEnemyBase(enemyBase),
+      enemiesDestroyed,
+      failureReason: null,
+      nextAction: "Press R to replay the final level"
+    };
+  }
+
+  if (missionStatus === "lost") {
+    return {
+      result: "failed",
+      title: "Mission failed",
+      levelLabel: `Level ${levelNumber}/${levelCount}`,
+      levelId: level?.id ?? null,
+      hpRemaining,
+      maxHp,
+      enemyBaseStatus: describeEnemyBase(enemyBase),
+      enemiesDestroyed,
+      failureReason: "Player tank destroyed",
+      nextAction: "Press R to restart current level"
+    };
+  }
+
+  return {
+    result: "victory",
+    title: "Mission complete",
+    levelLabel: `Level ${levelNumber}/${levelCount}`,
+    levelId: level?.id ?? null,
+    hpRemaining,
+    maxHp,
+    enemyBaseStatus: describeEnemyBase(enemyBase),
+    enemiesDestroyed,
+    failureReason: null,
+    nextAction: canAdvanceLevel
+      ? "Press N or Enter for next level"
+      : "Press R to replay the final level"
+  };
+}
+
+function describeEnemyBase(enemyBase) {
+  if (!enemyBase) {
+    return "No enemy base";
+  }
+
+  if (enemyBase.destroyed) {
+    return "Destroyed";
+  }
+
+  return `HP ${enemyBase.hp}/${enemyBase.maxHp}`;
 }
 
 function segmentHitsPlayer(fromX, fromY, toX, toY, player) {

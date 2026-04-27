@@ -1,5 +1,5 @@
 export function renderGame(context, snapshot) {
-  const { level, player, projectiles, impacts, targets, missionStatus, tileSize } = snapshot;
+  const { level, player, projectiles, impacts, targets, missionSummary, tileSize } = snapshot;
   const width = level.width * tileSize;
   const height = level.height * tileSize;
 
@@ -17,7 +17,7 @@ export function renderGame(context, snapshot) {
   drawProjectiles(context, projectiles, tileSize);
   drawImpacts(context, impacts, tileSize);
   drawTank(context, player, tileSize);
-  drawMissionMessage(context, missionStatus, width, height);
+  drawMissionSummary(context, missionSummary, width, height);
 }
 
 function drawFloor(context, width, height) {
@@ -152,41 +152,68 @@ function colorForTarget(target) {
   return "#8d3e34";
 }
 
-function drawMissionMessage(context, missionStatus, width, height) {
-  if (missionStatus !== "won" && missionStatus !== "lost" && missionStatus !== "campaign-complete") {
+function drawMissionSummary(context, summary, width, height) {
+  if (!summary) {
     return;
   }
 
-  context.fillStyle = "rgba(247, 244, 234, 0.86)";
-  context.fillRect(0, height / 2 - 48, width, 96);
+  const panelWidth = Math.min(width - 72, 520);
+  const panelHeight = summary.failureReason ? 268 : 244;
+  const panelX = (width - panelWidth) / 2;
+  const panelY = (height - panelHeight) / 2;
+
+  context.fillStyle = "rgba(247, 244, 234, 0.94)";
+  context.fillRect(panelX, panelY, panelWidth, panelHeight);
+  context.strokeStyle = "rgba(31, 36, 29, 0.22)";
+  context.lineWidth = 2;
+  context.strokeRect(panelX + 0.5, panelY + 0.5, panelWidth - 1, panelHeight - 1);
+
   context.fillStyle = "#1f241d";
-  context.font = "700 34px system-ui, sans-serif";
+  context.font = "700 30px system-ui, sans-serif";
   context.textAlign = "center";
-  context.fillText(titleForMissionStatus(missionStatus), width / 2, height / 2 - 4);
-  context.font = "16px system-ui, sans-serif";
-  context.fillText(detailForMissionStatus(missionStatus), width / 2, height / 2 + 26);
-  context.fillText(promptForMissionStatus(missionStatus), width / 2, height / 2 + 50);
+  context.fillText(summary.title, width / 2, panelY + 44);
+
+  const rows = [
+    ["Result", summary.result],
+    ["Level", formatLevel(summary)],
+    ["HP remaining", `${summary.hpRemaining}/${summary.maxHp}`],
+    ["Enemy base", summary.enemyBaseStatus],
+    ["Enemies destroyed", String(summary.enemiesDestroyed)]
+  ];
+
+  if (summary.failureReason) {
+    rows.push(["Reason", summary.failureReason]);
+  }
+
+  context.textAlign = "left";
+  context.font = "15px system-ui, sans-serif";
+  let rowY = panelY + 82;
+  for (const [label, value] of rows) {
+    drawSummaryRow(context, label, value, panelX + 54, panelX + 204, rowY);
+    rowY += 28;
+  }
+
+  context.fillStyle = "#345f3c";
+  context.font = "700 17px system-ui, sans-serif";
+  context.textAlign = "center";
+  context.fillText(summary.nextAction, width / 2, panelY + panelHeight - 28);
 }
 
-function titleForMissionStatus(missionStatus) {
-  if (missionStatus === "campaign-complete") {
-    return "Campaign complete";
-  }
-  return missionStatus === "won" ? "Mission complete" : "Mission failed";
+function drawSummaryRow(context, label, value, labelX, valueX, y) {
+  context.fillStyle = "rgba(31, 36, 29, 0.62)";
+  context.font = "14px system-ui, sans-serif";
+  context.fillText(label, labelX, y);
+  context.fillStyle = "#1f241d";
+  context.font = "600 15px system-ui, sans-serif";
+  context.fillText(value, valueX, y);
 }
 
-function detailForMissionStatus(missionStatus) {
-  if (missionStatus === "campaign-complete") {
-    return "All enemy bases destroyed";
+function formatLevel(summary) {
+  if (!summary.levelId) {
+    return summary.levelLabel;
   }
-  return missionStatus === "won" ? "Enemy base destroyed" : "Player tank destroyed";
-}
 
-function promptForMissionStatus(missionStatus) {
-  if (missionStatus === "campaign-complete") {
-    return "Press R to replay final level";
-  }
-  return missionStatus === "won" ? "Press N or Enter for next level, R to restart" : "Press R to restart";
+  return `${summary.levelLabel} (${summary.levelId})`;
 }
 
 function drawProjectiles(context, projectiles, tileSize) {

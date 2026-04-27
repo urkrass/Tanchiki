@@ -22,6 +22,8 @@ Progress:
 - MAR-51 level schema pass: moved the current test mission into `TEST_MISSION_SCHEMA`, added `loadLevelSchema()` normalization/validation, routed default game setup through `createTestMission()`, preserved current level/entity behavior, and added loader tests.
 - MAR-52 multiple levels and progression: added a three-level campaign using the existing level schema, validated every campaign level before play, added current-level tracking with `N`/`Enter` advancement after victory, kept `R` scoped to current-level restart, added a final campaign-complete state, and covered progression with tests.
 - MAR-52 validation pass: `npm test`, `npm run build`, and `npm run lint` all passed; `src/game/movement.js` remained unchanged.
+- MAR-53 mission summary screen: added snapshot-driven victory, failure, and campaign-complete summaries with level, HP, enemy base status, enemies destroyed, and next action data. Campaign-complete uses the current supported `R` behavior: replay the final level rather than restart the full campaign.
+- MAR-53 validation pass: `npm test`, `npm run build`, and `npm run lint` all passed; `src/game/movement.js` remained unchanged.
 
 TODO:
 - Next patch candidates: projectile cleanup policy, target score/rewards, moving enemy AI, destructible props, or sound effects.

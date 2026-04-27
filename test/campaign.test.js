@@ -48,6 +48,20 @@ test("victory on a non-final level enables next-level transition", () => {
   assert.equal(harness.game.debugState().missionStatus, "playing");
 });
 
+test("victory summary contains level, result, and next action data", () => {
+  const harness = createCampaignHarness({ levelIndex: 0 });
+
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+
+  const summary = harness.game.snapshot().missionSummary;
+  assert.equal(summary.result, "victory");
+  assert.equal(summary.levelLabel, "Level 1/3");
+  assert.equal(summary.levelId, "test-mission");
+  assert.equal(summary.enemyBaseStatus, "Destroyed");
+  assert.equal(summary.nextAction, "Press N or Enter for next level");
+});
+
 test("campaign does not advance while the current level is still playing", () => {
   const harness = createCampaignHarness({ levelIndex: 0 });
 
@@ -67,6 +81,32 @@ test("victory on the final level sets campaign-complete state", () => {
   assert.equal(state.canAdvanceLevel, false);
 });
 
+test("campaign-complete summary appears after final level victory", () => {
+  const harness = createCampaignHarness({ levelIndex: getCampaignLevelCount() - 1 });
+
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+
+  const summary = harness.game.snapshot().missionSummary;
+  assert.equal(summary.result, "campaign complete");
+  assert.equal(summary.title, "Campaign complete");
+  assert.equal(summary.levelLabel, "Level 3/3");
+  assert.equal(summary.nextAction, "Press R to replay the final level");
+  assert.equal(harness.game.advanceLevel(), false);
+});
+
+test("loss summary contains failure reason and restart action data", () => {
+  const harness = createCampaignHarness({ levelIndex: 0, playerHp: 0 });
+
+  harness.advanceStep();
+
+  const summary = harness.game.snapshot().missionSummary;
+  assert.equal(summary.result, "failed");
+  assert.equal(summary.failureReason, "Player tank destroyed");
+  assert.equal(summary.hpRemaining, 0);
+  assert.equal(summary.nextAction, "Press R to restart current level");
+});
+
 test("loss does not advance the current level", () => {
   const harness = createCampaignHarness({ levelIndex: 0, playerHp: 0 });
 
@@ -75,6 +115,38 @@ test("loss does not advance the current level", () => {
   assert.equal(harness.game.debugState().missionStatus, "lost");
   assert.equal(harness.game.advanceLevel(), false);
   assert.equal(harness.game.debugState().currentLevelIndex, 0);
+});
+
+test("enemy destroyed count and HP remaining are tracked in the summary", () => {
+  const harness = createCampaignHarness({ levelIndex: 0, playerHp: 2 });
+  const state = harness.game.snapshot();
+  const firstSentry = state.targets.find((target) => target.id === "dummy-1");
+  const secondSentry = state.targets.find((target) => target.id === "dummy-2");
+
+  damageTarget(firstSentry, firstSentry.hp);
+  damageTarget(secondSentry, secondSentry.hp);
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+
+  const summary = harness.game.snapshot().missionSummary;
+  assert.equal(summary.enemiesDestroyed, 2);
+  assert.equal(summary.hpRemaining, 2);
+  assert.equal(summary.maxHp, 3);
+});
+
+test("advance remains limited to non-final victory states", () => {
+  const lossHarness = createCampaignHarness({ levelIndex: 0, playerHp: 0 });
+  lossHarness.advanceStep();
+
+  assert.equal(lossHarness.game.advanceLevel(), false);
+  assert.equal(lossHarness.game.debugState().currentLevelIndex, 0);
+
+  const finalHarness = createCampaignHarness({ levelIndex: getCampaignLevelCount() - 1 });
+  destroyEnemyBase(finalHarness.game);
+  finalHarness.advanceStep();
+
+  assert.equal(finalHarness.game.advanceLevel(), false);
+  assert.equal(finalHarness.game.debugState().currentLevelIndex, getCampaignLevelCount() - 1);
 });
 
 test("R-style restart resets the current level without rewinding campaign progress", () => {
@@ -94,6 +166,7 @@ test("R-style restart resets the current level without rewinding campaign progre
 
   assert.equal(state.currentLevelIndex, 1);
   assert.equal(state.missionStatus, "playing");
+  assert.equal(state.missionSummary, null);
   assert.equal(baseAfterRestart.hp, baseAfterRestart.maxHp);
   assert.equal(baseAfterRestart.alive, true);
 });
