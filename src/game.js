@@ -45,6 +45,10 @@ import { updateEnemySentries } from "./game/sentries.js";
 import { getPatrolVisualPosition, updateEnemyPatrols } from "./game/patrols.js";
 import { getPursuitVisualPosition, updateEnemyPursuit } from "./game/pursuit.js";
 import { validateMissionSpawn } from "./game/spawnValidation.js";
+import {
+  collectPickupAtCell,
+  consumeShieldCharge
+} from "./game/pickups.js";
 
 const tileSize = 48;
 
@@ -118,6 +122,7 @@ export function createGame(options = {}) {
 
   const playerTeam = "player";
   const targets = options.targets ?? testMission.targets;
+  const pickups = options.pickups ?? testMission?.pickups ?? [];
   if (options.validateSpawn !== false) {
     validateMissionSpawn(level, { x: player.gridX, y: player.gridY }, targets, isBlockedCell);
   }
@@ -129,6 +134,8 @@ export function createGame(options = {}) {
   const playerState = {
     hp: options.playerHp ?? PLAYER_MAX_HP,
     maxHp: options.playerMaxHp ?? PLAYER_MAX_HP,
+    ammoReserve: options.ammoReserve ?? 0,
+    shieldCharges: options.shieldCharges ?? 0,
     damageFlashSeconds: 0,
     invulnerabilityRemaining: 0
   };
@@ -153,6 +160,9 @@ export function createGame(options = {}) {
       const wasMoving = player.isMoving;
       updateMovement(player, deltaSeconds, canEnterWithEntities);
       const justFinishedMove = wasMoving && !player.isMoving;
+      if (justFinishedMove) {
+        collectPickupAtCell(pickups, playerState, player.gridX, player.gridY);
+      }
       updateEnemyPursuit({
         level,
         entities: targets,
@@ -177,7 +187,9 @@ export function createGame(options = {}) {
       updateProjectileStore(projectiles, deltaSeconds, isBlocked, (fromX, fromY, toX, toY, projectile) => {
         if (projectile.team === "enemy" && segmentHitsPlayer(fromX, fromY, toX, toY, player)) {
           if (playerState.invulnerabilityRemaining <= 0) {
-            playerState.hp = Math.max(0, playerState.hp - ENEMY_PROJECTILE_DAMAGE);
+            if (!consumeShieldCharge(playerState)) {
+              playerState.hp = Math.max(0, playerState.hp - ENEMY_PROJECTILE_DAMAGE);
+            }
             playerState.invulnerabilityRemaining = PLAYER_INVULNERABILITY_SECONDS;
           }
           playerState.damageFlashSeconds = PLAYER_DAMAGE_FLASH_SECONDS;
@@ -252,9 +264,12 @@ export function createGame(options = {}) {
           visual: getVisualPosition(player),
           hp: playerState.hp,
           maxHp: playerState.maxHp,
+          ammoReserve: playerState.ammoReserve,
+          shieldCharges: playerState.shieldCharges,
           damageFlashSeconds: playerState.damageFlashSeconds,
           invulnerabilityRemaining: playerState.invulnerabilityRemaining
         },
+        pickups: pickups.map((pickup) => ({ ...pickup })),
         projectiles: projectiles.projectiles,
         impacts: projectiles.impacts,
         targets: targets.map(addTargetVisual),
@@ -297,7 +312,8 @@ export function createGame(options = {}) {
       const invulnerabilityText = playerState.invulnerabilityRemaining > 0
         ? ` Invulnerable ${Math.ceil(playerState.invulnerabilityRemaining * 1000)}ms.`
         : "";
-      return `Mission ${missionStatus} - HP ${playerState.hp}/${playerState.maxHp} - Cell ${player.gridX}, ${player.gridY} - Facing ${player.facing} - Enemy tanks ${liveEnemyTanks}. ${shotText}${cooldownText}${baseText}${aimText}${invulnerabilityText}`;
+      const pickupText = ` Ammo reserve ${playerState.ammoReserve}. Shield ${playerState.shieldCharges}.`;
+      return `Mission ${missionStatus} - HP ${playerState.hp}/${playerState.maxHp} - Cell ${player.gridX}, ${player.gridY} - Facing ${player.facing} - Enemy tanks ${liveEnemyTanks}. ${shotText}${cooldownText}${baseText}${aimText}${invulnerabilityText}${pickupText}`;
     },
 
     debugState() {
@@ -319,9 +335,12 @@ export function createGame(options = {}) {
           type: "tank",
           hp: playerState.hp,
           maxHp: playerState.maxHp,
+          ammoReserve: playerState.ammoReserve,
+          shieldCharges: playerState.shieldCharges,
           damageFlashSeconds: Number(playerState.damageFlashSeconds.toFixed(3)),
           invulnerabilityRemaining: Number(playerState.invulnerabilityRemaining.toFixed(3))
         },
+        pickups: pickups.map((pickup) => ({ ...pickup })),
         projectiles: projectiles.projectiles
           .filter((projectile) => projectile.active)
           .map((projectile) => ({
@@ -376,6 +395,7 @@ function createLevelGame(options, levelIndex) {
     ...gameOptions,
     level: mission.level,
     targets: mission.targets,
+    pickups: mission.pickups,
     playerSpawn: mission.level.playerSpawn
   });
 }

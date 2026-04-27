@@ -1,5 +1,6 @@
 import { createEntityFromSchema } from "./targets.js";
 import { validatePatrolRoute } from "./patrols.js";
+import { createPickupFromSchema } from "./pickups.js";
 
 export function loadLevelSchema(schema) {
   validateSchemaObject(schema);
@@ -25,7 +26,12 @@ export function loadLevelSchema(schema) {
     return createEntityFromSchema(entitySchema);
   });
 
-  return { level, targets };
+  const pickups = (schema.pickups ?? []).map((pickupSchema) => {
+    validatePickupSchema(level, targets, pickupSchema);
+    return createPickupFromSchema(pickupSchema);
+  });
+
+  return { level, targets, pickups };
 }
 
 function validateSchemaObject(schema) {
@@ -91,6 +97,38 @@ function validateEntitySchema(level, entitySchema) {
   }
   if (isOutOfBounds(level, entitySchema.gridX, entitySchema.gridY)) {
     throw new Error(`Level schema entity ${entitySchema.id} is outside level bounds.`);
+  }
+}
+
+function validatePickupSchema(level, targets, pickupSchema) {
+  if (!pickupSchema || typeof pickupSchema !== "object") {
+    throw new Error("Level schema pickup must be an object.");
+  }
+  if (!pickupSchema.id) {
+    throw new Error("Level schema pickup must include an id.");
+  }
+  if (!Number.isInteger(pickupSchema.gridX) || !Number.isInteger(pickupSchema.gridY)) {
+    throw new Error(`Level schema pickup ${pickupSchema.id} must include integer gridX and gridY.`);
+  }
+  if (isOutOfBounds(level, pickupSchema.gridX, pickupSchema.gridY)) {
+    throw new Error(`Level schema pickup ${pickupSchema.id} is outside level bounds.`);
+  }
+  if (isWall(level, pickupSchema.gridX, pickupSchema.gridY)) {
+    throw new Error(`Level schema pickup ${pickupSchema.id} is inside a wall.`);
+  }
+  if (
+    level.playerSpawn.x === pickupSchema.gridX
+    && level.playerSpawn.y === pickupSchema.gridY
+  ) {
+    throw new Error(`Level schema pickup ${pickupSchema.id} overlaps the player spawn.`);
+  }
+  if (targets.some((target) => (
+    target.alive
+    && target.solid
+    && target.gridX === pickupSchema.gridX
+    && target.gridY === pickupSchema.gridY
+  ))) {
+    throw new Error(`Level schema pickup ${pickupSchema.id} overlaps a solid entity.`);
   }
 }
 

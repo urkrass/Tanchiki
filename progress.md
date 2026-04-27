@@ -25,6 +25,9 @@ Progress:
 - MAR-53 mission summary screen: added snapshot-driven victory, failure, and campaign-complete summaries with level, HP, enemy base status, enemies destroyed, and next action data. Campaign-complete uses the current supported `R` behavior: replay the final level rather than restart the full campaign.
 - MAR-53 validation pass: `npm test`, `npm run build`, and `npm run lint` all passed; `src/game/movement.js` remained unchanged.
 - MAR-53 PR follow-up: added regression coverage that the loss summary remains failure-only, does not advance levels, and never advertises the victory continue action.
+- MAR-57 pickups: added repair, ammo, and shield pickups loaded from mission schemas. Collection happens only when player movement settles on a cell boundary. Repair caps at max HP, ammo is tracked as reserve without limiting fire yet, and shield blocks one incoming enemy hit.
+- MAR-57 validation pass: `npm test`, `npm run build`, and `npm run lint` all passed. Browser smoke test confirmed visible pickup glyphs and pickup consumption through `window.render_game_to_text`.
 
 TODO:
 - Next patch candidates: projectile cleanup policy, target score/rewards, moving enemy AI, destructible props, or sound effects.
+- MAR-57 follow-up candidate: decide later whether ammo reserve should become a real shot limit or remain a displayed progression/resource stub.
