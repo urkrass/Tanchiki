@@ -39,6 +39,7 @@ import {
 } from "./game/combatTuning.js";
 import { updateEnemySentries } from "./game/sentries.js";
 import { getPatrolVisualPosition, updateEnemyPatrols } from "./game/patrols.js";
+import { getPursuitVisualPosition, updateEnemyPursuit } from "./game/pursuit.js";
 import { validateMissionSpawn } from "./game/spawnValidation.js";
 
 const tileSize = 48;
@@ -148,6 +149,13 @@ export function createGame(options = {}) {
       const wasMoving = player.isMoving;
       updateMovement(player, deltaSeconds, canEnterWithEntities);
       const justFinishedMove = wasMoving && !player.isMoving;
+      updateEnemyPursuit({
+        level,
+        entities: targets,
+        player,
+        deltaSeconds,
+        isBlockedCell
+      });
       updateEnemyPatrols({
         level,
         entities: targets,
@@ -365,12 +373,16 @@ function createLevelGame(options, levelIndex) {
 }
 
 function addTargetVisual(target) {
-  target.visual = getPatrolVisualPosition(target);
+  target.visual = target.isPursuing
+    ? getPursuitVisualPosition(target)
+    : getPatrolVisualPosition(target);
   return target;
 }
 
 function createDebugTargetSnapshot(target) {
-  const visual = getPatrolVisualPosition(target);
+  const visual = target.isPursuing
+    ? getPursuitVisualPosition(target)
+    : getPatrolVisualPosition(target);
   return {
     id: target.id,
     type: target.type,
@@ -388,6 +400,9 @@ function createDebugTargetSnapshot(target) {
     patrolTargetIndex: target.patrolTargetIndex ?? null,
     isPatrolling: target.isPatrolling ?? false,
     patrolProgress: Number((target.patrolProgress ?? 0).toFixed(3)),
+    pursuitTarget: target.pursuitTarget ?? null,
+    isPursuing: target.isPursuing ?? false,
+    pursuitProgress: Number((target.pursuitProgress ?? 0).toFixed(3)),
     fireCooldownRemaining: Number((target.fireCooldownRemaining ?? 0).toFixed(3)),
     aimDirection: target.aimDirection ?? null,
     aimRemainingSeconds: Number((target.aimRemainingSeconds ?? 0).toFixed(3))

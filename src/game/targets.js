@@ -26,11 +26,15 @@ export function createEntity({
   patrolSpeedCellsPerSecond,
   patrolTargetIndex = 1,
   isPatrolling = false,
+  pursuitTarget = null,
+  pursuitSpeedCellsPerSecond,
+  isPursuing = false,
   fromX = gridX,
   fromY = gridY,
   toX = gridX,
   toY = gridY,
-  patrolProgress = 0
+  patrolProgress = 0,
+  pursuitProgress = 0
 }) {
   return {
     id,
@@ -51,11 +55,15 @@ export function createEntity({
     patrolSpeedCellsPerSecond,
     patrolTargetIndex,
     isPatrolling,
+    pursuitTarget,
+    pursuitSpeedCellsPerSecond,
+    isPursuing,
     fromX,
     fromY,
     toX,
     toY,
     patrolProgress,
+    pursuitProgress,
     alive: true,
     destroyed: false
   };
@@ -135,6 +143,7 @@ export function isSolidEntityAt(entities, x, y) {
     && (
       (entity.gridX === x && entity.gridY === y)
       || (entity.isPatrolling && entity.toX === x && entity.toY === y)
+      || (entity.isPursuing && entity.toX === x && entity.toY === y)
     )
   ));
 }
