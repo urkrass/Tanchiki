@@ -159,6 +159,20 @@ Level 1 PR workflow:
 - Do not include broad refactors or unrelated cleanup.
 - Do not rewrite `src/game/movement.js` unless the issue explicitly requires it or a failing test proves it is necessary.
 
+Level 2 command-center workflow:
+
+- Codex must select work from Linear, not from a manually named issue, when using the Level 2 workflow.
+- Codex must not pick Backlog issues.
+- Codex may pick only issues with status `Todo` and label `agent-ready`.
+- Codex must not pick issues labeled `blocked` or `human-only`, issues blocked by another issue, or safety-critical work.
+- Codex must work one issue only per branch and PR.
+- Codex must move the selected Linear issue to `In Progress` when starting.
+- Codex must create a branch from `main`.
+- Codex must open a draft PR against `main`.
+- Codex must move the Linear issue to `In Review` when the draft PR is opened.
+- Codex must not move the issue to `Done` until the PR is merged or a human explicitly approves closing it.
+- Use `prompts/codex-next-agent-ready.md` as the reusable prompt for this workflow.
+
 ## Git Discipline
 
 - Before editing files, inspect `git status --short`.
@@ -183,6 +197,16 @@ This project uses Linear as the development program and Codex as the implementat
 
 ## Core rule
 Do not start broad rewrites. Work from one Linear issue at a time.
+
+## Level 2 issue selection
+When no issue is named and the user asks Codex to continue agent-ready work:
+
+1. Query Linear for issues in `Todo` with label `agent-ready`.
+2. Select the highest-priority eligible issue.
+3. Exclude `Backlog`, `blocked`, `human-only`, blocked-by relations, and safety-critical work.
+4. Move the issue to `In Progress` before editing.
+5. Open a draft PR after validation and move the issue to `In Review`.
+6. Leave the issue out of `Done` until merge or explicit human approval.
 
 ## Before implementation
 1. Use the Linear MCP server to read the assigned issue.

@@ -80,3 +80,47 @@ CI uses Node.js 20. It installs dependencies with `npm ci` when `package-lock.js
 Use `.github/pull_request_template.md` for PR descriptions and `ops/policies/level-1-agent-boundaries.md` for agent boundaries. Do not push directly to `main`, force push, start broad refactors, or include unrelated cleanup in a Level 1 PR.
 
 Harness smoke-test PRs should use an `agent/` branch, be opened as drafts with the PR template filled out, and remain unmerged until reviewed.
+
+## Level 2 Command Center Workflow
+
+Level 2 lets Codex select the next unit of work from Linear instead of requiring a manually named issue.
+
+The Linear source of truth is `Tanchiki Level 2 Command Center Protocol` in the Tanchiki project:
+
+https://linear.app/marsel/document/tanchiki-level-2-command-center-protocol-617ef034bf14
+
+Use these Linear states:
+
+- `Backlog`
+- `Todo`
+- `In Progress`
+- `In Review`
+- `Done`
+
+Codex may pick only issues that are all of the following:
+
+- status `Todo`
+- labeled `agent-ready`
+- not blocked
+- not safety-critical
+- not labeled `human-only`
+
+Level 2 labels:
+
+- `agent-ready`
+- `human-review`
+- `gameplay`
+- `testing`
+- `level-design`
+- `ai`
+- `assets`
+- `polish`
+- `harness`
+- `human-only`
+- `blocked`
+
+When Codex starts a Level 2 issue, it must move the issue to `In Progress`, create a branch from `main`, make one scoped change, run `npm test`, `npm run build`, and `npm run lint`, commit, push, and open a draft PR against `main`. After the draft PR is opened, Codex must move the Linear issue to `In Review`.
+
+Codex must not pick `Backlog` issues and must not move an issue to `Done` until the PR is merged or a human explicitly approves closing it.
+
+Use `prompts/codex-next-agent-ready.md` to start a Level 2 agent-ready run.
