@@ -42,3 +42,23 @@ npm run dev
 Run `npm run dev`, then open `http://localhost:5173`.
 
 Use Arrow keys or WASD to move. Press Space to fire a shell in the tank's current facing direction. Enemy sentries fire when they have clear row/column line of sight. Press `R` to restart.
+
+## Git Discipline
+
+This repository uses a versioned pre-commit hook in `.githooks/pre-commit`.
+
+The repo-local Git config should point hooks at that directory:
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+Before every commit, the hook runs:
+
+```powershell
+npm test
+npm run build
+npm run lint
+```
+
+If any command fails, the commit is blocked. Do not push automatically.

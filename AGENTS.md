@@ -161,6 +161,7 @@ npm run lint
 
 - If validation passes, commit the changes with a meaningful message.
 - Include the Linear issue ID in the commit message when available.
+- The repo uses `.githooks/pre-commit` through `git config core.hooksPath .githooks`; that hook reruns `npm test`, `npm run build`, and `npm run lint` and blocks failed commits.
 - Never finish a task with a dirty working tree unless explicitly reporting a blocked state.
 - Never run `git push` automatically.
 
