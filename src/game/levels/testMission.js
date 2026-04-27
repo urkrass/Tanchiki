@@ -59,6 +59,29 @@ export const TEST_MISSION_SCHEMA = {
       hp: 6,
       solid: true
     }
+  ],
+  pickups: [
+    {
+      id: "repair-1",
+      type: "repair",
+      gridX: 2,
+      gridY: 1,
+      amount: 1
+    },
+    {
+      id: "ammo-1",
+      type: "ammo",
+      gridX: 3,
+      gridY: 1,
+      amount: 3
+    },
+    {
+      id: "shield-1",
+      type: "shield",
+      gridX: 4,
+      gridY: 1,
+      amount: 1
+    }
   ]
 };
 
@@ -108,6 +131,22 @@ export const CHECKPOINT_MISSION_SCHEMA = {
       gridY: 9,
       hp: 6,
       solid: true
+    }
+  ],
+  pickups: [
+    {
+      id: "checkpoint-repair",
+      type: "repair",
+      gridX: 2,
+      gridY: 1,
+      amount: 1
+    },
+    {
+      id: "checkpoint-shield",
+      type: "shield",
+      gridX: 5,
+      gridY: 2,
+      amount: 1
     }
   ]
 };
@@ -166,6 +205,22 @@ export const BASE_APPROACH_MISSION_SCHEMA = {
       gridY: 9,
       hp: 6,
       solid: true
+    }
+  ],
+  pickups: [
+    {
+      id: "approach-ammo",
+      type: "ammo",
+      gridX: 2,
+      gridY: 1,
+      amount: 3
+    },
+    {
+      id: "approach-repair",
+      type: "repair",
+      gridX: 4,
+      gridY: 9,
+      amount: 1
     }
   ]
 };

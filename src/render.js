@@ -1,5 +1,5 @@
 export function renderGame(context, snapshot) {
-  const { level, player, projectiles, impacts, targets, missionSummary, tileSize } = snapshot;
+  const { level, player, pickups, projectiles, impacts, targets, missionSummary, tileSize } = snapshot;
   const width = level.width * tileSize;
   const height = level.height * tileSize;
 
@@ -13,11 +13,57 @@ export function renderGame(context, snapshot) {
   drawTiles(context, level, tileSize);
   drawGrid(context, level, tileSize);
   drawAimWarnings(context, targets, player, tileSize);
+  drawPickups(context, pickups, tileSize);
   drawTargets(context, targets, tileSize);
   drawProjectiles(context, projectiles, tileSize);
   drawImpacts(context, impacts, tileSize);
   drawTank(context, player, tileSize);
   drawMissionSummary(context, missionSummary, width, height);
+}
+
+function drawPickups(context, pickups = [], tileSize) {
+  for (const pickup of pickups) {
+    if (!pickup.active) {
+      continue;
+    }
+
+    const centerX = (pickup.gridX + 0.5) * tileSize;
+    const centerY = (pickup.gridY + 0.5) * tileSize;
+
+    context.save();
+    context.translate(centerX, centerY);
+    context.fillStyle = pickupColor(pickup.type);
+    context.fillRect(-13, -13, 26, 26);
+    context.strokeStyle = "#2f342d";
+    context.lineWidth = 3;
+    context.strokeRect(-13, -13, 26, 26);
+    context.fillStyle = "#f7f4ea";
+    context.font = "700 18px system-ui, sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(pickupGlyph(pickup.type), 0, -1);
+    context.restore();
+  }
+}
+
+function pickupColor(type) {
+  if (type === "repair") {
+    return "#4f7f58";
+  }
+  if (type === "ammo") {
+    return "#8a6a2f";
+  }
+  return "#3f6f8f";
+}
+
+function pickupGlyph(type) {
+  if (type === "repair") {
+    return "+";
+  }
+  if (type === "ammo") {
+    return "A";
+  }
+  return "S";
 }
 
 function drawFloor(context, width, height) {

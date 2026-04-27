@@ -12,6 +12,7 @@ test("loads the test mission schema into level and entity runtime state", () => 
   assert.deepEqual(mission.level.playerSpawn, { x: 1, y: 1 });
   assert.equal(mission.level.tiles[1], "#P....#.......#");
   assert.equal(mission.targets.length, 4);
+  assert.equal(mission.pickups.length, 3);
   assert.deepEqual(
     mission.targets.map((target) => [target.id, target.type, target.team, target.gridX, target.gridY, target.hp, target.solid]),
     [
@@ -19,6 +20,14 @@ test("loads the test mission schema into level and entity runtime state", () => 
       ["dummy-2", "dummy", "enemy", 8, 3, 2, true],
       ["dummy-3", "dummy", "enemy", 10, 9, 2, true],
       ["enemy-base", "base", "enemy", 12, 9, 6, true]
+    ]
+  );
+  assert.deepEqual(
+    mission.pickups.map((pickup) => [pickup.id, pickup.type, pickup.gridX, pickup.gridY, pickup.amount, pickup.active]),
+    [
+      ["repair-1", "repair", 2, 1, 1, true],
+      ["ammo-1", "ammo", 3, 1, 3, true],
+      ["shield-1", "shield", 4, 1, 1, true]
     ]
   );
 });
@@ -109,6 +118,60 @@ test("rejects entities outside level bounds", () => {
       ]
     }),
     /entity blocked is outside level bounds/
+  );
+});
+
+test("rejects pickups inside walls", () => {
+  assert.throws(
+    () => loadLevelSchema({
+      id: "bad-pickup",
+      tiles: [
+        "###",
+        "#P#",
+        "###"
+      ],
+      pickups: [
+        { id: "repair", type: "repair", gridX: 0, gridY: 0 }
+      ]
+    }),
+    /pickup repair is inside a wall/
+  );
+});
+
+test("rejects pickups overlapping player spawn", () => {
+  assert.throws(
+    () => loadLevelSchema({
+      id: "spawn-pickup",
+      tiles: [
+        "###",
+        "#P#",
+        "###"
+      ],
+      pickups: [
+        { id: "repair", type: "repair", gridX: 1, gridY: 1 }
+      ]
+    }),
+    /overlaps the player spawn/
+  );
+});
+
+test("rejects pickups overlapping solid entities", () => {
+  assert.throws(
+    () => loadLevelSchema({
+      id: "entity-pickup",
+      tiles: [
+        "#####",
+        "#P..#",
+        "#####"
+      ],
+      entities: [
+        { id: "blocker", gridX: 2, gridY: 1 }
+      ],
+      pickups: [
+        { id: "repair", type: "repair", gridX: 2, gridY: 1 }
+      ]
+    }),
+    /overlaps a solid entity/
   );
 });
 
