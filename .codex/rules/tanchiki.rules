@@ -1,0 +1,13 @@
+prefix_rule(pattern=["git", "status"], decision="allow")
+prefix_rule(pattern=["git", "diff"], decision="allow")
+prefix_rule(pattern=["git", "add"], decision="allow")
+prefix_rule(pattern=["git", "commit"], decision="allow")
+prefix_rule(pattern=["npm", "test"], decision="allow")
+prefix_rule(pattern=["npm", "run", "build"], decision="allow")
+prefix_rule(pattern=["npm", "run", "lint"], decision="allow")
+
+prefix_rule(pattern=["git", "push"], decision="prompt")
+prefix_rule(pattern=["git", "reset"], decision="prompt")
+prefix_rule(pattern=["git", "clean"], decision="prompt")
+prefix_rule(pattern=["git", "checkout", "--"], decision="prompt")
+prefix_rule(pattern=["git", "restore"], decision="prompt")

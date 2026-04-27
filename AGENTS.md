@@ -146,3 +146,56 @@ Until tests exist, document manual verification steps in each change. Example: "
 Current history uses a plain descriptive commit style, for example `Initial Tanchiki checkpoint before Codex handoff`. Keep commits short, imperative or descriptive, and scoped to one logical change.
 
 Pull requests should include a concise summary, changed files or systems, manual test steps, and screenshots or clips for visible gameplay or asset changes. Link issues when available.
+
+## Git Discipline
+
+- Before editing files, inspect `git status --short`.
+- If the tree is dirty before starting, create a checkpoint commit or explain why a checkpoint is not appropriate.
+- After changes, run:
+
+```bash
+npm test
+npm run build
+npm run lint
+```
+
+- If validation passes, commit the changes with a meaningful message.
+- Include the Linear issue ID in the commit message when available.
+- Never finish a task with a dirty working tree unless explicitly reporting a blocked state.
+- Never run `git push` automatically.
+
+# Linear + Codex workflow
+
+This project uses Linear as the development program and Codex as the implementation agent.
+
+## Core rule
+Do not start broad rewrites. Work from one Linear issue at a time.
+
+## Before implementation
+1. Use the Linear MCP server to read the assigned issue.
+2. Restate the goal, constraints, and acceptance criteria.
+3. Inspect the relevant files before editing.
+4. Create or use a Git branch for the task when appropriate.
+5. Do not change `movement.js` unless the issue explicitly requires it or a failing test proves it is necessary.
+
+## During implementation
+1. Keep patches small and reversible.
+2. Maintain separation between:
+   - movement
+   - input
+   - projectiles
+   - targets/entities
+   - sentry/enemy behavior
+   - rendering
+   - levels
+3. Add or update tests for every gameplay logic change.
+4. Do not add external dependencies unless the issue explicitly asks for it.
+
+## Validation
+After code changes, run:
+
+```bash
+npm test
+npm run build
+npm run lint
+```

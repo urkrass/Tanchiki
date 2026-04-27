@@ -1,0 +1,35 @@
+{
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/session_start_git_context.ps1"
+        }
+      ],
+      "statusMessage": "Loading Tanchiki Git discipline context"
+    }
+  ],
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/user_prompt_git_context.ps1"
+        }
+      ],
+      "statusMessage": "Loading Tanchiki Git workflow context"
+    }
+  ],
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/stop_git_guard.ps1"
+        }
+      ],
+      "statusMessage": "Checking Tanchiki Git status before stop"
+    }
+  ]
+}
