@@ -23,6 +23,35 @@ test("loads the test mission schema into level and entity runtime state", () => 
   );
 });
 
+test("loads patrol route schema into entity runtime state", () => {
+  const mission = loadLevelSchema({
+    id: "patrol-route",
+    tiles: [
+      "#####",
+      "#P..#",
+      "#####"
+    ],
+    entities: [
+      {
+        id: "patrol",
+        gridX: 2,
+        gridY: 1,
+        patrolRoute: [
+          { x: 2, y: 1 },
+          { x: 3, y: 1 }
+        ],
+        patrolSpeedCellsPerSecond: 2
+      }
+    ]
+  });
+
+  assert.deepEqual(mission.targets[0].patrolRoute, [
+    { x: 2, y: 1 },
+    { x: 3, y: 1 }
+  ]);
+  assert.equal(mission.targets[0].patrolSpeedCellsPerSecond, 2);
+});
+
 test("derives player spawn from P tile when playerSpawn is omitted", () => {
   const mission = loadLevelSchema({
     id: "spawn-from-tile",
@@ -80,5 +109,57 @@ test("rejects entities outside level bounds", () => {
       ]
     }),
     /entity blocked is outside level bounds/
+  );
+});
+
+test("rejects patrol routes that enter walls", () => {
+  assert.throws(
+    () => loadLevelSchema({
+      id: "bad-patrol",
+      tiles: [
+        "#####",
+        "#P#.#",
+        "#####"
+      ],
+      entities: [
+        {
+          id: "patrol",
+          gridX: 1,
+          gridY: 1,
+          patrolRoute: [
+            { x: 1, y: 1 },
+            { x: 2, y: 1 }
+          ]
+        }
+      ]
+    }),
+    /patrolRoute enters a wall/
+  );
+});
+
+test("rejects patrol routes with diagonal loop segments", () => {
+  assert.throws(
+    () => loadLevelSchema({
+      id: "bad-patrol-loop",
+      tiles: [
+        "######",
+        "#P...#",
+        "#....#",
+        "######"
+      ],
+      entities: [
+        {
+          id: "patrol",
+          gridX: 2,
+          gridY: 1,
+          patrolRoute: [
+            { x: 2, y: 1 },
+            { x: 3, y: 1 },
+            { x: 3, y: 2 }
+          ]
+        }
+      ]
+    }),
+    /segments must be orthogonal/
   );
 });

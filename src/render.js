@@ -94,8 +94,9 @@ function drawAimWarnings(context, targets, player, tileSize) {
       continue;
     }
 
-    const centerX = (target.gridX + 0.5) * tileSize;
-    const centerY = (target.gridY + 0.5) * tileSize;
+    const visual = entityVisual(target);
+    const centerX = (visual.x + 0.5) * tileSize;
+    const centerY = (visual.y + 0.5) * tileSize;
     const alpha = target.aimRemainingSeconds % 0.16 > 0.08 ? 0.75 : 0.35;
 
     context.strokeStyle = `rgba(166, 52, 47, ${alpha})`;
@@ -109,11 +110,15 @@ function drawAimWarnings(context, targets, player, tileSize) {
 
 function drawTargets(context, targets, tileSize) {
   for (const target of targets) {
-    const centerX = (target.gridX + 0.5) * tileSize;
-    const centerY = (target.gridY + 0.5) * tileSize;
+    const visual = entityVisual(target);
+    const centerX = (visual.x + 0.5) * tileSize;
+    const centerY = (visual.y + 0.5) * tileSize;
 
     context.save();
     context.translate(centerX, centerY);
+    if (target.type !== "base") {
+      context.rotate(rotationFor(target.facing ?? "up"));
+    }
     const size = target.type === "base" ? 40 : 32;
     context.fillStyle = target.alive ? colorForTarget(target) : "#5a554c";
     context.fillRect(-size / 2, -size / 2, size, size);
@@ -142,6 +147,10 @@ function drawTargets(context, targets, tileSize) {
 
     context.restore();
   }
+}
+
+function entityVisual(entity) {
+  return entity.visual ?? { x: entity.gridX, y: entity.gridY };
 }
 
 function colorForTarget(target) {

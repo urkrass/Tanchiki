@@ -1,4 +1,5 @@
 import { createEntityFromSchema } from "./targets.js";
+import { validatePatrolRoute } from "./patrols.js";
 
 export function loadLevelSchema(schema) {
   validateSchemaObject(schema);
@@ -20,6 +21,7 @@ export function loadLevelSchema(schema) {
 
   const targets = (schema.entities ?? []).map((entitySchema) => {
     validateEntitySchema(level, entitySchema);
+    validatePatrolRoute(level, entitySchema);
     return createEntityFromSchema(entitySchema);
   });
 
