@@ -2,7 +2,8 @@ import {
   SPRITE_STATUS,
   getSpriteFrame,
   listSpriteImages,
-  normalizeSpriteManifest
+  normalizeSpriteManifest,
+  validateSpriteManifest
 } from "./spriteManifest.js";
 
 export function createSpriteAssetStore({
@@ -14,7 +15,7 @@ export function createSpriteAssetStore({
 } = {}) {
   const imageStates = new Map();
   let manifestState = manifest
-    ? { status: SPRITE_STATUS.READY, data: normalizeSpriteManifest(manifest) }
+    ? createManifestState(manifest)
     : { status: SPRITE_STATUS.MISSING, data: normalizeSpriteManifest() };
 
   return {
@@ -31,6 +32,15 @@ export function createSpriteAssetStore({
     },
 
     getFrame(spriteId, animation, direction = "any", frameIndex = 0) {
+      if (manifestState.status === SPRITE_STATUS.ERROR) {
+        return {
+          status: SPRITE_STATUS.ERROR,
+          spriteId,
+          reason: "manifest",
+          error: manifestState.error ?? null
+        };
+      }
+
       const frame = getSpriteFrame(manifestState.data, spriteId, animation, direction, frameIndex);
       if (frame.status !== SPRITE_STATUS.READY) {
         return frame;
@@ -53,6 +63,8 @@ export function createSpriteAssetStore({
       if (manifestUrl) {
         manifestState = await loadManifest(manifestUrl, fetchFn);
       }
+
+      imageStates.clear();
 
       if (manifestState.status !== SPRITE_STATUS.READY) {
         return manifestState;
@@ -77,6 +89,25 @@ export function createSpriteAssetStore({
   };
 }
 
+function createManifestState(rawManifest) {
+  const errors = validateSpriteManifest(rawManifest);
+  const data = normalizeSpriteManifest(rawManifest);
+
+  if (errors.length > 0) {
+    return {
+      status: SPRITE_STATUS.ERROR,
+      data,
+      error: new Error(`Sprite manifest is invalid: ${errors.join(" ")}`),
+      errors
+    };
+  }
+
+  return {
+    status: SPRITE_STATUS.READY,
+    data
+  };
+}
+
 async function loadManifest(manifestUrl, fetchFn) {
   if (!fetchFn) {
     return {
@@ -96,10 +127,7 @@ async function loadManifest(manifestUrl, fetchFn) {
       };
     }
 
-    return {
-      status: SPRITE_STATUS.READY,
-      data: normalizeSpriteManifest(await response.json())
-    };
+    return createManifestState(await response.json());
   } catch (error) {
     return {
       status: SPRITE_STATUS.ERROR,
