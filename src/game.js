@@ -50,6 +50,7 @@ import {
   consumeShieldCharge
 } from "./game/pickups.js";
 import {
+  calculateMissionXpReward,
   cloneProgressionState,
   createProgressionState
 } from "./game/progression.js";
@@ -62,6 +63,8 @@ export function createCampaignGame(options = {}) {
   const levelCount = getCampaignLevelCount();
   let currentLevelIndex = normalizeLevelIndex(options.levelIndex ?? 0, levelCount);
   const progression = createProgressionState(options.progression);
+  const rewardedLevelIndexes = new Set();
+  let lastMissionReward = null;
   let levelGame = createLevelGame(options, currentLevelIndex);
 
   function currentStatus() {
@@ -75,6 +78,7 @@ export function createCampaignGame(options = {}) {
   return {
     update(deltaSeconds, input) {
       levelGame.update(deltaSeconds, input);
+      awardCurrentLevelReward();
     },
 
     snapshot() {
@@ -83,7 +87,8 @@ export function createCampaignGame(options = {}) {
         currentLevelIndex,
         levelCount,
         currentStatus(),
-        progression
+        progression,
+        lastMissionReward
       );
     },
 
@@ -105,7 +110,8 @@ export function createCampaignGame(options = {}) {
         currentLevelIndex,
         levelCount,
         currentStatus(),
-        progression
+        progression,
+        lastMissionReward
       );
     },
 
@@ -123,6 +129,34 @@ export function createCampaignGame(options = {}) {
       return true;
     }
   };
+
+  function awardCurrentLevelReward() {
+    const status = currentStatus();
+    if (
+      (status !== "won" && status !== "campaign-complete")
+      || rewardedLevelIndexes.has(currentLevelIndex)
+    ) {
+      return;
+    }
+
+    const levelState = levelGame.snapshot();
+    const summary = createMissionSummary({
+      ...levelState,
+      missionStatus: status,
+      levelNumber: currentLevelIndex + 1,
+      levelCount,
+      canAdvanceLevel: status === "won" && currentLevelIndex < levelCount - 1
+    });
+    const xp = calculateMissionXpReward(summary);
+    rewardedLevelIndexes.add(currentLevelIndex);
+    lastMissionReward = {
+      levelIndex: currentLevelIndex,
+      levelId: summary.levelId,
+      xp,
+      enemiesDestroyed: summary.enemiesDestroyed
+    };
+    progression.xp += xp;
+  }
 }
 
 export function createGame(options = {}) {
@@ -462,7 +496,14 @@ function normalizeLevelIndex(levelIndex, levelCount) {
   return levelIndex;
 }
 
-function addCampaignState(state, currentLevelIndex, levelCount, missionStatus, progression) {
+function addCampaignState(
+  state,
+  currentLevelIndex,
+  levelCount,
+  missionStatus,
+  progression,
+  lastMissionReward
+) {
   const campaignState = {
     ...state,
     missionStatus,
@@ -470,12 +511,17 @@ function addCampaignState(state, currentLevelIndex, levelCount, missionStatus, p
     levelNumber: currentLevelIndex + 1,
     levelCount,
     canAdvanceLevel: missionStatus === "won" && currentLevelIndex < levelCount - 1,
-    progression: cloneProgressionState(progression)
+    progression: cloneProgressionState(progression),
+    lastMissionReward: cloneMissionReward(lastMissionReward)
   };
   return {
     ...campaignState,
     missionSummary: createMissionSummary(campaignState)
   };
+}
+
+function cloneMissionReward(missionReward) {
+  return missionReward ? { ...missionReward } : null;
 }
 
 export function createMissionSummary({

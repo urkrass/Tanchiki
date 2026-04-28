@@ -4,6 +4,7 @@ import {
   DEFAULT_PROGRESSION_STATE,
   UPGRADE_CATALOG,
   UPGRADE_EFFECT_KEYS,
+  calculateMissionXpReward,
   cloneProgressionState,
   createProgressionState,
   getUpgradeCatalog,
@@ -77,6 +78,37 @@ test("progression state rejects invalid values", () => {
   assert.throws(
     () => createProgressionState({ appliedUpgrades: { armor: -1 } }),
     /appliedUpgrades\.armor must be a non-negative integer/
+  );
+});
+
+test("mission XP rewards are deterministic for completed summaries", () => {
+  assert.equal(calculateMissionXpReward({
+    result: "victory",
+    enemiesDestroyed: 0
+  }), 100);
+  assert.equal(calculateMissionXpReward({
+    result: "victory",
+    enemiesDestroyed: 3
+  }), 130);
+  assert.equal(calculateMissionXpReward({
+    result: "campaign complete",
+    enemiesDestroyed: 2
+  }), 120);
+});
+
+test("mission XP rewards reject losses and invalid summary data", () => {
+  assert.equal(calculateMissionXpReward({
+    result: "failed",
+    enemiesDestroyed: 5
+  }), 0);
+  assert.equal(calculateMissionXpReward({
+    result: "playing",
+    enemiesDestroyed: 5
+  }), 0);
+  assert.throws(() => calculateMissionXpReward(null), /Mission summary must be an object/);
+  assert.throws(
+    () => calculateMissionXpReward({ result: "victory", enemiesDestroyed: -1 }),
+    /missionSummary\.enemiesDestroyed must be a non-negative integer/
   );
 });
 
