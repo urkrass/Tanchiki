@@ -46,7 +46,7 @@ If port `5173` is already occupied, do not treat that alone as a prototype failu
 
 Use Arrow keys or WASD to move. Press Space to fire a shell in the tank's current facing direction. Enemy sentries fire when they have clear row/column line of sight. Press `R` to restart.
 
-`npm run codex:next` prints the default Level 4 Dispatcher prompt from `prompts/codex-next.md`. Paste that prompt into Codex to route the next eligible Linear issue to the correct role automatically.
+`npm run codex:next` prints the default Level 5 Dispatcher prompt from `prompts/codex-next.md`. Paste that prompt into Codex to route the next eligible Linear issue to the correct role automatically.
 
 ## Git Discipline
 
@@ -88,7 +88,7 @@ Harness smoke-test PRs should use an `agent/` branch, be opened as drafts with t
 
 ## Linear Label Taxonomy
 
-Use explicit role, readiness, and gate labels for automation.
+Use explicit role, type, risk, validation, readiness, and gate labels for automation.
 
 Role labels:
 
@@ -101,6 +101,34 @@ Role labels:
 Readiness label:
 
 - `automation-ready`
+
+Issue type labels:
+
+- `type:docs`
+- `type:harness`
+- `type:ui`
+- `type:test`
+- `type:gameplay`
+- `type:progression`
+- `type:architecture`
+- `type:movement`
+
+Risk labels:
+
+- `risk:low`
+- `risk:medium`
+- `risk:high`
+- `risk:human-only`
+
+Validation profile labels:
+
+- `validation:docs`
+- `validation:harness`
+- `validation:ui`
+- `validation:test`
+- `validation:gameplay`
+- `validation:progression`
+- `validation:movement`
 
 Gate labels:
 
@@ -136,12 +164,16 @@ Codex may pick only issues that are all of the following:
 - status `Todo`
 - labeled `automation-ready`
 - exactly one `role:*` label
+- exactly one `type:*` label
+- exactly one `risk:*` label
+- exactly one `validation:*` label
 - not blocked
 - not safety-critical
 - not labeled `needs-human-approval`
 - not labeled `human-only`
+- not labeled `risk:human-only`
 
-Older `agent-ready` issues may exist in history, but new automation should use `automation-ready` plus one role label.
+Older `agent-ready` issues may exist in history, but new automation should use `automation-ready` plus one role, one type, one risk, and one validation profile label.
 
 When Codex starts a Level 2 issue, it must move the issue to `In Progress`, create a branch from `main`, make one scoped change, run `npm test`, `npm run build`, and `npm run lint`, commit, push, and open a draft PR against `main`. After the draft PR is opened, Codex must move the Linear issue to `In Review`.
 
@@ -197,7 +229,7 @@ Every planned issue must be classified as one of:
 - `human-only`
 - `blocked/dependency`
 
-Every planned issue must also include dependency order, blocked-by relationships where possible, whether visible UI change is expected, central-file conflict risk, a suggested role label, and which issue should become `Todo` + `automation-ready` first.
+Every planned issue must also include dependency order, blocked-by relationships where possible, whether visible UI change is expected, central-file conflict risk, suggested role/type/risk/validation labels, and which issue should become `Todo` + `automation-ready` first.
 
 Use these files for Level 3 planning:
 
@@ -226,20 +258,50 @@ For normal iteration after grooming:
 
 ```text
 Use Linear MCP and GitHub.
-Run the Level 4 Dispatcher for the next eligible Tanchiki issue.
-Follow repo harness protocols.
+Run the Tanchiki dispatcher for the next eligible issue.
+Choose the correct role automatically.
+Follow the repo harness protocols, including Level 5 risk-gated validation.
 Work one issue only.
 Do not merge.
 Do not mark Done.
 ```
 
-Validation for implementation PRs remains:
+For harness work, use `validation:harness`, run harness-only validation, and do not edit gameplay code.
+
+Validation for implementation PRs follows the issue's `validation:*` profile. Baseline validation:
 
 ```powershell
 npm test
 npm run build
 npm run lint
 ```
+
+## Level 5 Risk-Gated Validation Workflow
+
+Level 5 requires every automated issue to declare:
+
+- exactly one `role:*` label
+- exactly one `type:*` label
+- exactly one `risk:*` label
+- exactly one `validation:*` label
+
+The dispatcher refuses Todo issues with missing or duplicated metadata and comments on the Linear issue asking for triage. It also refuses `risk:human-only` and any issue where `automation-ready` appears with `blocked`, `needs-human-approval`, or `human-only`.
+
+Validation profiles are defined in `ops/policies/risk-gated-validation.md`:
+
+- `validation:docs`
+- `validation:harness`
+- `validation:ui`
+- `validation:test`
+- `validation:gameplay`
+- `validation:progression`
+- `validation:movement`
+
+New normal workflow:
+
+- New campaign: run Planner + Auto-Groomer, human reviews the queue, then Dispatcher executes one eligible issue at a time.
+- Normal iteration: run the dispatcher; it chooses the role automatically and refuses issues missing Level 5 metadata.
+- Harness work: use harness-only validation and do not edit gameplay code.
 
 ## Level 4 Role-Separated Agent Workflow
 
@@ -253,7 +315,7 @@ Roles:
 
 - Planner: creates Linear issues only.
 - Architect: reviews issue shape, architecture risk, dependency order, and conflict risk only.
-- Coder: implements one `Todo` + `automation-ready` + `role:coder` issue only.
+- Coder: implements one Level 5 eligible `Todo` + `automation-ready` + `role:coder` issue only.
 - Test agent: adds or improves focused tests without changing gameplay behavior unless required to make tests meaningful.
 - Reviewer: reviews PR diffs and comments; it must not merge.
 - Release agent: summarizes merged PRs and updates release or campaign notes; it must not change gameplay.
@@ -269,23 +331,23 @@ git status --short
 
 Every PR must target `main`. No role may bypass CI, push directly to `main`, merge automatically, or close parent campaign issues unless all children are done and a release summary exists.
 
-### Default Level 4 Dispatcher
+### Default Level 5 Dispatcher
 
-The default automation entrypoint is the Level 4 Dispatcher. Use it when the user wants Codex to continue the next eligible Tanchiki issue without manually choosing Architect, Coder, Test, Reviewer, or Release.
+The default automation entrypoint is the Level 5 Dispatcher. Use it when the user wants Codex to continue the next eligible Tanchiki issue without manually choosing Architect, Coder, Test, Reviewer, or Release.
 
 Default prompt:
 
 ```text
 Use Linear MCP and GitHub.
-Run the Level 4 Dispatcher for the next eligible Tanchiki issue.
-Choose the correct role automatically from role labels.
-Follow repo harness protocols.
+Run the Tanchiki dispatcher for the next eligible issue.
+Choose the correct role automatically.
+Follow the repo harness protocols, including Level 5 risk-gated validation.
 Work one issue only.
 Do not merge.
 Do not mark Done.
 ```
 
-The dispatcher follows `ops/policies/role-router.md` and `ops/checklists/role-routing-checklist.md`. It must scan all Todo issues, skip blocked/gated issues, read the full selected Linear issue, and choose the role from exactly one `role:*` label.
+The dispatcher follows `ops/policies/role-router.md`, `ops/policies/risk-gated-validation.md`, `ops/checklists/role-routing-checklist.md`, and `ops/checklists/risk-gate-checklist.md`. It must scan all Todo issues, skip blocked/gated issues, read the full selected Linear issue, and choose the role from exactly one `role:*` label.
 
 Role routing:
 
@@ -297,12 +359,14 @@ Role routing:
 
 The dispatcher must never route architect, test, reviewer, or release work to Coder.
 
-If no eligible issue exists, the dispatcher reports all blocked/gated candidates and the human action required to make one eligible. If the queue is ungroomed, the dispatcher must stop and ask for Campaign Groomer work. Ungroomed signals include missing or multiple `role:*` labels, more than one campaign issue with `automation-ready`, or `automation-ready` appearing with `blocked`, `needs-human-approval`, or `human-only`.
+If no eligible issue exists, the dispatcher reports all blocked/gated candidates and the human action required to make one eligible. If the queue is ungroomed, the dispatcher must stop and ask for Campaign Groomer work. Ungroomed signals include missing or multiple `role:*`, `type:*`, `risk:*`, or `validation:*` labels, more than one campaign issue with `automation-ready`, or `automation-ready` appearing with `blocked`, `needs-human-approval`, or `human-only`.
 
 Use these files for Level 4 work:
 
 - `ops/policies/role-router.md`
+- `ops/policies/risk-gated-validation.md`
 - `ops/policies/role-boundaries.md`
+- `ops/checklists/risk-gate-checklist.md`
 - `ops/checklists/role-routing-checklist.md`
 - `ops/checklists/campaign-grooming-checklist.md`
 - `ops/prompts/architect-agent.md`

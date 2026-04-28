@@ -14,7 +14,7 @@ git status --short
 ```
 
 - Every pull request must target `main`.
-- No role may bypass CI. Required validation remains:
+- No role may bypass CI. Baseline validation:
 
 ```powershell
 npm test
@@ -22,6 +22,9 @@ npm run build
 npm run lint
 ```
 
+- Every automated issue must satisfy Level 5 gates in `ops/policies/risk-gated-validation.md`: exactly one `role:*`, one `type:*`, one `risk:*`, and one `validation:*` label.
+- No role may automate issues labeled `risk:human-only`.
+- PRs must include linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
 - No role may close parent campaign issues unless all child issues are `Done` and a release summary exists.
 - Do not push directly to `main`.
 - Do not merge automatically.
@@ -33,7 +36,7 @@ Allowed:
 
 - Read briefs, repository docs, and Linear context.
 - Create Linear issues only.
-- Suggest labels, dependency order, blockers, risk, and first eligible issue.
+- Suggest role, type, risk, validation labels, dependency order, blockers, and first eligible issue.
 
 Prohibited:
 
@@ -62,6 +65,7 @@ Prohibited:
 Allowed:
 
 - Implement exactly one Linear issue that is `Todo`, labeled `automation-ready`, and labeled `role:coder`.
+- Confirm the issue has exactly one `type:*`, one `risk:*`, and one `validation:*` label before moving it to `In Progress`.
 - Move the selected issue to `In Progress` when starting.
 - Create one branch from updated `main`.
 - Open one draft PR against `main`.
@@ -70,6 +74,7 @@ Allowed:
 Prohibited:
 
 - Do not pick `Backlog`, blocked, `needs-human-approval`, `human-only`, parent, epic, or campaign umbrella issues.
+- Do not pick `risk:human-only` issues.
 - Do not work on more than one issue per branch.
 - Do not include unrelated cleanup.
 - Do not close the issue as `Done`.

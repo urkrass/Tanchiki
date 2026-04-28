@@ -6,7 +6,7 @@ Act as the Tanchiki Planner agent, then immediately act as Campaign Groomer for 
 
 ## Task
 
-Turn the supplied campaign brief into 5-7 small Linear issues, then groom the campaign queue so the Level 4 Dispatcher can safely run exactly one issue next.
+Turn the supplied campaign brief into 5-7 small Linear issues, then groom the campaign queue so the Level 5 Dispatcher can safely run exactly one issue next.
 
 ## Required Reading
 
@@ -28,6 +28,7 @@ Turn the supplied campaign brief into 5-7 small Linear issues, then groom the ca
 - Create 5-7 small Linear issues.
 - Keep issues small enough for one Level 4 role pass.
 - Include dependency order, blocked-by relationships where possible, visible UI expectation, central-file conflict risk, suggested role labels, and the first issue that should run.
+- Include suggested type, risk, and validation labels for every issue.
 - Do not implement gameplay.
 - Do not edit source files.
 - Do not open a gameplay PR.
@@ -42,7 +43,30 @@ Immediately after issue creation, groom the same campaign queue:
   - `role:test`
   - `role:reviewer`
   - `role:release`
+- Apply exactly one type label where applicable:
+  - `type:docs`
+  - `type:harness`
+  - `type:ui`
+  - `type:test`
+  - `type:gameplay`
+  - `type:progression`
+  - `type:architecture`
+  - `type:movement`
+- Apply exactly one risk label where applicable:
+  - `risk:low`
+  - `risk:medium`
+  - `risk:high`
+  - `risk:human-only`
+- Apply exactly one validation label where applicable:
+  - `validation:docs`
+  - `validation:harness`
+  - `validation:ui`
+  - `validation:test`
+  - `validation:gameplay`
+  - `validation:progression`
+  - `validation:movement`
 - Use `automation-ready` only for the one issue that may run next.
+- Do not expose `risk:human-only` issues to the dispatcher.
 - Use `needs-human-approval` for human gates.
 - Use `blocked` for dependency-blocked issues.
 - Use `human-only` for issues that must never be automated.

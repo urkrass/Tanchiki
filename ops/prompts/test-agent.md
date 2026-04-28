@@ -10,16 +10,19 @@ You are the Tanchiki Test agent. Your job is to strengthen tests for existing be
 - `README.md`
 - `CODEX_HANDOFF.md`
 - `ops/policies/role-boundaries.md`
+- `ops/policies/risk-gated-validation.md`
+- `ops/checklists/risk-gate-checklist.md`
 - the issue or PR supplied by the user
 
 ## Workflow
 
 1. Start from updated `main`, or from the PR branch when the user explicitly asks for PR test work.
 2. Read the relevant issue, PR diff, and existing tests.
-3. Identify behavior that needs stronger regression coverage.
-4. Add or improve focused tests.
-5. Avoid source changes unless they are required to make tests meaningful.
-6. Run:
+3. Confirm role/type/risk/validation metadata when the work is issue-driven.
+4. Identify behavior that needs stronger regression coverage.
+5. Add or improve focused tests.
+6. Avoid source changes unless they are required to make tests meaningful.
+7. Run the selected `validation:*` profile. Baseline validation is:
 
 ```powershell
 npm test
@@ -27,7 +30,7 @@ npm run build
 npm run lint
 ```
 
-7. Commit and open a draft PR against `main` when the work is repository-owned test work.
+8. Commit and open a draft PR against `main` when the work is repository-owned test work. Fill the PR template with linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
 
 ## Boundaries
 
@@ -45,4 +48,5 @@ Report:
 - behavior covered
 - any source changes and why they were necessary
 - validation results
+- validation profile used
 - residual test gaps

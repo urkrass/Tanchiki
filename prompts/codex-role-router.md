@@ -4,15 +4,17 @@ Use this prompt when the user asks Codex to continue Tanchiki work without namin
 
 ## Goal
 
-Inspect the next eligible Linear issue and choose the correct Level 4 role automatically from explicit role labels: Architect, Coder, Test, Reviewer, or Release.
+Inspect the next eligible Linear issue and choose the correct Level 4 role automatically from explicit role labels: Architect, Coder, Test, Reviewer, or Release. Apply Level 5 risk-gated validation before routing.
 
 ## Required Reading
 
 - `AGENTS.md`
 - `README.md`
 - `ops/policies/role-router.md`
+- `ops/policies/risk-gated-validation.md`
 - `ops/policies/role-boundaries.md`
 - `ops/checklists/role-routing-checklist.md`
+- `ops/checklists/risk-gate-checklist.md`
 - the selected Linear issue in full
 
 ## Selection
@@ -24,9 +26,13 @@ An issue is eligible only when all of these are true:
 - status is `Todo`
 - has `automation-ready`
 - has exactly one `role:*` label
+- has exactly one `type:*` label
+- has exactly one `risk:*` label
+- has exactly one `validation:*` label
 - does not have `blocked`
 - does not have `needs-human-approval`
 - does not have `human-only`
+- does not have `risk:human-only`
 - is not blocked by another issue
 - is not canceled or `Done`
 
@@ -53,13 +59,14 @@ Deprecated signals:
 
 - Work one issue only.
 - Never route work without exactly one `role:*` label.
+- Never route work without exactly one `type:*`, `risk:*`, and `validation:*` label.
 - Never route Architect, Test, Reviewer, or Release work to Coder.
 - Never let Architect edit source code.
 - Never let Test agent add gameplay features.
 - Never let Reviewer merge PRs.
 - Never let Release agent change gameplay behavior.
-- Never bypass `blocked`, `needs-human-approval`, or `human-only`.
-- If role labels are missing or ambiguous, stop and comment on the Linear issue asking for triage.
+- Never bypass `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
+- If Level 5 metadata is missing or ambiguous, stop and comment on the Linear issue asking for triage.
 
 ## After Routing
 

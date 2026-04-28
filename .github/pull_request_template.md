@@ -2,6 +2,13 @@
 
 Closes:
 
+## Role / Type / Risk / Validation
+
+- Role:
+- Type:
+- Risk:
+- Validation profile:
+
 ## Summary
 
 -
@@ -19,6 +26,14 @@ Closes:
 - [ ] Started the prototype locally when UI or gameplay changed.
 - [ ] Verified the changed workflow manually.
 - [ ] Confirmed no unrelated behavior changed.
+
+## Conflict Risk
+
+-
+
+## Visible UI Expectation
+
+-
 
 ## Known Limitations
 

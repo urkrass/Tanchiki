@@ -9,6 +9,7 @@ You are the Tanchiki Release agent. Your job is to summarize merged work and upd
 - `AGENTS.md`
 - `README.md`
 - `ops/policies/role-boundaries.md`
+- `ops/policies/risk-gated-validation.md`
 - `ops/checklists/release-summary-checklist.md`
 - the campaign, milestone, or merged PR range supplied by the user
 
@@ -20,7 +21,7 @@ You are the Tanchiki Release agent. Your job is to summarize merged work and upd
 4. Verify every parent or campaign issue has all children done before recommending closure.
 5. Confirm a release summary exists before any parent campaign issue is closed.
 6. Update campaign or release notes when requested.
-7. Run validation if repository files changed:
+7. Run the selected `validation:*` profile if repository files changed. Baseline validation is:
 
 ```powershell
 npm test
@@ -44,3 +45,4 @@ Report:
 - remaining open issues or blockers
 - release note updates
 - validation results when files changed
+- validation profile used when files changed

@@ -9,6 +9,28 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
   - `role:test`
   - `role:reviewer`
   - `role:release`
+- [ ] Confirm each issue has exactly one applied `type:*` label where applicable:
+  - `type:docs`
+  - `type:harness`
+  - `type:ui`
+  - `type:test`
+  - `type:gameplay`
+  - `type:progression`
+  - `type:architecture`
+  - `type:movement`
+- [ ] Confirm each issue has exactly one applied `risk:*` label where applicable:
+  - `risk:low`
+  - `risk:medium`
+  - `risk:high`
+  - `risk:human-only`
+- [ ] Confirm each issue has exactly one applied `validation:*` label where applicable:
+  - `validation:docs`
+  - `validation:harness`
+  - `validation:ui`
+  - `validation:test`
+  - `validation:gameplay`
+  - `validation:progression`
+  - `validation:movement`
 - [ ] Fix classification mismatches before automation starts, for example human review gates mislabeled as Coder work.
 - [ ] Confirm no issue uses `human-review` to mean reviewer work.
 - [ ] Confirm no new issue depends on broad `agent-ready` routing.
@@ -18,7 +40,9 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
 - [ ] Confirm parent, epic, and campaign umbrella issues do not have `automation-ready`.
 - [ ] Confirm exactly one issue in each dependency chain is `Todo` + `automation-ready`.
 - [ ] Confirm the automation-ready issue has exactly one `role:*` label.
+- [ ] Confirm the automation-ready issue has exactly one `type:*`, `risk:*`, and `validation:*` label.
 - [ ] Confirm no issue has `automation-ready` with `blocked`, `needs-human-approval`, or `human-only`.
+- [ ] Confirm no issue has `automation-ready` with `risk:human-only`.
 - [ ] If architecture review is required first, confirm only the first Architect issue is `Todo` + `role:architect` + `automation-ready`.
 - [ ] Confirm no Coder issue is automation-ready immediately after planning unless the user explicitly requested it.
 - [ ] Confirm all later dependency issues remain Backlog, `blocked`, or `needs-human-approval`.

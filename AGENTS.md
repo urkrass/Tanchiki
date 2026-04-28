@@ -92,7 +92,7 @@ Prefer `rg --files` and `rg` for search when available. If `rg` is unavailable o
 
 When tooling is introduced, keep it minimal and update both `README.md` and this file in the same patch.
 
-`npm run codex:next` prints the default Level 4 Dispatcher prompt. Use it as the standard next-work entrypoint when the user does not name a specific role.
+`npm run codex:next` prints the default Level 5 Dispatcher prompt. Use it as the standard next-work entrypoint when the user does not name a specific role.
 
 ## Coding Conventions
 
@@ -150,11 +150,11 @@ Until tests exist, document manual verification steps in each change. Example: "
 
 Current history uses a plain descriptive commit style, for example `Initial Tanchiki checkpoint before Codex handoff`. Keep commits short, imperative or descriptive, and scoped to one logical change.
 
-Pull requests should include a concise summary, changed files or systems, manual test steps, and screenshots or clips for visible gameplay or asset changes. Link issues when available.
+Pull requests should include linked issue, role, type, risk, validation profile, concise summary, changed files or systems, tests run, manual QA, conflict risk, visible UI expectation, known limitations, and screenshots or clips for visible gameplay or asset changes.
 
-## Linear Label Taxonomy
+## Linear Label Taxonomy And Level 5 Gates
 
-Use explicit role, readiness, and gate labels for Level 4 automation.
+Use explicit role, type, risk, validation, readiness, and gate labels for Level 5 automation.
 
 Role labels:
 
@@ -168,6 +168,34 @@ Readiness label:
 
 - `automation-ready`
 
+Issue type labels:
+
+- `type:docs`
+- `type:harness`
+- `type:ui`
+- `type:test`
+- `type:gameplay`
+- `type:progression`
+- `type:architecture`
+- `type:movement`
+
+Risk labels:
+
+- `risk:low`
+- `risk:medium`
+- `risk:high`
+- `risk:human-only`
+
+Validation profile labels:
+
+- `validation:docs`
+- `validation:harness`
+- `validation:ui`
+- `validation:test`
+- `validation:gameplay`
+- `validation:progression`
+- `validation:movement`
+
 Gate labels:
 
 - `needs-human-approval`
@@ -180,6 +208,18 @@ Deprecated ambiguous usage:
 - Do not use `human-review` to mean reviewer-agent work.
 - Use `needs-human-approval` for human gates.
 - Use `role:reviewer` for reviewer-agent work.
+
+Level 5 dispatcher eligibility:
+
+- Status must be `Todo`.
+- Issue must have `automation-ready`.
+- Issue must have exactly one `role:*`, exactly one `type:*`, exactly one `risk:*`, and exactly one `validation:*` label.
+- Issue must not have `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
+- Issue must not be blocked by another issue, canceled, `Done`, a parent, an epic, a campaign umbrella, or safety-critical.
+- If required metadata is missing or duplicated, the dispatcher must stop and comment on the Linear issue asking for triage.
+- If `automation-ready` appears with `blocked`, `needs-human-approval`, or `human-only`, stop.
+
+Use `ops/policies/risk-gated-validation.md` and `ops/checklists/risk-gate-checklist.md` as the source of truth for Level 5 risk and validation rules.
 
 Level 1 PR workflow:
 
@@ -197,8 +237,9 @@ Level 2 command-center workflow:
 
 - Codex must select work from Linear, not from a manually named issue, when using the Level 2 workflow.
 - Codex must not pick Backlog issues.
-- Codex may pick only issues with status `Todo`, label `automation-ready`, and exactly one `role:*` label.
+- Codex may pick only issues with status `Todo`, label `automation-ready`, exactly one `role:*` label, exactly one `type:*` label, exactly one `risk:*` label, and exactly one `validation:*` label.
 - Codex must not pick issues labeled `blocked`, `needs-human-approval`, or `human-only`, issues blocked by another issue, or safety-critical work.
+- Codex must not pick issues labeled `risk:human-only`.
 - Codex must not pick parent, epic, or campaign umbrella issues.
 - Codex must not implement issues gated by `needs-human-approval` until a human removes the gate and applies `automation-ready`.
 - For dependency chains, only one implementation issue may be `Todo` + `automation-ready` at a time.
@@ -222,9 +263,9 @@ Level 3 planner workflow:
 - The planner must not apply `automation-ready` to parent, epic, blocked, `needs-human-approval`, or `human-only` issues.
 - The planner must classify every issue as `automation-ready candidate`, `needs-human-approval`, `human-only`, or `blocked/dependency`.
 - The planner must assign suggested role labels in the issue description.
-- Each planned issue must include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, Planner classification, Dependencies or blockers, Dependency order, Blocked-by relationships where possible, Visible UI change expected, Central-file conflict risk, Suggested role label, and First issue that should become `Todo` + `automation-ready`.
+- Each planned issue must include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, Planner classification, Dependencies or blockers, Dependency order, Blocked-by relationships where possible, Visible UI change expected, Central-file conflict risk, Suggested role label, Suggested type label, Suggested risk label, Suggested validation label, and First issue that should become `Todo` + `automation-ready`.
 - After creating issues, the planner must run the campaign grooming checklist before stopping.
-- Grooming must normalize each issue to exactly one applied `role:*` label where applicable.
+- Grooming must normalize each issue to exactly one applied `role:*`, `type:*`, `risk:*`, and `validation:*` label where applicable.
 - Grooming may apply `automation-ready` only to the one issue that may run next.
 - If architecture review is required first, only the first Architect issue may become `Todo` + `role:architect` + `automation-ready`.
 - Coder issues must stay Backlog/blocked immediately after planning unless the user explicitly requested Coder to run first.
@@ -232,14 +273,14 @@ Level 3 planner workflow:
 - Avoid broad vague issues like "improve AI", "polish game", or "add campaign".
 - Use `ops/prompts/planner-agent.md`, `ops/prompts/campaign-groomer.md`, `ops/policies/planner-boundaries.md`, `ops/policies/campaign-execution.md`, `ops/checklists/conflict-risk-checklist.md`, `ops/checklists/planner-output-checklist.md`, `ops/checklists/campaign-grooming-checklist.md`, `prompts/codex-plan-campaign.md`, and `prompts/codex-plan-and-groom-campaign.md` for this workflow.
 
-Level 4 role-separated workflow:
+Level 4 role-separated workflow with Level 5 gates:
 
 - Use Level 4 when a Codex run must act as one clear role: Planner, Architect, Coder, Test, Reviewer, or Release.
-- Prefer the Level 4 Dispatcher when the user asks to continue the next eligible issue without naming a role.
+- Prefer the Level 5 Dispatcher when the user asks to continue the next eligible issue without naming a role.
 - The Dispatcher must use Linear MCP, read one full issue, and route by `ops/policies/role-router.md`.
 - The Dispatcher may route to Architect, Coder, Test, Reviewer, or Release; it must skip blocked/gated issues and stop for missing or ambiguous role labels.
-- The Dispatcher must require `Todo`, `automation-ready`, exactly one `role:*` label, and no gate labels.
-- The Dispatcher must ignore ungroomed campaigns. If a Todo issue lacks exactly one `role:*` label, more than one campaign issue has `automation-ready`, or `automation-ready` appears with `blocked` or `needs-human-approval`, it must stop and ask for Campaign Groomer work.
+- The Dispatcher must require `Todo`, `automation-ready`, exactly one `role:*` label, exactly one `type:*` label, exactly one `risk:*` label, exactly one `validation:*` label, and no gate labels.
+- The Dispatcher must ignore ungroomed campaigns. If a Todo issue lacks exactly one required Level 5 metadata label, more than one campaign issue has `automation-ready`, or `automation-ready` appears with `blocked` or `needs-human-approval`, it must stop and ask for Campaign Groomer work.
 - Never route Architect, Test, Reviewer, or Release issues to Coder.
 - Use `ops/policies/role-boundaries.md` as the shared boundary source.
 - Planner may create Linear issues and groom campaign queue labels/statuses/comments only.
@@ -253,7 +294,7 @@ Level 4 role-separated workflow:
 - No role may bypass CI.
 - No role may push directly to `main`, merge automatically, or close parent campaign issues unless all children are done and a release summary exists.
 - Use `ops/prompts/architect-agent.md`, `ops/prompts/coder-agent.md`, `ops/prompts/test-agent.md`, `ops/prompts/reviewer-agent.md`, and `ops/prompts/release-agent.md` for role runs.
-- Use `ops/policies/role-router.md`, `ops/checklists/role-routing-checklist.md`, `ops/checklists/campaign-grooming-checklist.md`, `ops/checklists/architect-review-checklist.md`, `ops/checklists/pr-review-checklist.md`, and `ops/checklists/release-summary-checklist.md` for routing and validation.
+- Use `ops/policies/risk-gated-validation.md`, `ops/policies/role-router.md`, `ops/checklists/risk-gate-checklist.md`, `ops/checklists/role-routing-checklist.md`, `ops/checklists/campaign-grooming-checklist.md`, `ops/checklists/architect-review-checklist.md`, `ops/checklists/pr-review-checklist.md`, and `ops/checklists/release-summary-checklist.md` for routing and validation.
 - Use `prompts/codex-next.md`, `prompts/codex-role-router.md`, `prompts/codex-architect-review.md`, `prompts/codex-test-pass.md`, `prompts/codex-review-pr.md`, and `prompts/codex-release-summary.md` as reusable launch prompts.
 
 ## Harness Conflict Prevention
@@ -293,14 +334,15 @@ Do not start broad rewrites. Work from one Linear issue at a time.
 When no issue is named and the user asks Codex to continue automation-ready work:
 
 1. Query Linear for all `Todo` issues.
-2. Select the highest-priority issue with `automation-ready` and exactly one `role:*` label.
+2. Select the highest-priority issue with `automation-ready`, exactly one `role:*` label, exactly one `type:*` label, exactly one `risk:*` label, and exactly one `validation:*` label.
 3. Exclude `Backlog`, `blocked`, `needs-human-approval`, `human-only`, blocked-by relations, parent/epic issues, and safety-critical work.
-4. Confirm dependency chains expose only one `Todo` + `automation-ready` issue.
-5. Move the issue to `In Progress` before editing.
-6. Sync `main` with `git fetch --prune origin`, `git switch main`, `git pull --ff-only origin main`, and `git status --short`.
-7. Inspect recent merged PRs or git history for conflict risk.
-8. Open a draft PR against `main` after validation and move the issue to `In Review`.
-9. Leave the issue out of `Done` until merge or explicit human approval.
+4. Exclude `risk:human-only`.
+5. Confirm dependency chains expose only one `Todo` + `automation-ready` issue.
+6. Move the issue to `In Progress` before editing.
+7. Sync `main` with `git fetch --prune origin`, `git switch main`, `git pull --ff-only origin main`, and `git status --short`.
+8. Inspect recent merged PRs or git history for conflict risk.
+9. Open a draft PR against `main` after validation and move the issue to `In Review`.
+10. Leave the issue out of `Done` until merge or explicit human approval.
 
 ## Level 3 campaign planning
 When the user asks Codex to plan a campaign brief:
@@ -311,7 +353,7 @@ When the user asks Codex to plan a campaign brief:
 4. Preserve dependencies between issues.
 5. Do not implement gameplay or edit source code.
 6. Do not apply `automation-ready` broadly.
-7. Include dependency order, blocked-by relationships where possible, visible UI expectation, central-file conflict risk, suggested role labels, and the first issue that should become `Todo` + `automation-ready`.
+7. Include dependency order, blocked-by relationships where possible, visible UI expectation, central-file conflict risk, suggested role/type/risk/validation labels, and the first issue that should become `Todo` + `automation-ready`.
 8. Run the campaign grooming checklist immediately after issue creation.
 9. Expose only the first runnable issue with `Todo` + `automation-ready`; when Architect review is required first, expose the first Architect issue only.
 10. Stop after creating issues, grooming the queue, and reporting the final queue.
@@ -319,7 +361,7 @@ When the user asks Codex to plan a campaign brief:
 ## Level 4 role-separated workflow
 When the user asks Codex to run a role-separated workflow:
 
-1. If no role is named, run the Level 4 Dispatcher from `ops/policies/role-router.md`.
+1. If no role is named, run the Level 5 Dispatcher from `ops/policies/role-router.md` and `ops/policies/risk-gated-validation.md`.
 2. Choose exactly one role: Planner, Architect, Coder, Test, Reviewer, or Release.
 3. Read `ops/policies/role-boundaries.md` and the matching role prompt in `ops/prompts/`.
 4. Start from updated `main`.
