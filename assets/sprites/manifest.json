@@ -1,0 +1,9 @@
+{
+  "meta": {
+    "tileSize": 48,
+    "style": "top-down tactical sprites",
+    "background": "transparent",
+    "note": "Runtime manifest starts empty so primitive Canvas rendering remains the active fallback until approved sprite assets are added."
+  },
+  "sheets": {}
+}

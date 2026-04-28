@@ -1,6 +1,7 @@
 import { createCampaignGame } from "./game.js";
 import { createInput } from "./input.js";
 import { renderGame } from "./render.js";
+import { createSpriteAssetStore } from "./assets/spriteLoader.js";
 import {
   renderUpgradePanel,
   upgradeChoiceIndexForKey
@@ -13,6 +14,10 @@ const upgradeChoices = document.querySelector("#upgrade-choices");
 const context = canvas.getContext("2d");
 const input = createInput(window);
 const game = createCampaignGame();
+const spriteAssets = createSpriteAssetStore({
+  manifestUrl: new URL("../assets/sprites/manifest.json", import.meta.url)
+});
+spriteAssets.load().then(renderCurrentState);
 
 const fixedStep = 1 / 60;
 let previousTime = performance.now();
@@ -92,7 +97,7 @@ function resetTimingAndRender() {
 
 function renderCurrentState() {
   const snapshot = game.snapshot();
-  renderGame(context, snapshot);
+  renderGame(context, snapshot, { spriteAssets });
   renderUpgradePanel({
     panel: upgradePanel,
     choicesContainer: upgradeChoices,
