@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { SPRITE_STATUS, getSpriteFrame, listSpriteImages } from "../src/assets/spriteManifest.js";
+import {
+  SPRITE_STATUS,
+  getSpriteFrame,
+  listSpriteImages,
+  validateSpriteManifest
+} from "../src/assets/spriteManifest.js";
 import { createSpriteAssetStore } from "../src/assets/spriteLoader.js";
 
 const directionalManifest = {
@@ -79,6 +84,31 @@ test("runtime sprite manifest exposes the first core entity slice", () => {
   assert.equal(getSpriteFrame(runtimeManifest, "enemy_shell", "shell", "left").status, SPRITE_STATUS.READY);
 });
 
+test("sprite manifest validation reports malformed sprite sheets", () => {
+  assert.deepEqual(validateSpriteManifest(null), [
+    "Sprite manifest must be an object."
+  ]);
+
+  assert.deepEqual(validateSpriteManifest({
+    sheets: {
+      broken_tank: {
+        image: "",
+        frameWidth: 0,
+        frameHeight: 48,
+        animations: {
+          idle: {
+            up: [[0]]
+          }
+        }
+      }
+    }
+  }), [
+    "Sprite broken_tank must include a non-empty image path.",
+    "Sprite broken_tank must include positive frameWidth and frameHeight values.",
+    "Sprite broken_tank animation idle direction up has an invalid frame."
+  ]);
+});
+
 test("sprite loader reports ready image state when the image factory loads", async () => {
   const store = createSpriteAssetStore({
     manifest: directionalManifest,
@@ -93,6 +123,67 @@ test("sprite loader reports ready image state when the image factory loads", asy
   const frame = store.getFrame("player_tank", "idle", "up");
   assert.equal(frame.status, SPRITE_STATUS.READY);
   assert.equal(frame.imageElement.src, "https://example.test/assets/sprites/tanks/player.png");
+});
+
+test("sprite loader converts invalid provided manifests into fallback-safe errors", async () => {
+  const store = createSpriteAssetStore({
+    manifest: {
+      sheets: {
+        broken_tank: {
+          image: "sprites/tanks/broken.png",
+          frameWidth: 48,
+          frameHeight: 48,
+          animations: {
+            idle: {
+              up: []
+            }
+          }
+        }
+      }
+    },
+    imageFactory: () => {
+      throw new Error("Invalid manifests should not request images");
+    }
+  });
+
+  assert.equal(store.status, SPRITE_STATUS.ERROR);
+  assert.equal(store.getFrame("broken_tank", "idle", "up").status, SPRITE_STATUS.ERROR);
+
+  const manifestState = await store.load();
+  assert.equal(manifestState.status, SPRITE_STATUS.ERROR);
+  assert.equal(store.getImageState("sprites/tanks/broken.png").status, SPRITE_STATUS.MISSING);
+});
+
+test("sprite loader converts fetched invalid manifests into fallback-safe errors", async () => {
+  const store = createSpriteAssetStore({
+    manifestUrl: "https://example.test/assets/sprites/manifest.json",
+    fetchFn: async () => ({
+      ok: true,
+      json: async () => ({
+        sheets: {
+          broken_tank: {
+            image: "sprites/tanks/broken.png",
+            frameWidth: 48,
+            frameHeight: 48,
+            animations: {
+              idle: {
+                up: [["x", 0]]
+              }
+            }
+          }
+        }
+      })
+    }),
+    imageFactory: () => {
+      throw new Error("Invalid fetched manifests should not request images");
+    }
+  });
+
+  const manifestState = await store.load();
+  assert.equal(manifestState.status, SPRITE_STATUS.ERROR);
+  assert.equal(store.status, SPRITE_STATUS.ERROR);
+  assert.equal(store.getFrame("broken_tank", "idle", "up").reason, "manifest");
+  assert.equal(store.getImageState("sprites/tanks/broken.png").status, SPRITE_STATUS.MISSING);
 });
 
 test("sprite loader reports failed images so rendering can keep primitive fallback", async () => {
