@@ -1,7 +1,10 @@
 import { createProgressionFeedback } from "./game/progressionFeedback.js";
 import { targetReadabilityCue } from "./game/readability.js";
 
-export function renderGame(context, snapshot) {
+export function renderGame(context, snapshot, renderOptions = {}) {
+  const spriteAssets = renderOptions.spriteAssets ?? null;
+  void spriteAssets;
+
   const { level, player, pickups, projectiles, impacts, targets, missionSummary, tileSize } = snapshot;
   const width = level.width * tileSize;
   const height = level.height * tileSize;
