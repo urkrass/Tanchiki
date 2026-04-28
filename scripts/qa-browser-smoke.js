@@ -23,6 +23,11 @@ export async function runBrowserSmoke(options = {}) {
       "Browser smoke QA requires Chrome or Edge. Set QA_BROWSER_PATH to a Chromium executable."
     );
   }
+  if (!existsSync(browserPath)) {
+    throw new Error(
+      `Browser smoke QA could not find a Chromium executable at ${browserPath}. Set QA_BROWSER_PATH to Chrome or Edge.`
+    );
+  }
 
   const server = await ensureDemoServer(appUrl, options);
   const browser = await launchBrowser(browserPath);
@@ -126,14 +131,8 @@ export function inspectPageForSmoke() {
       && style.visibility !== "hidden"
       && Number(style.opacity) !== 0;
   };
-  const canvas = document.querySelector("#game");
-  const context = canvas?.getContext("2d", { willReadFrequently: true });
-  const rect = canvas?.getBoundingClientRect();
-  const imageData = context && canvas.width > 0 && canvas.height > 0
-    ? context.getImageData(0, 0, canvas.width, canvas.height).data
-    : null;
-  let nonblankPixelCount = 0;
-  if (imageData) {
+  const countPixels = (imageData) => {
+    let nonblankPixelCount = 0;
     for (let index = 0; index < imageData.length; index += 4) {
       if (
         imageData[index] !== 0
@@ -144,6 +143,17 @@ export function inspectPageForSmoke() {
         nonblankPixelCount += 1;
       }
     }
+    return nonblankPixelCount;
+  };
+  const canvas = document.querySelector("#game");
+  const context = canvas?.getContext("2d", { willReadFrequently: true });
+  const rect = canvas?.getBoundingClientRect();
+  const imageData = context && canvas.width > 0 && canvas.height > 0
+    ? context.getImageData(0, 0, canvas.width, canvas.height).data
+    : null;
+  let nonblankPixelCount = 0;
+  if (imageData) {
+    nonblankPixelCount = countPixels(imageData);
   }
 
   return {
@@ -176,6 +186,21 @@ export function inspectPageForSmoke() {
       status: isVisible(".status-bar")
     }
   };
+}
+
+export function countNonblankPixels(imageData) {
+  let nonblankPixelCount = 0;
+  for (let index = 0; index < imageData.length; index += 4) {
+    if (
+      imageData[index] !== 0
+      || imageData[index + 1] !== 0
+      || imageData[index + 2] !== 0
+      || imageData[index + 3] !== 0
+    ) {
+      nonblankPixelCount += 1;
+    }
+  }
+  return nonblankPixelCount;
 }
 
 function findBrowserPath() {

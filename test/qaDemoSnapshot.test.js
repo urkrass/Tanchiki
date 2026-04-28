@@ -5,6 +5,7 @@ import {
   assertQaDemoSnapshot,
   createQaDemoSnapshot
 } from "../scripts/qa-demo-snapshot.js";
+import { createCampaignGame } from "../src/game.js";
 
 test("QA demo snapshot exposes deterministic campaign flow evidence", () => {
   const snapshot = createQaDemoSnapshot();
@@ -78,4 +79,16 @@ test("QA demo snapshot CLI prints valid JSON evidence", () => {
   const snapshot = JSON.parse(result.stdout);
   assertQaDemoSnapshot(snapshot);
   assert.equal(snapshot.flow.nextLevel.level.id, "checkpoint-mission");
+});
+
+test("QA demo snapshot helper does not mutate fresh campaign defaults", () => {
+  createQaDemoSnapshot();
+
+  const fresh = createCampaignGame().debugState();
+  assert.equal(fresh.currentLevelIndex, 0);
+  assert.equal(fresh.missionStatus, "playing");
+  assert.equal(fresh.player.gridX, 1);
+  assert.equal(fresh.player.gridY, 1);
+  assert.equal(fresh.progression.xp, 0);
+  assert.deepEqual(fresh.progression.appliedUpgrades, {});
 });
