@@ -61,6 +61,11 @@ export const DEFAULT_PROGRESSION_STATE = Object.freeze({
   appliedUpgrades: Object.freeze({})
 });
 
+export const MISSION_XP_REWARD = Object.freeze({
+  completion: 100,
+  enemyDestroyed: 10
+});
+
 validateUpgradeCatalog(UPGRADE_CATALOG);
 
 const UPGRADE_BY_ID = createUpgradeIndex(UPGRADE_CATALOG);
@@ -87,6 +92,26 @@ export function cloneProgressionState(progressionState) {
 
 export function resetProgressionState() {
   return createProgressionState();
+}
+
+export function calculateMissionXpReward(missionSummary) {
+  if (!missionSummary || typeof missionSummary !== "object" || Array.isArray(missionSummary)) {
+    throw new Error("Mission summary must be an object.");
+  }
+
+  if (missionSummary.result === "failed") {
+    return 0;
+  }
+
+  if (missionSummary.result !== "victory" && missionSummary.result !== "campaign complete") {
+    return 0;
+  }
+
+  const enemiesDestroyed = normalizeNonNegativeInteger(
+    missionSummary.enemiesDestroyed ?? 0,
+    "missionSummary.enemiesDestroyed"
+  );
+  return MISSION_XP_REWARD.completion + (enemiesDestroyed * MISSION_XP_REWARD.enemyDestroyed);
 }
 
 export function getUpgradeCatalog() {

@@ -203,6 +203,8 @@ test("campaign snapshots expose default progression state", () => {
     availableUpgradePoints: 0,
     appliedUpgrades: {}
   });
+  assert.equal(harness.game.snapshot().lastMissionReward, null);
+  assert.equal(harness.game.debugState().lastMissionReward, null);
 });
 
 test("campaign progression snapshots are detached from game state", () => {
@@ -248,7 +250,7 @@ test("restarting the current level preserves in-memory campaign progression", ()
 
   assert.equal(state.currentLevelIndex, 1);
   assert.deepEqual(state.progression, {
-    xp: 50,
+    xp: 150,
     level: 2,
     availableUpgradePoints: 1,
     appliedUpgrades: {
@@ -277,6 +279,58 @@ test("creating a new campaign game starts with clean progression", () => {
     availableUpgradePoints: 0,
     appliedUpgrades: {}
   });
+});
+
+test("campaign victory awards deterministic XP once", () => {
+  const harness = createCampaignHarness({ levelIndex: 0 });
+  const state = harness.game.snapshot();
+  const firstSentry = state.targets.find((target) => target.id === "dummy-1");
+  const secondSentry = state.targets.find((target) => target.id === "dummy-2");
+
+  damageTarget(firstSentry, firstSentry.hp);
+  damageTarget(secondSentry, secondSentry.hp);
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+
+  let snapshot = harness.game.snapshot();
+  assert.equal(snapshot.progression.xp, 120);
+  assert.deepEqual(snapshot.lastMissionReward, {
+    levelIndex: 0,
+    levelId: "test-mission",
+    xp: 120,
+    enemiesDestroyed: 2
+  });
+
+  harness.advanceStep();
+  harness.advanceStep();
+  snapshot = harness.game.snapshot();
+  assert.equal(snapshot.progression.xp, 120);
+  assert.equal(snapshot.lastMissionReward.xp, 120);
+});
+
+test("campaign loss grants no XP reward", () => {
+  const harness = createCampaignHarness({ levelIndex: 0, playerHp: 0 });
+
+  harness.advanceStep();
+
+  const state = harness.game.debugState();
+  assert.equal(state.missionStatus, "lost");
+  assert.equal(state.progression.xp, 0);
+  assert.equal(state.lastMissionReward, null);
+});
+
+test("last mission reward snapshots are detached from game state", () => {
+  const harness = createCampaignHarness({ levelIndex: 0 });
+
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+
+  const snapshot = harness.game.snapshot();
+  snapshot.lastMissionReward.xp = 999;
+
+  const nextSnapshot = harness.game.snapshot();
+  assert.equal(nextSnapshot.progression.xp, 100);
+  assert.equal(nextSnapshot.lastMissionReward.xp, 100);
 });
 
 test("movement.js remains unchanged for campaign progression", () => {
