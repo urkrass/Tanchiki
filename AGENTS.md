@@ -65,6 +65,7 @@ npm run dev
 npm test
 npm run build
 npm run lint
+npm run codex:next
 ```
 
 `npm run dev` serves the prototype at `http://localhost:5173`. `build` and `lint` currently run syntax checks only.
@@ -90,6 +91,8 @@ Prefer `rg --files` and `rg` for search when available. If `rg` is unavailable o
 - Lint: `npm run lint`
 
 When tooling is introduced, keep it minimal and update both `README.md` and this file in the same patch.
+
+`npm run codex:next` prints the default Level 4 Dispatcher prompt. Use it as the standard next-work entrypoint when the user does not name a specific role.
 
 ## Coding Conventions
 
@@ -197,6 +200,10 @@ Level 3 planner workflow:
 Level 4 role-separated workflow:
 
 - Use Level 4 when a Codex run must act as one clear role: Planner, Architect, Coder, Test, Reviewer, or Release.
+- Prefer the Level 4 Dispatcher when the user asks to continue the next eligible issue without naming a role.
+- The Dispatcher must use Linear MCP, read one full issue, and route by `ops/policies/role-router.md`.
+- The Dispatcher may route to Architect, Coder, Test, Reviewer, or Release; it must stop on blocked, human-review-only, or ambiguous issues.
+- Never route `architect-review`, `test-agent`, `reviewer-agent`, or `release-agent` issues to Coder.
 - Use `ops/policies/role-boundaries.md` as the shared boundary source.
 - Planner may create Linear issues only.
 - Architect may review issues, architecture risk, dependency order, file ownership, and conflict risk only; no implementation.
@@ -209,8 +216,8 @@ Level 4 role-separated workflow:
 - No role may bypass CI.
 - No role may push directly to `main`, merge automatically, or close parent campaign issues unless all children are done and a release summary exists.
 - Use `ops/prompts/architect-agent.md`, `ops/prompts/coder-agent.md`, `ops/prompts/test-agent.md`, `ops/prompts/reviewer-agent.md`, and `ops/prompts/release-agent.md` for role runs.
-- Use `ops/checklists/architect-review-checklist.md`, `ops/checklists/pr-review-checklist.md`, and `ops/checklists/release-summary-checklist.md` for role validation.
-- Use `prompts/codex-architect-review.md`, `prompts/codex-test-pass.md`, `prompts/codex-review-pr.md`, and `prompts/codex-release-summary.md` as reusable launch prompts.
+- Use `ops/policies/role-router.md`, `ops/checklists/role-routing-checklist.md`, `ops/checklists/architect-review-checklist.md`, `ops/checklists/pr-review-checklist.md`, and `ops/checklists/release-summary-checklist.md` for routing and validation.
+- Use `prompts/codex-next.md`, `prompts/codex-role-router.md`, `prompts/codex-architect-review.md`, `prompts/codex-test-pass.md`, `prompts/codex-review-pr.md`, and `prompts/codex-release-summary.md` as reusable launch prompts.
 
 ## Harness Conflict Prevention
 
@@ -273,14 +280,15 @@ When the user asks Codex to plan a campaign brief:
 ## Level 4 role-separated workflow
 When the user asks Codex to run a role-separated workflow:
 
-1. Choose exactly one role: Planner, Architect, Coder, Test, Reviewer, or Release.
-2. Read `ops/policies/role-boundaries.md` and the matching role prompt in `ops/prompts/`.
-3. Start from updated `main`.
-4. Stay inside the role's authority.
-5. Open PRs only against `main`.
-6. Do not bypass CI.
-7. Do not merge automatically.
-8. Do not close parent campaign issues unless all children are done and a release summary exists.
+1. If no role is named, run the Level 4 Dispatcher from `ops/policies/role-router.md`.
+2. Choose exactly one role: Planner, Architect, Coder, Test, Reviewer, or Release.
+3. Read `ops/policies/role-boundaries.md` and the matching role prompt in `ops/prompts/`.
+4. Start from updated `main`.
+5. Stay inside the role's authority.
+6. Open PRs only against `main`.
+7. Do not bypass CI.
+8. Do not merge automatically.
+9. Do not close parent campaign issues unless all children are done and a release summary exists.
 
 ## Before implementation
 1. Use the Linear MCP server to read the assigned issue.

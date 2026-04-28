@@ -37,6 +37,7 @@ npm test
 npm run build
 npm run lint
 npm run dev
+npm run codex:next
 ```
 
 Run `npm run dev`, then open `http://localhost:5173`.
@@ -44,6 +45,8 @@ Run `npm run dev`, then open `http://localhost:5173`.
 If port `5173` is already occupied, do not treat that alone as a prototype failure. Check whether the existing server is usable at `http://localhost:5173`; if it is stale, stop that process and rerun `npm run dev`.
 
 Use Arrow keys or WASD to move. Press Space to fire a shell in the tank's current facing direction. Enemy sentries fire when they have clear row/column line of sight. Press `R` to restart.
+
+`npm run codex:next` prints the default Level 4 Dispatcher prompt from `prompts/codex-next.md`. Paste that prompt into Codex to route the next eligible Linear issue to the correct role automatically.
 
 ## Git Discipline
 
@@ -209,9 +212,37 @@ git status --short
 
 Every PR must target `main`. No role may bypass CI, push directly to `main`, merge automatically, or close parent campaign issues unless all children are done and a release summary exists.
 
+### Default Level 4 Dispatcher
+
+The default automation entrypoint is the Level 4 Dispatcher. Use it when the user wants Codex to continue the next eligible Tanchiki issue without manually choosing Architect, Coder, Test, Reviewer, or Release.
+
+Default prompt:
+
+```text
+Use Linear MCP and GitHub.
+Run the Level 4 Dispatcher for the next eligible Tanchiki issue.
+Choose the correct role automatically.
+Work one issue only.
+Do not merge.
+```
+
+The dispatcher follows `ops/policies/role-router.md` and `ops/checklists/role-routing-checklist.md`. It must read the full Linear issue, choose the role from labels and classification, and stop for blocked, human-review-only, or ambiguous issues.
+
+Role routing:
+
+- `architect-review` routes to Architect.
+- `coder-ready` or `agent-ready` implementation scope routes to Coder.
+- `test-agent` routes to Test.
+- `reviewer-agent` routes to Reviewer.
+- `release-agent` routes to Release.
+
+The dispatcher must never route architect, test, reviewer, or release work to Coder.
+
 Use these files for Level 4 work:
 
+- `ops/policies/role-router.md`
 - `ops/policies/role-boundaries.md`
+- `ops/checklists/role-routing-checklist.md`
 - `ops/prompts/architect-agent.md`
 - `ops/prompts/coder-agent.md`
 - `ops/prompts/test-agent.md`
@@ -221,6 +252,8 @@ Use these files for Level 4 work:
 - `ops/checklists/pr-review-checklist.md`
 - `ops/checklists/release-summary-checklist.md`
 - `prompts/codex-architect-review.md`
+- `prompts/codex-next.md`
+- `prompts/codex-role-router.md`
 - `prompts/codex-test-pass.md`
 - `prompts/codex-review-pr.md`
 - `prompts/codex-release-summary.md`
