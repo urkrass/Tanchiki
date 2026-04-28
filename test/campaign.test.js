@@ -8,6 +8,7 @@ import {
   validateCampaignMissions
 } from "../src/game/level.js";
 import { createInput } from "../src/input.js";
+import { createProgressionFeedback } from "../src/game/progressionFeedback.js";
 import { damageTarget } from "../src/game/targets.js";
 
 const step = 1 / 60;
@@ -318,6 +319,28 @@ test("campaign victory awards deterministic XP once", () => {
   assert.equal(snapshot.lastMissionReward.xp, 120);
 });
 
+test("campaign victory exposes stable progression feedback display data", () => {
+  const harness = createCampaignHarness({ levelIndex: 0 });
+
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+
+  let feedback = createProgressionFeedback(harness.game.snapshot());
+  assert.deepEqual(feedback.rows, [
+    { label: "XP earned", value: "+100 XP" },
+    { label: "Upgrade points", value: "1 point available" }
+  ]);
+
+  harness.advanceStep();
+  harness.advanceStep();
+
+  feedback = createProgressionFeedback(harness.game.snapshot());
+  assert.deepEqual(feedback.rows, [
+    { label: "XP earned", value: "+100 XP" },
+    { label: "Upgrade points", value: "1 point available" }
+  ]);
+});
+
 test("campaign applies chosen upgrades before advancing to the next level", () => {
   const harness = createCampaignHarness({ levelIndex: 0 });
 
@@ -384,6 +407,10 @@ test("campaign advance is ungated when no eligible upgrades remain", () => {
     availableUpgradePoints: 2,
     choices: []
   });
+  assert.deepEqual(createProgressionFeedback(harness.game.snapshot()).rows, [
+    { label: "XP earned", value: "+100 XP" },
+    { label: "Upgrade points", value: "2 points unspent - all upgrades maxed" }
+  ]);
   assert.equal(harness.game.debugState().canAdvanceLevel, true);
   assert.equal(harness.game.advanceLevel(), true);
 });
