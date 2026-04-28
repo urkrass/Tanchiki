@@ -150,6 +150,13 @@ canvas {
   line-height: 1.45;
 }
 
+.upgrade-choice__effect {
+  color: #345f3c;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 @media (max-width: 560px) {
   .shell {
     width: min(100% - 24px, 920px);

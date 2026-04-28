@@ -30,7 +30,7 @@ function createUpgradeChoiceButton(choice, index) {
   button.dataset.upgradeId = choice.id;
   button.setAttribute(
     "aria-label",
-    `${choice.label}, rank ${choice.nextRank} of ${choice.maxRank}`
+    `${choice.label}, ${choice.rankLabel ?? `rank ${choice.nextRank} of ${choice.maxRank}`}, ${choice.effectLabel ?? choice.description}`
   );
 
   const key = document.createElement("span");
@@ -46,13 +46,17 @@ function createUpgradeChoiceButton(choice, index) {
 
   const meta = document.createElement("span");
   meta.className = "upgrade-choice__meta";
-  meta.textContent = `Rank ${choice.nextRank}/${choice.maxRank}`;
+  meta.textContent = choice.rankLabel ?? `Rank ${choice.nextRank}/${choice.maxRank}`;
+
+  const effect = document.createElement("span");
+  effect.className = "upgrade-choice__effect";
+  effect.textContent = choice.effectLabel ?? "";
 
   const description = document.createElement("span");
   description.className = "upgrade-choice__description";
   description.textContent = choice.description;
 
-  content.append(title, meta, description);
+  content.append(title, meta, effect, description);
   button.append(key, content);
   return button;
 }
