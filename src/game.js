@@ -53,6 +53,8 @@ import {
 } from "./game/progression.js";
 import {
   addCampaignState,
+  applyCampaignReward,
+  applyCampaignUpgrade,
   createCampaignRewardTracker
 } from "./game/campaignProgression.js";
 import {
@@ -125,6 +127,10 @@ export function createCampaignGame(options = {}) {
       levelGame = createLevelGame(options, currentLevelIndex, progression);
     },
 
+    applyUpgrade(upgradeId) {
+      return applyCampaignUpgrade(progression, upgradeId);
+    },
+
     advanceLevel() {
       if (currentStatus() !== "won" || currentLevelIndex >= levelCount - 1) {
         return false;
@@ -152,7 +158,7 @@ export function createCampaignGame(options = {}) {
     });
     const reward = rewardTracker.awardLevel({ currentLevelIndex, summary });
     if (reward) {
-      progression.xp += reward.xp;
+      applyCampaignReward(progression, reward);
     }
   }
 }

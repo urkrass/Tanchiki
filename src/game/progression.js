@@ -66,6 +66,8 @@ export const MISSION_XP_REWARD = Object.freeze({
   enemyDestroyed: 10
 });
 
+export const XP_PER_LEVEL = 100;
+
 validateUpgradeCatalog(UPGRADE_CATALOG);
 
 const UPGRADE_BY_ID = createUpgradeIndex(UPGRADE_CATALOG);
@@ -112,6 +114,60 @@ export function calculateMissionXpReward(missionSummary) {
     "missionSummary.enemiesDestroyed"
   );
   return MISSION_XP_REWARD.completion + (enemiesDestroyed * MISSION_XP_REWARD.enemyDestroyed);
+}
+
+export function calculateLevelForXp(xp) {
+  const normalizedXp = normalizeNonNegativeInteger(xp, "xp");
+  return Math.floor(normalizedXp / XP_PER_LEVEL) + 1;
+}
+
+export function awardProgressionXp(progressionState, xp) {
+  const progression = createProgressionState(progressionState);
+  const awardedXp = normalizeNonNegativeInteger(xp, "xp");
+  const previousLevel = progression.level;
+  progression.xp += awardedXp;
+  progression.level = Math.max(progression.level, calculateLevelForXp(progression.xp));
+  progression.availableUpgradePoints += Math.max(0, progression.level - previousLevel);
+  return progression;
+}
+
+export function applyProgressionUpgrade(progressionState, upgradeId) {
+  const progression = createProgressionState(progressionState);
+  let upgrade;
+  try {
+    upgrade = getUpgradeDefinition(upgradeId);
+  } catch {
+    return {
+      applied: false,
+      reason: "unknown-upgrade",
+      progression
+    };
+  }
+
+  if (progression.availableUpgradePoints <= 0) {
+    return {
+      applied: false,
+      reason: "no-points",
+      progression
+    };
+  }
+
+  const currentRank = progression.appliedUpgrades[upgrade.id] ?? 0;
+  if (currentRank >= upgrade.maxRank) {
+    return {
+      applied: false,
+      reason: "max-rank",
+      progression
+    };
+  }
+
+  progression.availableUpgradePoints -= 1;
+  progression.appliedUpgrades[upgrade.id] = currentRank + 1;
+  return {
+    applied: true,
+    reason: null,
+    progression
+  };
 }
 
 export function derivePlayerDefensiveStats(progressionState, baseStats) {
