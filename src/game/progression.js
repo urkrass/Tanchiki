@@ -114,6 +114,42 @@ export function calculateMissionXpReward(missionSummary) {
   return MISSION_XP_REWARD.completion + (enemiesDestroyed * MISSION_XP_REWARD.enemyDestroyed);
 }
 
+export function derivePlayerDefensiveStats(progressionState, baseStats) {
+  const progression = createProgressionState(progressionState);
+  if (!baseStats || typeof baseStats !== "object" || Array.isArray(baseStats)) {
+    throw new Error("Base defensive stats must be an object.");
+  }
+  const maxHp = normalizePositiveInteger(baseStats.maxHp, "baseStats.maxHp");
+  const repairAmountBonus = normalizeNonNegativeInteger(
+    baseStats.repairAmountBonus ?? 0,
+    "baseStats.repairAmountBonus"
+  );
+  const stats = {
+    maxHp,
+    repairAmountBonus
+  };
+
+  for (const [upgradeId, rank] of Object.entries(progression.appliedUpgrades)) {
+    const upgrade = getUpgradeDefinition(upgradeId);
+    for (const effect of upgrade.effects) {
+      if (effect.key === "maxHp") {
+        stats.maxHp += effect.amount * rank;
+      }
+      if (effect.key === "repairAmount") {
+        stats.repairAmountBonus += effect.amount * rank;
+      }
+    }
+  }
+
+  return {
+    maxHp: normalizePositiveInteger(stats.maxHp, "derived maxHp"),
+    repairAmountBonus: normalizeNonNegativeInteger(
+      stats.repairAmountBonus,
+      "derived repairAmountBonus"
+    )
+  };
+}
+
 export function getUpgradeCatalog() {
   return UPGRADE_CATALOG;
 }
