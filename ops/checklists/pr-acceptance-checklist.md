@@ -111,6 +111,7 @@ auto-merge shakedown is invalid or inconclusive.
 - [ ] CI passed after the latest commit.
 - [ ] PR metadata checks passed after the latest commit.
 - [ ] QA evidence is present when the validation profile or risk level requires it.
+- [ ] Harness or checklist wording changes were read as clarifications only, not policy or authority expansions.
 
 ## Final Decision
 
