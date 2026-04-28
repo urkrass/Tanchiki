@@ -166,6 +166,14 @@ Issues with `validation:movement` should normally be gated by `risk:human-only` 
 - Campaign Groomer must ensure only one issue in a campaign is automation-ready unless issues are genuinely independent.
 - Campaign Groomer must add a Linear comment explaining queue order and human gates.
 
+## Shakedown Campaigns
+
+Use a small Level 5 shakedown campaign before larger gameplay campaigns when the gate itself needs validation. Prefer docs, UI-copy, or test-only issues, and avoid source gameplay changes.
+
+A passing shakedown queue should expose only the first Architect issue as `Todo` + `automation-ready`. Follow-up Coder, Test, Reviewer, and Release issues should remain blocked until the prior gate is complete. Include one intentionally gated movement placeholder with `type:movement`, `validation:movement`, `risk:human-only`, `human-only`, and `needs-human-approval`; it must not have `automation-ready`.
+
+The dispatcher should run only the exposed issue, skip blocked issues, and refuse the human-only movement placeholder if it is encountered. Shakedown work must not edit gameplay source or `src/game/movement.js`.
+
 ## PR Body Requirements
 
 Future PRs must include:

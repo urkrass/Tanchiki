@@ -221,6 +221,15 @@ Level 5 dispatcher eligibility:
 
 Use `ops/policies/risk-gated-validation.md` and `ops/checklists/risk-gate-checklist.md` as the source of truth for Level 5 risk and validation rules.
 
+Level 5 shakedown campaigns:
+
+- Use a small docs, UI-copy, or test-only campaign to verify the risk gate before larger gameplay work.
+- Only the first Architect issue should be `Todo` + `automation-ready` at campaign start.
+- Keep follow-up Coder, Test, Reviewer, and Release issues blocked until the prior gate is complete.
+- Include one intentionally gated movement placeholder labeled `type:movement`, `validation:movement`, `risk:human-only`, `human-only`, and `needs-human-approval`; do not apply `automation-ready` to it.
+- The expected dispatcher result is to run only the exposed issue and refuse or skip the gated movement placeholder.
+- Shakedown issues must not edit gameplay source or `src/game/movement.js`.
+
 Level 1 PR workflow:
 
 - Use one issue per PR.
