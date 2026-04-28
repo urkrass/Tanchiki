@@ -15,22 +15,37 @@ test("target readability cues identify the enemy base", () => {
 });
 
 test("target readability cues distinguish pursuit, patrol, and sentry enemies", () => {
-  assert.equal(targetReadabilityCue({
+  assert.deepEqual(targetReadabilityCue({
     type: "dummy",
     alive: true,
     pursuitTarget: "player"
-  }).label, "!");
+  }), {
+    label: "!",
+    name: "Pursuit enemy",
+    fillStyle: "#a6342f",
+    textStyle: "#fff7df"
+  });
 
-  assert.equal(targetReadabilityCue({
+  assert.deepEqual(targetReadabilityCue({
     type: "dummy",
     alive: true,
     patrolRoute: [{ x: 1, y: 1 }, { x: 2, y: 1 }]
-  }).label, "P");
+  }), {
+    label: "P",
+    name: "Patrol enemy",
+    fillStyle: "#8a5a2f",
+    textStyle: "#fff7df"
+  });
 
-  assert.equal(targetReadabilityCue({
+  assert.deepEqual(targetReadabilityCue({
     type: "dummy",
     alive: true
-  }).label, "S");
+  }), {
+    label: "S",
+    name: "Sentry enemy",
+    fillStyle: "#8d3e34",
+    textStyle: "#fff7df"
+  });
 });
 
 test("target readability cues identify destroyed targets without changing target state", () => {
