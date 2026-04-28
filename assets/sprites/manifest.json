@@ -3,7 +3,7 @@
     "tileSize": 48,
     "style": "top-down tactical sprites",
     "background": "transparent",
-    "note": "First core sprite slice. Primitive Canvas rendering remains the fallback when any sprite is missing, loading, disabled, or failed."
+    "note": "Internal placeholder sprite pack. Primitive Canvas rendering remains the fallback when any sprite is missing, loading, disabled, or failed."
   },
   "sheets": {
     "player_tank": {
@@ -29,6 +29,45 @@
           "right": [[48, 0]],
           "down": [[96, 0]],
           "left": [[144, 0]]
+        }
+      }
+    },
+    "sentry_tank": {
+      "image": "core/enemy_variants.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "up": [[0, 0]],
+          "right": [[48, 0]],
+          "down": [[96, 0]],
+          "left": [[144, 0]]
+        }
+      }
+    },
+    "patrol_tank": {
+      "image": "core/enemy_variants.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "up": [[0, 48]],
+          "right": [[48, 48]],
+          "down": [[96, 48]],
+          "left": [[144, 48]]
+        }
+      }
+    },
+    "pursuit_tank": {
+      "image": "core/enemy_variants.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "up": [[0, 96]],
+          "right": [[48, 96]],
+          "down": [[96, 96]],
+          "left": [[144, 96]]
         }
       }
     },
@@ -65,6 +104,56 @@
           "right": [[48, 48]],
           "down": [[96, 48]],
           "left": [[144, 48]]
+        }
+      }
+    },
+    "repair_pickup": {
+      "image": "core/pickups.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "any": [[0, 0]]
+        }
+      }
+    },
+    "ammo_pickup": {
+      "image": "core/pickups.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "any": [[48, 0]]
+        }
+      }
+    },
+    "shield_pickup": {
+      "image": "core/pickups.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "any": [[96, 0]]
+        }
+      }
+    },
+    "destroyed_tank": {
+      "image": "core/wrecks.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "any": [[0, 0]]
+        }
+      }
+    },
+    "destroyed_base": {
+      "image": "core/wrecks.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "any": [[48, 0]]
         }
       }
     }
