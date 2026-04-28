@@ -35,20 +35,21 @@ Read the campaign brief supplied by the user, create 5-8 small Linear issues for
    - `role:test`
    - `role:reviewer`
    - `role:release`
-7. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
-8. For dependency chains, name exactly one issue that should become `Todo` + `automation-ready` first after human approval.
-9. Mark dependency issues as `blocked` or `needs-human-approval` where appropriate.
-10. Check whether likely files overlap with the previous 1-3 merged PRs or central integration files.
-11. Create the issues in Linear.
-12. Run the campaign grooming checklist before stopping:
-   - normalize each issue to exactly one applied `role:*` label where applicable
+7. Add suggested type, risk, and validation labels in the issue description.
+8. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
+9. For dependency chains, name exactly one issue that should become `Todo` + `automation-ready` first after human approval.
+10. Mark dependency issues as `blocked` or `needs-human-approval` where appropriate.
+11. Check whether likely files overlap with the previous 1-3 merged PRs or central integration files.
+12. Create the issues in Linear.
+13. Run the campaign grooming checklist before stopping:
+   - normalize each issue to exactly one applied `role:*`, `type:*`, `risk:*`, and `validation:*` label where applicable
    - mark human gates with `needs-human-approval`
    - mark never-automated human work with `human-only`
    - mark dependency-blocked work with `blocked`
    - apply `automation-ready` only to the one issue that may run next
-13. If the campaign requires Architect review first, make only that first Architect issue `Todo` + `role:architect` + `automation-ready`.
-14. Keep Coder, Test, Reviewer, and Release issues Backlog/blocked until their dependencies are complete.
-15. Stop after reporting the final groomed queue.
+14. If the campaign requires Architect review first, make only that first Architect issue `Todo` + `role:architect` + `automation-ready`.
+15. Keep Coder, Test, Reviewer, and Release issues Backlog/blocked until their dependencies are complete.
+16. Stop after reporting the final groomed queue.
 
 ## Issue Body Requirements
 
@@ -65,13 +66,16 @@ Each issue must include:
 - Manual QA
 - Risk level
 - Suggested labels
+- Suggested role label
+- Suggested type label
+- Suggested risk label
+- Suggested validation label
 - Planner classification
 - Dependencies or blockers
 - Dependency order
 - Blocked-by relationships where possible
 - Whether visible UI change is expected
 - Central-file conflict risk
-- Suggested role label
 - First issue that should become `Todo` + `automation-ready` after human approval
 
 ## Guardrails
@@ -102,4 +106,4 @@ Report:
 - which single issue should become `Todo` + `automation-ready` first after human approval
 - which issues need `needs-human-approval` before the Dispatcher can pick them up
 - final applied labels and statuses after grooming
-- whether the queue is safe for the Level 4 Dispatcher
+- whether the queue is safe for the Level 5 Dispatcher

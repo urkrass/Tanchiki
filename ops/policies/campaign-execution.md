@@ -4,12 +4,13 @@ Use this policy for multi-issue campaigns and Level 2 command-center runs.
 
 ## Sequential Execution
 
-Campaigns with dependency chains must expose only the next automation issue as `Todo` + `automation-ready` with exactly one `role:*` label.
+Campaigns with dependency chains must expose only the next automation issue as `Todo` + `automation-ready` with exactly one `role:*`, one `type:*`, one `risk:*`, and one `validation:*` label.
 
 - Parent, epic, and campaign umbrella issues must not have `automation-ready`.
 - Blocked issues must not be selected.
 - Issues labeled `needs-human-approval` must not be automated until a human removes the gate and applies `automation-ready`.
 - Issues labeled `human-only` must not be automated.
+- Issues labeled `risk:human-only` must not be automated.
 - Planners must groom the queue after creating campaign issues. During grooming, they may apply `automation-ready` only to the single first runnable issue allowed by this policy.
 
 If the Linear queue violates these rules, stop and report the queue problem before implementing.
@@ -27,6 +28,34 @@ Role labels:
 Readiness label:
 
 - `automation-ready`
+
+Issue type labels:
+
+- `type:docs`
+- `type:harness`
+- `type:ui`
+- `type:test`
+- `type:gameplay`
+- `type:progression`
+- `type:architecture`
+- `type:movement`
+
+Risk labels:
+
+- `risk:low`
+- `risk:medium`
+- `risk:high`
+- `risk:human-only`
+
+Validation profile labels:
+
+- `validation:docs`
+- `validation:harness`
+- `validation:ui`
+- `validation:test`
+- `validation:gameplay`
+- `validation:progression`
+- `validation:movement`
 
 Gate labels:
 
@@ -46,16 +75,18 @@ Deprecated ambiguous usage:
 After a planner creates campaign issues, the Planner must run the Campaign Groomer workflow before stopping. The groomer normalizes the queue before automation starts:
 
 - ensure each issue has exactly one applied `role:*` label where applicable
+- ensure each issue has exactly one applied `type:*`, `risk:*`, and `validation:*` label where applicable
 - ensure human gates use `needs-human-approval`
 - ensure dependency-blocked issues use `blocked`
 - ensure never-automated human work uses `human-only`
 - fix classification mismatches before automation starts
 - ensure exactly one issue is `Todo` + `automation-ready` in each dependency chain
 - ensure no issue has `automation-ready` together with `blocked`, `needs-human-approval`, or `human-only`
+- ensure no issue with `risk:human-only` has `automation-ready`
 - ensure parent and umbrella issues remain unready for automation
 - add a grooming comment with queue order and human actions
 
-If the campaign needs architecture review first, the groomer may make only the first Architect issue `Todo` + `role:architect` + `automation-ready`. Coder issues must stay Backlog/blocked immediately after planning unless the user explicitly requested a Coder issue to run first.
+If the campaign needs architecture review first, the groomer may make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready` after assigning exactly one type, risk, and validation label. Coder issues must stay Backlog/blocked immediately after planning unless the user explicitly requested a Coder issue to run first.
 
 Downstream defaults:
 
@@ -111,6 +142,10 @@ For internal-only issues, state clearly that no visible UI change is expected. I
 Resolve PR conflicts on the PR branch. Never resolve them by editing `main` directly.
 
 Preserve both sides of behavior, validate with `npm test`, `npm run build`, and `npm run lint`, then push the PR branch. Do not merge automatically.
+
+## Level 5 Validation
+
+Use `ops/policies/risk-gated-validation.md` and `ops/checklists/risk-gate-checklist.md` to choose and verify validation profiles. Harness work must use harness-only validation and must not edit gameplay code.
 
 ## Dev Server Port
 

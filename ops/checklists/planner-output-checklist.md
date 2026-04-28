@@ -19,6 +19,7 @@ Use this checklist before creating, grooming, or reporting Level 3 planner issue
 - Blocked-by relationships are added where possible or written in the issue body.
 - Risk level is stated.
 - Suggested labels are included.
+- Suggested role, type, risk, and validation labels are included.
 - Planner classification is included.
 - Visible UI expectation is stated.
 - Central-file conflict risk is stated.
@@ -40,13 +41,16 @@ Each issue includes:
 - Manual QA
 - Risk level
 - Suggested labels
+- Suggested role label
+- Suggested type label
+- Suggested risk label
+- Suggested validation label
 - Planner classification
 - Dependencies or blockers
 - Dependency order
 - Blocked-by relationships where possible
 - Visible UI change expected
 - Central-file conflict risk
-- Suggested role label
 - First issue that should become `Todo` + `automation-ready`
 
 ## Boundary Check
@@ -63,6 +67,7 @@ Each issue includes:
 ## Grooming Check
 
 - Each issue has exactly one applied `role:*` label where applicable.
+- Each issue has exactly one applied `type:*`, `risk:*`, and `validation:*` label where applicable.
 - Human gates use `needs-human-approval`.
 - Human-only issues use `human-only`.
 - Dependency-blocked issues use `blocked`.
@@ -71,6 +76,7 @@ Each issue includes:
 - If architecture review is required first, only the first Architect issue is `Todo` + `role:architect` + `automation-ready`.
 - Coder issues remain Backlog/blocked immediately after planning unless the user explicitly requested Coder to run first.
 - No issue has `automation-ready` with `blocked`, `needs-human-approval`, or `human-only`.
+- No issue has `automation-ready` with `risk:human-only`.
 - A grooming comment summarizes queue order and required human actions.
 
 ## Final Summary
@@ -85,7 +91,8 @@ The final planner response includes:
 - visible UI expectation for each issue
 - central-file conflict risk for each issue
 - suggested role label for each issue
+- suggested type label, risk label, and validation label for each issue
 - which issue should become `Todo` + `automation-ready` first
 - items requiring human review before Level 2 work
 - final status and applied labels for each issue after grooming
-- whether the queue is safe for the Level 4 Dispatcher
+- whether the queue is safe for the Level 5 Dispatcher

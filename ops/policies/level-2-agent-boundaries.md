@@ -9,14 +9,20 @@ Codex may select only issues that are all of the following:
 - status `Todo`
 - labeled `automation-ready`
 - labeled with exactly one `role:*`
+- labeled with exactly one `type:*`
+- labeled with exactly one `risk:*`
+- labeled with exactly one `validation:*`
 - not labeled `blocked`
 - not labeled `needs-human-approval`
 - not labeled `human-only`
+- not labeled `risk:human-only`
 - not safety-critical
 - not blocked by another issue
 - not a parent, epic, or campaign umbrella issue
 
 Issues gated by `needs-human-approval` are not eligible until a human removes the gate and applies `automation-ready`.
+
+Use `ops/policies/risk-gated-validation.md` for Level 5 issue type, risk, and validation profile rules.
 
 ## Sequential Campaign Execution
 

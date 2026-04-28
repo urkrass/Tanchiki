@@ -1,6 +1,6 @@
-# Level 4 Role Router Policy
+# Level 5 Role Router Policy
 
-The Level 4 Dispatcher is the default automation entrypoint for Tanchiki. It selects one eligible Linear issue and routes it to the correct Level 4 role.
+The Level 5 Dispatcher is the default automation entrypoint for Tanchiki. It selects one eligible Linear issue and routes it to the correct Level 4 role after applying risk-gated validation.
 
 ## Purpose
 
@@ -12,17 +12,21 @@ The router scans all `Todo` issues in the Tanchiki project. It must skip blocked
 
 An issue is eligible only when all of these are true:
 
-- `Todo`
-- labeled `automation-ready`
+- status is `Todo`
+- has `automation-ready`
 - has exactly one `role:*` label
+- has exactly one `type:*` label
+- has exactly one `risk:*` label
+- has exactly one `validation:*` label
 - not blocked by another issue
 - not labeled `blocked`
 - not labeled `needs-human-approval`
 - not labeled `human-only`
+- not labeled `risk:human-only`
 - not canceled
 - not `Done`
 
-The router must read the full issue before making a routing decision.
+The router must read the full issue before making a routing decision. If required metadata is missing or duplicated, the router must stop and comment on the Linear issue asking for triage.
 
 ## Campaign Grooming Requirements
 
@@ -31,8 +35,10 @@ The router must ignore ungroomed campaign queues. Before selecting a campaign is
 Stop and ask for campaign grooming before changing issue state or repository files if:
 
 - any Todo candidate lacks exactly one `role:*` label
+- any Todo candidate lacks exactly one `type:*`, `risk:*`, or `validation:*` label
 - more than one issue in the campaign or dependency chain has `automation-ready`
 - any issue has `automation-ready` together with `blocked`, `needs-human-approval`, or `human-only`
+- any issue has `automation-ready` together with `risk:human-only`
 - an implementation issue is automation-ready immediately after planning while an Architect review or human gate is still open
 - role labels conflict with the issue classification, for example a human review gate labeled `role:coder`
 
@@ -51,6 +57,34 @@ Role labels:
 Readiness label:
 
 - `automation-ready`
+
+Issue type labels:
+
+- `type:docs`
+- `type:harness`
+- `type:ui`
+- `type:test`
+- `type:gameplay`
+- `type:progression`
+- `type:architecture`
+- `type:movement`
+
+Risk labels:
+
+- `risk:low`
+- `risk:medium`
+- `risk:high`
+- `risk:human-only`
+
+Validation profile labels:
+
+- `validation:docs`
+- `validation:harness`
+- `validation:ui`
+- `validation:test`
+- `validation:gameplay`
+- `validation:progression`
+- `validation:movement`
 
 Gate labels:
 
@@ -79,6 +113,8 @@ Use the single `role:*` label. Description classification may confirm intent, bu
 | Missing `role:*` label | Stop and comment asking for triage |
 | Multiple `role:*` labels | Stop and comment asking for triage |
 | `blocked`, `needs-human-approval`, or `human-only` | Skip and report when no eligible issue exists |
+| Missing or multiple `type:*`, `risk:*`, or `validation:*` labels | Stop and comment asking for triage |
+| `risk:human-only` | Skip; dispatcher must not automate |
 
 ## Hard Stops
 
@@ -86,8 +122,11 @@ Stop before changing code or issue state if:
 
 - the issue is blocked or dependency-gated
 - the issue has `needs-human-approval` or `human-only`
+- the issue has `risk:human-only`
 - the classification conflicts with the labels
 - multiple roles appear equally plausible or multiple `role:*` labels are present
+- multiple type, risk, or validation labels are present
+- required Level 5 metadata is missing
 - the issue looks like a parent, epic, campaign umbrella, or safety-critical item
 - more than one issue in a dependency chain is simultaneously exposed as `Todo` + `automation-ready`
 - the campaign appears ungroomed under the Campaign Grooming Requirements
@@ -103,6 +142,7 @@ When stopping for ambiguity, add a Linear comment that states the missing or con
 - Never let Reviewer merge PRs.
 - Never let Release agent change gameplay behavior.
 - Never bypass `blocked`, `needs-human-approval`, or `human-only` labels.
+- Never bypass `risk:human-only`.
 - Never mark an issue `Done` unless the selected role protocol explicitly allows it.
 
 ## Repository Rules
@@ -116,7 +156,7 @@ git pull --ff-only origin main
 git status --short
 ```
 
-Open PRs only when the selected role allows PRs. Every PR must target `main`, remain unmerged, and pass:
+Open PRs only when the selected role allows PRs. Every PR must target `main`, remain unmerged, include Level 5 PR metadata, and pass the selected `validation:*` profile. Baseline validation is:
 
 ```powershell
 npm test
@@ -131,7 +171,9 @@ The router must state:
 - selected issue ID and title
 - selected role
 - role label used
+- type label, risk label, and validation profile used
 - any hard-stop reason
 - skipped blocked/gated candidates if no issue is eligible
+- ineligible candidates and missing or duplicated metadata
 - next protocol file to follow
 - whether repository work and a PR are allowed
