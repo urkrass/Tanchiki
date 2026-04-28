@@ -180,3 +180,47 @@ Use these files for Level 3 planning:
 - `ops/policies/planner-boundaries.md`
 - `ops/checklists/planner-output-checklist.md`
 - `prompts/codex-plan-campaign.md`
+
+## Level 4 Role-Separated Agent Workflow
+
+Level 4 separates Codex runs by responsibility so planning, architecture review, implementation, testing, PR review, and release summary work do not blur together.
+
+Use the Linear source of truth document `Tanchiki Level 4 Role-Separated Agent Protocol` in the Tanchiki project:
+
+https://linear.app/marsel/document/tanchiki-level-4-role-separated-agent-protocol-ab4a77eb76bc
+
+Roles:
+
+- Planner: creates Linear issues only.
+- Architect: reviews issue shape, architecture risk, dependency order, and conflict risk only.
+- Coder: implements one `Todo` + `agent-ready` issue only.
+- Test agent: adds or improves focused tests without changing gameplay behavior unless required to make tests meaningful.
+- Reviewer: reviews PR diffs and comments; it must not merge.
+- Release agent: summarizes merged PRs and updates release or campaign notes; it must not change gameplay.
+
+Every Level 4 role must start from updated `main`:
+
+```powershell
+git fetch --prune origin
+git switch main
+git pull --ff-only origin main
+git status --short
+```
+
+Every PR must target `main`. No role may bypass CI, push directly to `main`, merge automatically, or close parent campaign issues unless all children are done and a release summary exists.
+
+Use these files for Level 4 work:
+
+- `ops/policies/role-boundaries.md`
+- `ops/prompts/architect-agent.md`
+- `ops/prompts/coder-agent.md`
+- `ops/prompts/test-agent.md`
+- `ops/prompts/reviewer-agent.md`
+- `ops/prompts/release-agent.md`
+- `ops/checklists/architect-review-checklist.md`
+- `ops/checklists/pr-review-checklist.md`
+- `ops/checklists/release-summary-checklist.md`
+- `prompts/codex-architect-review.md`
+- `prompts/codex-test-pass.md`
+- `prompts/codex-review-pr.md`
+- `prompts/codex-release-summary.md`
