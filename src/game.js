@@ -55,7 +55,8 @@ import {
   calculateMissionXpReward,
   calculateProgressionEffects,
   cloneProgressionState,
-  createProgressionState
+  createProgressionState,
+  derivePlayerDefensiveStats
 } from "./game/progression.js";
 
 const tileSize = 48;
@@ -68,7 +69,7 @@ export function createCampaignGame(options = {}) {
   const progression = createProgressionState(options.progression);
   const rewardedLevelIndexes = new Set();
   let lastMissionReward = null;
-  let levelGame = createLevelGame(options, currentLevelIndex);
+  let levelGame = createLevelGame(options, currentLevelIndex, progression);
 
   function currentStatus() {
     const missionStatus = levelGame.snapshot().missionStatus;
@@ -119,7 +120,7 @@ export function createCampaignGame(options = {}) {
     },
 
     restartLevel() {
-      levelGame = createLevelGame(options, currentLevelIndex);
+      levelGame = createLevelGame(options, currentLevelIndex, progression);
     },
 
     advanceLevel() {
@@ -128,7 +129,7 @@ export function createCampaignGame(options = {}) {
       }
 
       currentLevelIndex += 1;
-      levelGame = createLevelGame(options, currentLevelIndex);
+      levelGame = createLevelGame(options, currentLevelIndex, progression);
       return true;
     }
   };
@@ -183,12 +184,17 @@ export function createGame(options = {}) {
   const isBlocked = (x, y) => isBlockedCell(level, x, y);
   const isSolid = (x, y) => isBlocked(x, y) || isSolidEntityAt(targets, x, y);
   const canEnter = (x, y) => !isBlocked(x, y);
-  const playerCombatStats = createPlayerCombatStats(options.progression);
+  const progression = createProgressionState(options.progression);
+  const playerCombatStats = createPlayerCombatStats(progression);
   const projectiles = createProjectileStore(playerCombatStats);
   const canEnterWithEntities = (x, y) => !isSolid(x, y);
+  const defensiveStats = derivePlayerDefensiveStats(progression, {
+    maxHp: options.playerMaxHp ?? PLAYER_MAX_HP
+  });
   const playerState = {
-    hp: options.playerHp ?? PLAYER_MAX_HP,
-    maxHp: options.playerMaxHp ?? PLAYER_MAX_HP,
+    hp: Math.min(options.playerHp ?? defensiveStats.maxHp, defensiveStats.maxHp),
+    maxHp: defensiveStats.maxHp,
+    repairAmountBonus: defensiveStats.repairAmountBonus,
     ammoReserve: options.ammoReserve ?? 0,
     shieldCharges: options.shieldCharges ?? 0,
     damageFlashSeconds: 0,
@@ -319,6 +325,7 @@ export function createGame(options = {}) {
           visual: getVisualPosition(player),
           hp: playerState.hp,
           maxHp: playerState.maxHp,
+          effectiveStats: { ...defensiveStats },
           ammoReserve: playerState.ammoReserve,
           shieldCharges: playerState.shieldCharges,
           damageFlashSeconds: playerState.damageFlashSeconds,
@@ -390,6 +397,7 @@ export function createGame(options = {}) {
           type: "tank",
           hp: playerState.hp,
           maxHp: playerState.maxHp,
+          effectiveStats: { ...defensiveStats },
           ammoReserve: playerState.ammoReserve,
           shieldCharges: playerState.shieldCharges,
           damageFlashSeconds: Number(playerState.damageFlashSeconds.toFixed(3)),
@@ -453,7 +461,7 @@ function createPlayerCombatStats(progressionState) {
   };
 }
 
-function createLevelGame(options, levelIndex) {
+function createLevelGame(options, levelIndex, progression) {
   const mission = createCampaignMission(levelIndex);
   const {
     level,
@@ -467,7 +475,8 @@ function createLevelGame(options, levelIndex) {
     level: mission.level,
     targets: mission.targets,
     pickups: mission.pickups,
-    playerSpawn: mission.level.playerSpawn
+    playerSpawn: mission.level.playerSpawn,
+    progression
   });
 }
 

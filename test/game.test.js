@@ -349,6 +349,42 @@ test("debug state exposes combat fairness tuning", () => {
   });
 });
 
+test("default player defensive stats remain unchanged without upgrades", () => {
+  const harness = createHarness({ x: 1, y: 1, facing: "right" });
+
+  assert.equal(harness.debugState().player.hp, 3);
+  assert.equal(harness.debugState().player.maxHp, 3);
+  assert.deepEqual(harness.debugState().player.effectiveStats, {
+    maxHp: 3,
+    repairAmountBonus: 0
+  });
+  assert.deepEqual(harness.snapshot().player.effectiveStats, {
+    maxHp: 3,
+    repairAmountBonus: 0
+  });
+});
+
+test("armor upgrade increases player max HP at level start", () => {
+  const harness = createHarness({
+    x: 1,
+    y: 1,
+    facing: "right",
+    progression: {
+      appliedUpgrades: {
+        armor: 2
+      }
+    }
+  });
+
+  const player = harness.debugState().player;
+  assert.equal(player.hp, 5);
+  assert.equal(player.maxHp, 5);
+  assert.deepEqual(player.effectiveStats, {
+    maxHp: 5,
+    repairAmountBonus: 0
+  });
+});
+
 test("snapshot exposes interpolated patrol target visual position", () => {
   const patrol = createTarget({
     id: "patrol",
@@ -503,7 +539,15 @@ test("victory condition still works when enemy projectiles exist", () => {
   assert.equal(harness.debugState().missionStatus, "won");
 });
 
-function createHarness({ x, y, facing, targets = [], playerHp, progression, validateSpawn = true }) {
+function createHarness({
+  x,
+  y,
+  facing,
+  targets = [],
+  playerHp,
+  progression,
+  validateSpawn = true
+}) {
   const target = new EventTarget();
   const input = createInput(target);
   const game = createGame({

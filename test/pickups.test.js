@@ -22,6 +22,52 @@ test("repair pickup restores HP without exceeding max", () => {
   assert.equal(state.pickups[0].active, false);
 });
 
+test("repair upgrade increases repair pickup amount and caps at upgraded max HP", () => {
+  const harness = createHarness({
+    playerHp: 2,
+    progression: {
+      appliedUpgrades: {
+        armor: 2,
+        repair: 1
+      }
+    },
+    pickups: [
+      createPickup({ id: "repair", type: "repair", gridX: 2, gridY: 1, amount: 1 })
+    ]
+  });
+
+  harness.moveRightOneCell();
+
+  const state = harness.debugState();
+  assert.equal(state.player.hp, 4);
+  assert.equal(state.player.maxHp, 5);
+  assert.deepEqual(state.player.effectiveStats, {
+    maxHp: 5,
+    repairAmountBonus: 1
+  });
+});
+
+test("repair upgrade never heals beyond effective max HP", () => {
+  const harness = createHarness({
+    playerHp: 4,
+    progression: {
+      appliedUpgrades: {
+        armor: 2,
+        repair: 2
+      }
+    },
+    pickups: [
+      createPickup({ id: "repair", type: "repair", gridX: 2, gridY: 1, amount: 5 })
+    ]
+  });
+
+  harness.moveRightOneCell();
+
+  const state = harness.debugState();
+  assert.equal(state.player.hp, 5);
+  assert.equal(state.player.maxHp, 5);
+});
+
 test("pickup amount must be positive", () => {
   assert.throws(
     () => createPickup({ id: "bad-repair", type: "repair", gridX: 2, gridY: 1, amount: 0 }),
@@ -117,6 +163,7 @@ function createHarness({
   playerHp = 3,
   pickups = [],
   targets = [],
+  progression,
   validateSpawn = true
 } = {}) {
   const target = new EventTarget();
@@ -129,6 +176,7 @@ function createHarness({
     targets,
     pickups,
     playerHp,
+    progression,
     validateSpawn
   });
 

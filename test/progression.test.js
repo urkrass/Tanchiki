@@ -8,6 +8,7 @@ import {
   calculateProgressionEffects,
   cloneProgressionState,
   createProgressionState,
+  derivePlayerDefensiveStats,
   getUpgradeCatalog,
   getUpgradeDefinition,
   resetProgressionState,
@@ -110,6 +111,45 @@ test("mission XP rewards reject losses and invalid summary data", () => {
   assert.throws(
     () => calculateMissionXpReward({ result: "victory", enemiesDestroyed: -1 }),
     /missionSummary\.enemiesDestroyed must be a non-negative integer/
+  );
+});
+
+test("player defensive stats preserve defaults without upgrades", () => {
+  assert.deepEqual(
+    derivePlayerDefensiveStats(createProgressionState(), { maxHp: 3 }),
+    {
+      maxHp: 3,
+      repairAmountBonus: 0
+    }
+  );
+});
+
+test("player defensive stats apply armor and repair upgrades", () => {
+  assert.deepEqual(
+    derivePlayerDefensiveStats(
+      createProgressionState({
+        appliedUpgrades: {
+          armor: 2,
+          repair: 1
+        }
+      }),
+      { maxHp: 3 }
+    ),
+    {
+      maxHp: 5,
+      repairAmountBonus: 1
+    }
+  );
+});
+
+test("player defensive stats validate base stats", () => {
+  assert.throws(
+    () => derivePlayerDefensiveStats(createProgressionState(), null),
+    /Base defensive stats must be an object/
+  );
+  assert.throws(
+    () => derivePlayerDefensiveStats(createProgressionState(), { maxHp: 0 }),
+    /baseStats\.maxHp must be a positive integer/
   );
 });
 
