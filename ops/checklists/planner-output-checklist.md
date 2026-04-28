@@ -1,6 +1,6 @@
 # Planner Output Checklist
 
-Use this checklist before creating or reporting Level 3 planner issues.
+Use this checklist before creating, grooming, or reporting Level 3 planner issues.
 
 ## Brief Understanding
 
@@ -53,11 +53,25 @@ Each issue includes:
 
 - No gameplay code was edited.
 - No branch or implementation PR was created for gameplay work.
-- No issue was marked `automation-ready` unless explicitly instructed.
+- No issue was marked `automation-ready` except the single first runnable issue exposed by the required grooming pass.
 - No parent, epic, blocked, or `needs-human-approval` issue was marked `automation-ready`.
 - For dependency chains, only one issue is recommended as the first `Todo` + `automation-ready` candidate.
 - No issue was moved into implementation status.
-- The planner stopped after creating issues and a summary.
+- The planner ran the campaign grooming checklist after creating issues.
+- The planner stopped after creating issues, grooming the queue, and reporting the final queue.
+
+## Grooming Check
+
+- Each issue has exactly one applied `role:*` label where applicable.
+- Human gates use `needs-human-approval`.
+- Human-only issues use `human-only`.
+- Dependency-blocked issues use `blocked`.
+- Classification mismatches are corrected before automation starts.
+- Only the first runnable issue has `automation-ready`.
+- If architecture review is required first, only the first Architect issue is `Todo` + `role:architect` + `automation-ready`.
+- Coder issues remain Backlog/blocked immediately after planning unless the user explicitly requested Coder to run first.
+- No issue has `automation-ready` with `blocked`, `needs-human-approval`, or `human-only`.
+- A grooming comment summarizes queue order and required human actions.
 
 ## Final Summary
 
@@ -73,3 +87,5 @@ The final planner response includes:
 - suggested role label for each issue
 - which issue should become `Todo` + `automation-ready` first
 - items requiring human review before Level 2 work
+- final status and applied labels for each issue after grooming
+- whether the queue is safe for the Level 4 Dispatcher

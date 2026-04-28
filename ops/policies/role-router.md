@@ -24,6 +24,20 @@ An issue is eligible only when all of these are true:
 
 The router must read the full issue before making a routing decision.
 
+## Campaign Grooming Requirements
+
+The router must ignore ungroomed campaign queues. Before selecting a campaign issue, inspect other Todo and automation-ready issues in the same campaign or dependency chain when identifiable from issue text, parent links, project context, labels, or blocked-by relationships.
+
+Stop and ask for campaign grooming before changing issue state or repository files if:
+
+- any Todo candidate lacks exactly one `role:*` label
+- more than one issue in the campaign or dependency chain has `automation-ready`
+- any issue has `automation-ready` together with `blocked`, `needs-human-approval`, or `human-only`
+- an implementation issue is automation-ready immediately after planning while an Architect review or human gate is still open
+- role labels conflict with the issue classification, for example a human review gate labeled `role:coder`
+
+When stopping, add a Linear comment that asks for the Campaign Groomer and names the unsafe labels or statuses.
+
 ## Label Taxonomy
 
 Role labels:
@@ -76,6 +90,7 @@ Stop before changing code or issue state if:
 - multiple roles appear equally plausible or multiple `role:*` labels are present
 - the issue looks like a parent, epic, campaign umbrella, or safety-critical item
 - more than one issue in a dependency chain is simultaneously exposed as `Todo` + `automation-ready`
+- the campaign appears ungroomed under the Campaign Grooming Requirements
 
 When stopping for ambiguity, add a Linear comment that states the missing or conflicting routing signals and asks for triage.
 

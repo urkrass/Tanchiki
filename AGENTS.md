@@ -216,17 +216,21 @@ Level 2 command-center workflow:
 Level 3 planner workflow:
 
 - Use Level 3 only to turn a high-level campaign brief into small Linear issues.
-- The planner may create Linear issues only.
+- The planner may create Linear issues and immediately groom the campaign queue.
 - The planner must not edit source code or implement gameplay.
-- The planner must not apply `automation-ready` automatically.
-- The planner must not apply `automation-ready` to parent, epic, blocked, or `needs-human-approval` issues.
+- The planner must not apply `automation-ready` broadly.
+- The planner must not apply `automation-ready` to parent, epic, blocked, `needs-human-approval`, or `human-only` issues.
 - The planner must classify every issue as `automation-ready candidate`, `needs-human-approval`, `human-only`, or `blocked/dependency`.
 - The planner must assign suggested role labels in the issue description.
 - Each planned issue must include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, Planner classification, Dependencies or blockers, Dependency order, Blocked-by relationships where possible, Visible UI change expected, Central-file conflict risk, Suggested role label, and First issue that should become `Todo` + `automation-ready`.
+- After creating issues, the planner must run the campaign grooming checklist before stopping.
+- Grooming must normalize each issue to exactly one applied `role:*` label where applicable.
+- Grooming may apply `automation-ready` only to the one issue that may run next.
+- If architecture review is required first, only the first Architect issue may become `Todo` + `role:architect` + `automation-ready`.
+- Coder issues must stay Backlog/blocked immediately after planning unless the user explicitly requested Coder to run first.
 - Issues must be small enough for one Level 2 implementation pass.
 - Avoid broad vague issues like "improve AI", "polish game", or "add campaign".
-- Use `ops/prompts/planner-agent.md`, `ops/policies/planner-boundaries.md`, `ops/policies/campaign-execution.md`, `ops/checklists/conflict-risk-checklist.md`, `ops/checklists/planner-output-checklist.md`, and `prompts/codex-plan-campaign.md` for this workflow.
-- Use `ops/prompts/campaign-groomer.md` and `ops/checklists/campaign-grooming-checklist.md` after planning to ensure exactly one issue is ready for automation.
+- Use `ops/prompts/planner-agent.md`, `ops/prompts/campaign-groomer.md`, `ops/policies/planner-boundaries.md`, `ops/policies/campaign-execution.md`, `ops/checklists/conflict-risk-checklist.md`, `ops/checklists/planner-output-checklist.md`, `ops/checklists/campaign-grooming-checklist.md`, `prompts/codex-plan-campaign.md`, and `prompts/codex-plan-and-groom-campaign.md` for this workflow.
 
 Level 4 role-separated workflow:
 
@@ -235,9 +239,10 @@ Level 4 role-separated workflow:
 - The Dispatcher must use Linear MCP, read one full issue, and route by `ops/policies/role-router.md`.
 - The Dispatcher may route to Architect, Coder, Test, Reviewer, or Release; it must skip blocked/gated issues and stop for missing or ambiguous role labels.
 - The Dispatcher must require `Todo`, `automation-ready`, exactly one `role:*` label, and no gate labels.
+- The Dispatcher must ignore ungroomed campaigns. If a Todo issue lacks exactly one `role:*` label, more than one campaign issue has `automation-ready`, or `automation-ready` appears with `blocked` or `needs-human-approval`, it must stop and ask for Campaign Groomer work.
 - Never route Architect, Test, Reviewer, or Release issues to Coder.
 - Use `ops/policies/role-boundaries.md` as the shared boundary source.
-- Planner may create Linear issues only.
+- Planner may create Linear issues and groom campaign queue labels/statuses/comments only.
 - Architect may review issues, architecture risk, dependency order, file ownership, and conflict risk only; no implementation.
 - Coder may implement exactly one Linear issue that is `Todo` + `automation-ready` + `role:coder`.
 - Test agent may add or improve tests but must not change gameplay behavior unless required to make tests meaningful and explicitly reported.
@@ -305,9 +310,11 @@ When the user asks Codex to plan a campaign brief:
 3. Create 5-8 small Linear issues when the brief is large enough.
 4. Preserve dependencies between issues.
 5. Do not implement gameplay or edit source code.
-6. Do not apply `automation-ready` unless a human explicitly instructs it.
+6. Do not apply `automation-ready` broadly.
 7. Include dependency order, blocked-by relationships where possible, visible UI expectation, central-file conflict risk, suggested role labels, and the first issue that should become `Todo` + `automation-ready`.
-8. Stop after creating issues and reporting the summary.
+8. Run the campaign grooming checklist immediately after issue creation.
+9. Expose only the first runnable issue with `Todo` + `automation-ready`; when Architect review is required first, expose the first Architect issue only.
+10. Stop after creating issues, grooming the queue, and reporting the final queue.
 
 ## Level 4 role-separated workflow
 When the user asks Codex to run a role-separated workflow:

@@ -10,7 +10,7 @@ Campaigns with dependency chains must expose only the next automation issue as `
 - Blocked issues must not be selected.
 - Issues labeled `needs-human-approval` must not be automated until a human removes the gate and applies `automation-ready`.
 - Issues labeled `human-only` must not be automated.
-- Planners may recommend role labels in issue bodies but must not apply `automation-ready` unless explicitly instructed.
+- Planners must groom the queue after creating campaign issues. During grooming, they may apply `automation-ready` only to the single first runnable issue allowed by this policy.
 
 If the Linear queue violates these rules, stop and report the queue problem before implementing.
 
@@ -43,13 +43,26 @@ Deprecated ambiguous usage:
 
 ## Campaign Grooming
 
-After a planner creates campaign issues, a Campaign Groomer should review the queue before automation starts:
+After a planner creates campaign issues, the Planner must run the Campaign Groomer workflow before stopping. The groomer normalizes the queue before automation starts:
 
-- ensure each issue has exactly one suggested or applied `role:*` label
-- ensure blocked/dependency issues are marked with `blocked` or `needs-human-approval`
+- ensure each issue has exactly one applied `role:*` label where applicable
+- ensure human gates use `needs-human-approval`
+- ensure dependency-blocked issues use `blocked`
+- ensure never-automated human work uses `human-only`
+- fix classification mismatches before automation starts
 - ensure exactly one issue is `Todo` + `automation-ready` in each dependency chain
-- ensure the first automation issue is explicitly recommended for human approval
+- ensure no issue has `automation-ready` together with `blocked`, `needs-human-approval`, or `human-only`
 - ensure parent and umbrella issues remain unready for automation
+- add a grooming comment with queue order and human actions
+
+If the campaign needs architecture review first, the groomer may make only the first Architect issue `Todo` + `role:architect` + `automation-ready`. Coder issues must stay Backlog/blocked immediately after planning unless the user explicitly requested a Coder issue to run first.
+
+Downstream defaults:
+
+- Coder issues stay Backlog/blocked until Architect and human gates are done.
+- Test issues stay blocked until implementation PRs are merged or ready.
+- Reviewer issues stay blocked until implementation/test PRs exist.
+- Release issues stay blocked until review is done.
 
 ## Branch Freshness
 
