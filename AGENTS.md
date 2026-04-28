@@ -69,6 +69,8 @@ npm run lint
 
 `npm run dev` serves the prototype at `http://localhost:5173`. `build` and `lint` currently run syntax checks only.
 
+If port `5173` is already occupied, do not treat that alone as app failure. Check whether the existing server at `http://localhost:5173` is usable, or give a clear command to stop the stale process before retrying.
+
 Useful repository inspection commands:
 
 ```powershell
@@ -165,13 +167,19 @@ Level 2 command-center workflow:
 - Codex must not pick Backlog issues.
 - Codex may pick only issues with status `Todo` and label `agent-ready`.
 - Codex must not pick issues labeled `blocked` or `human-only`, issues blocked by another issue, or safety-critical work.
+- Codex must not pick parent, epic, or campaign umbrella issues.
+- Codex must not implement `human-review` issues until a human explicitly moves them to `Todo` and applies `agent-ready`.
+- For dependency chains, only one implementation issue may be `Todo` + `agent-ready` at a time.
 - Codex must work one issue only per branch and PR.
 - Codex must move the selected Linear issue to `In Progress` when starting.
-- Codex must create a branch from `main`.
+- Before creating a branch, Codex must run `git fetch --prune origin`, `git switch main`, `git pull --ff-only origin main`, and `git status --short`.
+- Codex must create a branch from updated `main`.
 - Codex must open a draft PR against `main`.
 - Codex must move the Linear issue to `In Review` when the draft PR is opened.
 - Codex must not move the issue to `Done` until the PR is merged or a human explicitly approves closing it.
 - Use `prompts/codex-next-agent-ready.md` as the reusable prompt for this workflow.
+- Before implementation, Codex must inspect recent merged PRs or git history when available. If the issue touches files modified by the previous one to three merged PRs, report conflict risk.
+- If several consecutive issues touch `src/game.js` or `test/game.test.js`, recommend a seam-extraction issue before continuing feature work.
 
 Level 3 planner workflow:
 
@@ -179,11 +187,20 @@ Level 3 planner workflow:
 - The planner may create Linear issues only.
 - The planner must not edit source code or implement gameplay.
 - The planner must not mark issues `agent-ready` automatically unless explicitly instructed.
+- The planner must not apply `agent-ready` to parent, epic, blocked, or `human-review` issues.
 - The planner must classify every issue as `agent-ready candidate`, `human-review required`, `human-only`, or `blocked/dependency`.
-- Each planned issue must include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, and Dependencies or blockers.
+- Each planned issue must include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, Planner classification, Dependencies or blockers, Dependency order, Blocked-by relationships where possible, Visible UI change expected, Central-file conflict risk, and First issue that should become `Todo` + `agent-ready`.
 - Issues must be small enough for one Level 2 implementation pass.
 - Avoid broad vague issues like "improve AI", "polish game", or "add campaign".
-- Use `ops/prompts/planner-agent.md`, `ops/policies/planner-boundaries.md`, `ops/checklists/planner-output-checklist.md`, and `prompts/codex-plan-campaign.md` for this workflow.
+- Use `ops/prompts/planner-agent.md`, `ops/policies/planner-boundaries.md`, `ops/policies/campaign-execution.md`, `ops/checklists/conflict-risk-checklist.md`, `ops/checklists/planner-output-checklist.md`, and `prompts/codex-plan-campaign.md` for this workflow.
+
+## Harness Conflict Prevention
+
+- `src/game.js` and `test/game.test.js` are integration points, not dumping grounds.
+- Significant feature logic should move into focused modules and focused tests when practical.
+- Prefer seams such as progression helpers, campaign progression helpers, player stats helpers, reward helpers, and focused test files.
+- If an issue is internal-only, state that no visible UI change is expected. If visible UI is expected, point to the later UI issue.
+- If a PR conflicts with `main`, resolve conflicts on the PR branch, never on `main`; preserve both `main` behavior and PR behavior; run `npm test`, `npm run build`, and `npm run lint`; push the PR branch; do not merge automatically.
 
 ## Git Discipline
 
@@ -215,10 +232,13 @@ When no issue is named and the user asks Codex to continue agent-ready work:
 
 1. Query Linear for issues in `Todo` with label `agent-ready`.
 2. Select the highest-priority eligible issue.
-3. Exclude `Backlog`, `blocked`, `human-only`, blocked-by relations, and safety-critical work.
-4. Move the issue to `In Progress` before editing.
-5. Open a draft PR after validation and move the issue to `In Review`.
-6. Leave the issue out of `Done` until merge or explicit human approval.
+3. Exclude `Backlog`, `blocked`, `human-only`, blocked-by relations, parent/epic issues, unapproved `human-review` issues, and safety-critical work.
+4. Confirm dependency chains expose only one `Todo` + `agent-ready` issue.
+5. Move the issue to `In Progress` before editing.
+6. Sync `main` with `git fetch --prune origin`, `git switch main`, `git pull --ff-only origin main`, and `git status --short`.
+7. Inspect recent merged PRs or git history for conflict risk.
+8. Open a draft PR against `main` after validation and move the issue to `In Review`.
+9. Leave the issue out of `Done` until merge or explicit human approval.
 
 ## Level 3 campaign planning
 When the user asks Codex to plan a campaign brief:
@@ -229,7 +249,8 @@ When the user asks Codex to plan a campaign brief:
 4. Preserve dependencies between issues.
 5. Do not implement gameplay or edit source code.
 6. Do not apply `agent-ready` unless a human explicitly instructs it.
-7. Stop after creating issues and reporting the summary.
+7. Include dependency order, blocked-by relationships where possible, visible UI expectation, central-file conflict risk, and the first issue that should become `Todo` + `agent-ready`.
+8. Stop after creating issues and reporting the summary.
 
 ## Before implementation
 1. Use the Linear MCP server to read the assigned issue.

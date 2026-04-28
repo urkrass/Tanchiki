@@ -12,7 +12,9 @@ Read the campaign brief supplied by the user and create 5-8 small Linear issues 
 4. `ops/prompts/planner-agent.md`
 5. `ops/policies/planner-boundaries.md`
 6. `ops/checklists/planner-output-checklist.md`
-7. the supplied campaign brief
+7. `ops/policies/campaign-execution.md`
+8. `ops/checklists/conflict-risk-checklist.md`
+9. the supplied campaign brief
 
 ## Workflow
 
@@ -25,8 +27,11 @@ Read the campaign brief supplied by the user and create 5-8 small Linear issues 
    - `human-review required`
    - `human-only`
    - `blocked/dependency`
-6. Create the issues in Linear.
-7. Stop after creating issues and a summary.
+6. Identify parent/epic issues and ensure they are not recommended for `agent-ready`.
+7. For dependency chains, name which single issue should become `Todo` + `agent-ready` first.
+8. Check whether likely files overlap with the previous 1-3 merged PRs or central integration files.
+9. Create the issues in Linear.
+10. Stop after creating issues and a summary.
 
 ## Issue Body Requirements
 
@@ -45,6 +50,11 @@ Each issue must include:
 - Suggested labels
 - Planner classification
 - Dependencies or blockers
+- Dependency order
+- Blocked-by relationships where possible
+- Whether visible UI change is expected
+- Central-file conflict risk
+- First issue that should become `Todo` + `agent-ready`
 
 ## Guardrails
 
@@ -53,6 +63,7 @@ Each issue must include:
 - Do not open a gameplay implementation PR.
 - Do not mark issues `agent-ready` unless the user explicitly instructs you to.
 - Do not move issues to `In Progress`, `In Review`, or `Done`.
+- Do not put `agent-ready` on parent, epic, blocked, or human-review issues.
 - Do not create broad vague issues like "improve AI", "polish game", or "add campaign".
 
 ## Final Response
@@ -63,4 +74,8 @@ Report:
 - each classification
 - recommended implementation order
 - dependency notes
+- blocked-by relationships where possible
+- whether visible UI change is expected for each issue
+- central-file conflict risk for each issue
+- which single issue should become `Todo` + `agent-ready` first
 - which issues need human review before Level 2 can pick them up
