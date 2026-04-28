@@ -36,7 +36,8 @@ Level 6 keeps validation machine-readable by requiring every automated Linear is
 
 `risk:high` and `risk:human-only` PRs are never auto-merge eligible. Use
 `ops/policies/pr-acceptance.md` for PR acceptance tiers, forbidden categories,
-reviewer independence, and merge-label gates.
+reviewer independence, active auto-merge shakedown sequencing, and merge-label
+gates.
 
 ## Validation Profiles
 

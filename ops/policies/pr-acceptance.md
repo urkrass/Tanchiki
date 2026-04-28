@@ -24,7 +24,7 @@ A `role:reviewer` agent may recommend acceptance after checking:
 - gameplay, movement, progression, deployment, dependency, and security boundaries
 - conflict risk and manual QA notes
 
-Reviewer-agent acceptance may support a `reviewer:approved` or `merge:agent-approved` label only when the reviewer is independent from the Coder or Test agent that authored the PR.
+Reviewer-agent acceptance may support a `reviewer:approved` or `merge:agent-approved` label only when the reviewer is independent from the Coder or Test agent that authored the PR. A Reviewer agent must not approve a PR authored by the same Codex session or run, and must not approve its own prior work.
 
 Reviewer agents must not merge, push commits to the PR branch, or approve their own work.
 
@@ -127,13 +127,26 @@ issue metadata, `merge:auto-eligible`, or `merge:agent-approved`.
 Reviewer agents may use these decision phrases:
 
 - `APPROVED FOR MERGE`
-- `APPROVED FOR AUTO-MERGE AFTER HUMAN REMOVES STOP LABELS`
+- `APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES merge:auto-eligible`
 - `CHANGES REQUESTED`
 - `HUMAN REVIEW REQUIRED`
 - `BLOCKED`
 
 Reviewer agents must not say or imply that they removed stop labels, authorized
 themselves to remove stop labels, or treat stop labels as advisory only.
+
+Reviewer agents must return `HUMAN REVIEW REQUIRED` when:
+
+- the Reviewer authored the PR
+- the Reviewer is from the same Codex session or run as the authoring agent
+- the authoring run cannot be distinguished from the review run
+- the PR was already merged before review
+- any stop label is present
+- required metadata or checks are missing
+
+Reviewer comments for acceptance or auto-merge shakedown review must state the
+independence basis: authoring session or source if known, reviewer session or
+source, whether they are independent, and whether independence is unknown.
 
 ### GitHub Label Setup
 
@@ -196,6 +209,24 @@ Human merge or human review remains required for:
 - `risk:medium` or higher unless explicitly approved by a human
 - anything touching `src/game.js`, `src/render.js`, `src/game/movement.js`, or broad architecture files
 
+## Auto-Merge Shakedown Sequence
+
+An auto-merge shakedown is valid only when the PR remains open and unmerged
+until the full sequence completes:
+
+1. Coder creates the PR.
+2. PR remains open and unmerged.
+3. CI passes.
+4. PR metadata check passes.
+5. Independent Reviewer-agent approves.
+6. Human operator manually applies `merge:auto-eligible`.
+7. No stop labels are present.
+8. GitHub auto-merge performs the merge.
+
+If a human merges before Reviewer approval or before applying
+`merge:auto-eligible`, the result is valid as a normal human merge but invalid
+or inconclusive as an auto-merge shakedown.
+
 ## Minimum Auto-Merge Gates
 
 Any future auto-merge workflow or documented procedure must require all of these:
@@ -218,13 +249,15 @@ Any future auto-merge workflow or documented procedure must require all of these
 - `reviewer:changes-requested` is absent.
 - Independent approval is present through `reviewer:approved` or an approved human label.
 - The approval actor is not the Coder or Test author of the PR.
+- The approval actor is not from the same Codex session or run as the authoring agent.
+- Reviewer comments state the independence basis.
 - New commits after approval require approval to be rechecked or refreshed.
 
 ## Independence Rule
 
-Coder and Test agents must not approve, label as accepted, or merge their own PRs. Reviewer approval must come from a separate reviewer-agent pass or a human.
+Coder and Test agents must not approve, label as accepted, or merge their own PRs. Reviewer approval must come from a separate reviewer-agent pass or a human. A Reviewer agent must not approve a PR authored by the same Codex session or run, and must not approve its own prior work.
 
-If actor independence cannot be proven mechanically, auto-merge must remain unavailable and the PR must use human-controlled merge.
+If actor independence cannot be proven mechanically, auto-merge must remain unavailable and the PR must use human-controlled merge. If independence is unknown, the Reviewer must return `HUMAN REVIEW REQUIRED`.
 
 ## Workflow Changes
 
