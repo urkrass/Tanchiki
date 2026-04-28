@@ -116,6 +116,79 @@ test("campaign factory checklist guards queue grooming invariants", () => {
   }
 });
 
+test("PR acceptance policy preserves required labels and forbidden auto-merge categories", () => {
+  const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
+
+  for (const expected of [
+    "`merge:auto-eligible` - PR may enter the auto-merge path if every other gate passes.",
+    "`merge:agent-approved` - independent reviewer-agent accepted the PR under this policy; not sufficient alone for auto-merge.",
+    "`merge:human-required` - human approval is required before merge or before auto-merge eligibility.",
+    "`merge:do-not-merge` - hard stop; overrides all positive labels.",
+    "`reviewer:approved` - independent reviewer or human approval signal.",
+    "`reviewer:changes-requested` - blocking review findings exist; incompatible with auto-merge.",
+    "movement, collision, spawning, interpolation, or control-feel changes",
+    "`risk:high`",
+    "`risk:human-only`",
+    "deployment workflow changes, including GitHub Pages",
+    "dependency changes, package manager changes, or lockfile changes",
+    "CI workflow changes",
+    "broad gameplay changes",
+    "save or persistence behavior",
+    "security-sensitive changes, secrets, credentials, permissions, tokens, or repository settings",
+  ]) {
+    assert.match(policy, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("PR acceptance policy protects do-not-merge override and reviewer independence", () => {
+  const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
+
+  for (const expected of [
+    "`merge:do-not-merge` is the highest-priority stop signal.",
+    "`merge:do-not-merge` and `reviewer:changes-requested` must be removed before any positive acceptance label can be acted on.",
+    "Coder and Test agents must not approve, label as accepted, or merge their own PRs.",
+    "Reviewer approval must come from a separate reviewer-agent pass or a human.",
+    "If actor independence cannot be proven mechanically, auto-merge must remain unavailable",
+    "Must not be added by the PR author.",
+    "Must not be added by the Coder or Test author of the PR.",
+    "New commits after approval require approval to be rechecked or refreshed.",
+  ]) {
+    assert.match(policy, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("PR acceptance checklist and template guard auto-merge gates without live GitHub mutation", () => {
+  const checklist = readRepoFile("ops", "checklists", "pr-acceptance-checklist.md");
+  const template = readRepoFile(".github", "PULL_REQUEST_TEMPLATE.md");
+
+  for (const expected of [
+    "PR is not draft before any auto-merge path is considered.",
+    "PR metadata check is passing.",
+    "CI is passing.",
+    "Branch protection requirements are satisfied and not bypassed.",
+    "Linked issue has exactly one `role:*` label.",
+    "Linked issue has exactly one `type:*` label.",
+    "Linked issue has exactly one `risk:*` label.",
+    "Linked issue has exactly one `validation:*` label.",
+    "`merge:auto-eligible` is present before auto-merge eligibility.",
+    "`merge:do-not-merge` is absent.",
+    "`reviewer:approved` or an approved human approval label is present.",
+    "The approval actor is not the Coder or Test author of the PR.",
+    "If actor independence cannot be proven, auto-merge remains unavailable.",
+  ]) {
+    assert.match(checklist, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "## Acceptance Labels",
+    "- Merge label:",
+    "- Reviewer label:",
+    "- Human gate:",
+  ]) {
+    assert.match(template, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
