@@ -27,6 +27,8 @@ Then open `http://localhost:5173`.
 
 The demo includes three campaign levels, enemy sentries, patrol enemies, pursuit enemies, pickups, mission summaries, XP rewards, and an in-memory upgrade flow.
 
+See `docs/PUBLIC_DEMO_NOTES.md` for screenshots, release operator checks, and known limitations.
+
 ### Public Demo Validation
 
 Before sharing a build, run:
