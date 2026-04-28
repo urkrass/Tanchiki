@@ -411,6 +411,7 @@ Level 5 shakedown campaigns:
 - Use a small docs, UI-copy, or test-only campaign before larger gameplay campaigns to verify the gates.
 - Expected queue: only the first Architect issue is `Todo` + `automation-ready`; follow-up Coder, Test, Reviewer, and Release issues stay blocked until their gates are cleared.
 - Low-risk auto-merge shakedowns must stay limited to `risk:low` docs, harness, or test PRs, and any stop label remains a hard veto until a human operator resolves it.
+- Auto-merge shakedowns are conclusive only when the PR stays open through independent Reviewer-agent approval, human-applied `merge:auto-eligible`, and GitHub auto-merge.
 - Include one intentionally gated movement placeholder with `type:movement`, `validation:movement`, `risk:human-only`, `human-only`, and `needs-human-approval`; it must not have `automation-ready`.
 - The dispatcher should select only the exposed issue and refuse the human-only movement placeholder.
 - Shakedown work must not edit gameplay source or `src/game/movement.js`.

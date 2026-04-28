@@ -41,7 +41,9 @@ Use `needs-human-approval`, `human-only`, or `risk:human-only` when these gates 
 PR acceptance and auto-merge preparation must follow
 `ops/policies/pr-acceptance.md`. Coder and Test agents must not approve, label
 as accepted, or merge their own PRs. `merge:do-not-merge` overrides every
-positive acceptance label.
+positive acceptance label. Reviewer agents must not approve PRs authored by the
+same Codex session or run, and must return `HUMAN REVIEW REQUIRED` when
+reviewer independence cannot be established.
 
 Stop labels are hard vetoes for auto-merge. Coder, Test, Reviewer, Release,
 Planner, and Groomer agents may recommend stop-label removal in PR or Linear
@@ -53,6 +55,9 @@ Auto-merge must not be available for movement or collision work, `risk:high`,
 `risk:human-only`, deployment, dependencies, CI workflow changes, broad gameplay
 changes, save or persistence behavior, security-sensitive changes, or
 public-demo-impacting changes without explicit human control.
+Auto-merge shakedowns must keep the PR open until independent Reviewer approval,
+human-applied `merge:auto-eligible`, no stop labels, and GitHub auto-merge
+complete the sequence.
 
 ## Gameplay Safety
 

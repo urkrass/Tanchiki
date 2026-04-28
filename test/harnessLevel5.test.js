@@ -191,7 +191,7 @@ test("PR acceptance policy defines reviewer language and safe low-risk lane", ()
 
   for (const expected of [
     "`APPROVED FOR MERGE`",
-    "`APPROVED FOR AUTO-MERGE AFTER HUMAN REMOVES STOP LABELS`",
+    "`APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES merge:auto-eligible`",
     "`CHANGES REQUESTED`",
     "`HUMAN REVIEW REQUIRED`",
     "`BLOCKED`",
@@ -208,6 +208,55 @@ test("PR acceptance policy defines reviewer language and safe low-risk lane", ()
     "anything touching `src/game.js`, `src/render.js`, `src/game/movement.js`, or broad architecture files",
   ]) {
     assert.match(policy, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("PR acceptance policy requires independent reviewer and active shakedown sequence", () => {
+  const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
+  const checklist = readRepoFile("ops", "checklists", "pr-acceptance-checklist.md");
+  const prompt = readRepoFile("ops", "prompts", "reviewer-agent.md");
+
+  for (const expected of [
+    "A Reviewer agent must not approve a PR authored by the same Codex session or run",
+    "must not approve its own prior work",
+    "the authoring run cannot be distinguished from the review run",
+    "the PR was already merged before review",
+    "Reviewer comments for acceptance or auto-merge shakedown review must state the",
+    "independence basis: authoring session or source if known, reviewer session or",
+    "If independence is unknown, the Reviewer must return `HUMAN REVIEW REQUIRED`.",
+    "PR remains open and unmerged.",
+    "Independent Reviewer-agent approves.",
+    "Human operator manually applies `merge:auto-eligible`.",
+    "GitHub auto-merge performs the merge.",
+    "valid as a normal human merge but invalid",
+    "or inconclusive as an auto-merge shakedown.",
+  ]) {
+    assert.match(policy, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "The Reviewer agent is not from the same Codex session or run as the PR authoring agent.",
+    "The Reviewer agent did not author the PR or review its own prior work.",
+    "The Reviewer comment states the independence basis: authoring session/source if known, reviewer session/source, whether they are independent, and whether independence is unknown.",
+    "If authoring and review runs cannot be distinguished, Reviewer returns `HUMAN REVIEW REQUIRED`.",
+    "PR state at review time: open, draft, merged, or closed.",
+    "Whether `merge:auto-eligible` was applied by a human.",
+    "Whether GitHub auto-merge, not manual merge, performed the merge.",
+    "a human merges before Reviewer approval or before applying",
+    "auto-merge shakedown is invalid or inconclusive.",
+  ]) {
+    assert.match(checklist, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "Establish reviewer independence before any approval:",
+    "Return `HUMAN REVIEW REQUIRED` if you authored the PR",
+    "For auto-merge shakedowns, verify the PR is open until the full sequence completes",
+    "Do not approve a PR authored by the same Codex session/run.",
+    "Do not apply `merge:auto-eligible`; that label is human-controlled during shakedowns.",
+    "whether GitHub auto-merge",
+  ]) {
+    assert.match(prompt, new RegExp(escapeRegExp(expected)));
   }
 });
 

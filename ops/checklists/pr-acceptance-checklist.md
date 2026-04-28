@@ -73,11 +73,37 @@ If any exclusion is true, use `merge:human-required` or `merge:do-not-merge`.
 ## Independence Gate
 
 - [ ] The approval actor is not the Coder or Test author of the PR.
+- [ ] The Reviewer agent is not from the same Codex session or run as the PR authoring agent.
+- [ ] The Reviewer agent did not author the PR or review its own prior work.
+- [ ] The Reviewer comment states the independence basis: authoring session/source if known, reviewer session/source, whether they are independent, and whether independence is unknown.
 - [ ] Coder/Test agents did not approve or label their own PR as accepted.
 - [ ] Agents only recommended stop-label removal in PR or Linear comments; they did not remove stop labels.
 - [ ] Reviewer did not push commits to the PR branch.
 - [ ] Any new commit after approval rechecks or refreshes approval.
 - [ ] If actor independence cannot be proven, auto-merge remains unavailable.
+- [ ] If authoring and review runs cannot be distinguished, Reviewer returns `HUMAN REVIEW REQUIRED`.
+
+## Auto-Merge Shakedown Evidence
+
+For auto-merge shakedowns, reviewer comments must record:
+
+- [ ] PR number.
+- [ ] Linked Linear issue.
+- [ ] PR state at review time: open, draft, merged, or closed.
+- [ ] Whether CI passed.
+- [ ] Whether PR metadata check passed.
+- [ ] Whether stop labels are absent.
+- [ ] Whether the Reviewer is independent from the PR authoring session.
+- [ ] Whether `merge:auto-eligible` was applied by a human.
+- [ ] Whether GitHub auto-merge, not manual merge, performed the merge.
+- [ ] Final decision using one of the approved Reviewer outcomes.
+
+An auto-merge shakedown is valid only if the PR remains open until Coder PR,
+CI, PR metadata check, independent Reviewer approval, human-applied
+`merge:auto-eligible`, no stop labels, and GitHub auto-merge all complete. If
+a human merges before Reviewer approval or before applying
+`merge:auto-eligible`, the PR may be a valid normal human merge, but the
+auto-merge shakedown is invalid or inconclusive.
 
 ## Validation Evidence Gate
 
