@@ -17,9 +17,9 @@ export function normalizeSpriteManifest(rawManifest = {}) {
 }
 
 export function listSpriteImages(manifest) {
-  return Object.values(normalizeSpriteManifest(manifest).sheets)
+  return [...new Set(Object.values(normalizeSpriteManifest(manifest).sheets)
     .map((sheet) => sheet.image)
-    .filter((image) => typeof image === "string" && image.length > 0);
+    .filter((image) => typeof image === "string" && image.length > 0))];
 }
 
 export function getSpriteFrame(manifest, spriteId, animation, direction = "any", frameIndex = 0) {

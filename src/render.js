@@ -1,9 +1,9 @@
 import { createProgressionFeedback } from "./game/progressionFeedback.js";
 import { targetReadabilityCue } from "./game/readability.js";
+import { drawManifestSprite } from "./assets/spriteRenderer.js";
 
 export function renderGame(context, snapshot, renderOptions = {}) {
   const spriteAssets = renderOptions.spriteAssets ?? null;
-  void spriteAssets;
 
   const { level, player, pickups, projectiles, impacts, targets, missionSummary, tileSize } = snapshot;
   const width = level.width * tileSize;
@@ -20,10 +20,10 @@ export function renderGame(context, snapshot, renderOptions = {}) {
   drawGrid(context, level, tileSize);
   drawAimWarnings(context, targets, player, tileSize);
   drawPickups(context, pickups, tileSize);
-  drawTargets(context, targets, tileSize);
-  drawProjectiles(context, projectiles, tileSize);
+  drawTargets(context, targets, tileSize, spriteAssets);
+  drawProjectiles(context, projectiles, tileSize, spriteAssets);
   drawImpacts(context, impacts, tileSize);
-  drawTank(context, player, tileSize);
+  drawTank(context, player, tileSize, spriteAssets);
   drawMissionSummary(context, missionSummary, createProgressionFeedback(snapshot), width, height);
 }
 
@@ -116,14 +116,22 @@ function drawGrid(context, level, tileSize) {
   }
 }
 
-function drawTank(context, player, tileSize) {
+function drawTank(context, player, tileSize, spriteAssets = null) {
   const centerX = (player.visual.x + 0.5) * tileSize;
   const centerY = (player.visual.y + 0.5) * tileSize;
 
   context.save();
   context.translate(centerX, centerY);
-  context.rotate(rotationFor(player.facing));
+  if (player.damageFlashSeconds <= 0 && drawManifestSprite(
+    context,
+    spriteAssets?.getFrame("player_tank", "idle", player.facing),
+    tileSize
+  )) {
+    context.restore();
+    return;
+  }
 
+  context.rotate(rotationFor(player.facing));
   context.fillStyle = player.damageFlashSeconds > 0 ? "#d9c56f" : "#345f3c";
   context.fillRect(-15, -18, 30, 36);
   context.fillStyle = "#243d2a";
@@ -160,7 +168,7 @@ function drawAimWarnings(context, targets, player, tileSize) {
   }
 }
 
-function drawTargets(context, targets, tileSize) {
+function drawTargets(context, targets, tileSize, spriteAssets = null) {
   for (const target of targets) {
     const visual = entityVisual(target);
     const centerX = (visual.x + 0.5) * tileSize;
@@ -169,16 +177,25 @@ function drawTargets(context, targets, tileSize) {
 
     context.save();
     context.translate(centerX, centerY);
-    if (target.type !== "base") {
+    const spriteDrawn = target.alive && drawManifestSprite(
+      context,
+      spriteAssets?.getFrame(spriteIdForTarget(target), "idle", target.facing ?? "up"),
+      tileSize
+    );
+
+    if (!spriteDrawn && target.type !== "base") {
       context.rotate(rotationFor(target.facing ?? "up"));
     }
-    context.fillStyle = target.alive ? colorForTarget(target) : "#5a554c";
-    context.fillRect(-size / 2, -size / 2, size, size);
-    context.strokeStyle = target.alive ? "#40221f" : "#39362f";
-    context.lineWidth = 4;
-    context.strokeRect(-size / 2, -size / 2, size, size);
-    context.fillStyle = target.alive ? "#d9c56f" : "#777166";
-    context.fillRect(-5, target.type === "base" ? -31 : -25, 10, target.type === "base" ? 20 : 16);
+
+    if (!spriteDrawn) {
+      context.fillStyle = target.alive ? colorForTarget(target) : "#5a554c";
+      context.fillRect(-size / 2, -size / 2, size, size);
+      context.strokeStyle = target.alive ? "#40221f" : "#39362f";
+      context.lineWidth = 4;
+      context.strokeRect(-size / 2, -size / 2, size, size);
+      context.fillStyle = target.alive ? "#d9c56f" : "#777166";
+      context.fillRect(-5, target.type === "base" ? -31 : -25, 10, target.type === "base" ? 20 : 16);
+    }
 
     if (target.alive) {
       const hpRatio = target.hp / target.maxHp;
@@ -201,6 +218,14 @@ function drawTargets(context, targets, tileSize) {
 
     drawTargetCue(context, target, centerX, centerY, size);
   }
+}
+
+function spriteIdForTarget(target) {
+  if (target.type === "base") {
+    return "enemy_base";
+  }
+
+  return "enemy_tank";
 }
 
 function drawTargetCue(context, target, centerX, centerY, size) {
@@ -301,7 +326,7 @@ function formatLevel(summary) {
   return `${summary.levelLabel} (${summary.levelId})`;
 }
 
-function drawProjectiles(context, projectiles, tileSize) {
+function drawProjectiles(context, projectiles, tileSize, spriteAssets = null) {
   for (const projectile of projectiles) {
     if (!projectile.active) {
       continue;
@@ -312,6 +337,15 @@ function drawProjectiles(context, projectiles, tileSize) {
 
     context.save();
     context.translate(x, y);
+    if (drawManifestSprite(
+      context,
+      spriteAssets?.getFrame(spriteIdForProjectile(projectile), "shell", projectile.direction),
+      tileSize
+    )) {
+      context.restore();
+      continue;
+    }
+
     context.rotate(rotationFor(projectile.direction));
     context.fillStyle = projectile.team === "enemy" ? "#a6342f" : "#1f241d";
     context.fillRect(-4, -10, 8, 20);
@@ -319,6 +353,10 @@ function drawProjectiles(context, projectiles, tileSize) {
     context.fillRect(-3, -13, 6, 5);
     context.restore();
   }
+}
+
+function spriteIdForProjectile(projectile) {
+  return projectile.team === "enemy" ? "enemy_shell" : "player_shell";
 }
 
 function drawImpacts(context, impacts, tileSize) {

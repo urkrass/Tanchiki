@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { SPRITE_STATUS, getSpriteFrame, listSpriteImages } from "../src/assets/spriteManifest.js";
 import { createSpriteAssetStore } from "../src/assets/spriteLoader.js";
 
@@ -24,6 +25,11 @@ const directionalManifest = {
     }
   }
 };
+
+const runtimeManifest = JSON.parse(readFileSync(
+  new URL("../assets/sprites/manifest.json", import.meta.url),
+  "utf8"
+));
 
 test("sprite manifest lookup returns directional frame coordinates", () => {
   assert.deepEqual(getSpriteFrame(directionalManifest, "player_tank", "idle", "right"), {
@@ -56,6 +62,21 @@ test("sprite manifest lookup reports missing sprites without throwing", () => {
     spriteId: "enemy_tank",
     reason: "sprite"
   });
+});
+
+test("runtime sprite manifest exposes the first core entity slice", () => {
+  assert.deepEqual(listSpriteImages(runtimeManifest).sort(), [
+    "core/enemy_base.svg",
+    "core/enemy_tank.svg",
+    "core/player_tank.svg",
+    "core/shells.svg"
+  ]);
+
+  assert.equal(getSpriteFrame(runtimeManifest, "player_tank", "idle", "left").status, SPRITE_STATUS.READY);
+  assert.equal(getSpriteFrame(runtimeManifest, "enemy_tank", "idle", "up").status, SPRITE_STATUS.READY);
+  assert.equal(getSpriteFrame(runtimeManifest, "enemy_base", "idle", "down").status, SPRITE_STATUS.READY);
+  assert.equal(getSpriteFrame(runtimeManifest, "player_shell", "shell", "right").status, SPRITE_STATUS.READY);
+  assert.equal(getSpriteFrame(runtimeManifest, "enemy_shell", "shell", "left").status, SPRITE_STATUS.READY);
 });
 
 test("sprite loader reports ready image state when the image factory loads", async () => {

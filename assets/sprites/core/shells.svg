@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="96" viewBox="0 0 192 96">
+  <defs>
+    <g id="player-shell">
+      <rect x="21" y="13" width="6" height="22" fill="#1f241d"/>
+      <rect x="22" y="9" width="4" height="6" fill="#e7d37c"/>
+    </g>
+    <g id="enemy-shell">
+      <rect x="21" y="13" width="6" height="22" fill="#a6342f"/>
+      <rect x="22" y="9" width="4" height="6" fill="#f0b06a"/>
+    </g>
+  </defs>
+  <use href="#player-shell"/>
+  <g transform="translate(48 0) rotate(90 24 24)"><use href="#player-shell"/></g>
+  <g transform="translate(96 0) rotate(180 24 24)"><use href="#player-shell"/></g>
+  <g transform="translate(144 0) rotate(-90 24 24)"><use href="#player-shell"/></g>
+  <g transform="translate(0 48)"><use href="#enemy-shell"/></g>
+  <g transform="translate(48 48) rotate(90 24 24)"><use href="#enemy-shell"/></g>
+  <g transform="translate(96 48) rotate(180 24 24)"><use href="#enemy-shell"/></g>
+  <g transform="translate(144 48) rotate(-90 24 24)"><use href="#enemy-shell"/></g>
+</svg>
