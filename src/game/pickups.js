@@ -55,7 +55,8 @@ export function consumeShieldCharge(playerState) {
 
 function applyPickup(pickup, playerState) {
   if (pickup.type === "repair") {
-    playerState.hp = Math.min(playerState.maxHp, playerState.hp + pickup.amount);
+    const repairAmount = pickup.amount + (playerState.repairAmountBonus ?? 0);
+    playerState.hp = Math.min(playerState.maxHp, playerState.hp + repairAmount);
     return;
   }
 
