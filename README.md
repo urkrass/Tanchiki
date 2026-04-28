@@ -471,6 +471,7 @@ Level 5 shakedown campaigns:
 
 - Use a small docs, UI-copy, or test-only campaign before larger gameplay campaigns to verify the gates.
 - Expected queue: only the first Architect issue is `Todo` + `automation-ready`; follow-up Coder, Test, Reviewer, and Release issues stay blocked until their gates are cleared.
+- Burn-in reruns should keep each PR to one narrow docs, harness, or static-test surface so any gate failure is easy to trace.
 - Low-risk auto-merge shakedowns must stay limited to `risk:low` docs, harness, or test PRs, and any stop label remains a hard veto until a human operator resolves it.
 - A separate Reviewer-agent session must approve a low-risk auto-merge shakedown before a human applies `merge:auto-eligible`.
 - Auto-merge shakedowns are conclusive only when the PR stays open through independent Reviewer-agent approval, human-applied `merge:auto-eligible`, and GitHub auto-merge.
