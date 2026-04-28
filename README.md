@@ -303,6 +303,14 @@ New normal workflow:
 - Normal iteration: run the dispatcher; it chooses the role automatically and refuses issues missing Level 5 metadata.
 - Harness work: use harness-only validation and do not edit gameplay code.
 
+Level 5 shakedown campaigns:
+
+- Use a small docs, UI-copy, or test-only campaign before larger gameplay campaigns to verify the gates.
+- Expected queue: only the first Architect issue is `Todo` + `automation-ready`; follow-up Coder, Test, Reviewer, and Release issues stay blocked until their gates are cleared.
+- Include one intentionally gated movement placeholder with `type:movement`, `validation:movement`, `risk:human-only`, `human-only`, and `needs-human-approval`; it must not have `automation-ready`.
+- The dispatcher should select only the exposed issue and refuse the human-only movement placeholder.
+- Shakedown work must not edit gameplay source or `src/game/movement.js`.
+
 ## Level 4 Role-Separated Agent Workflow
 
 Level 4 separates Codex runs by responsibility so planning, architecture review, implementation, testing, PR review, and release summary work do not blur together.
