@@ -1,0 +1,145 @@
+name: Campaign request
+description: Submit a structured campaign brief for Planner + Auto-Groomer intake.
+title: "[Campaign request]: "
+labels: ["harness", "needs-human-approval"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to request a planned Linear campaign. Submitting this request does not authorize Coder work, source edits, dependency additions, PR creation, merging, or Done-state changes.
+
+        The expected output is a groomed Linear campaign with role/type/risk/validation metadata, dependencies, human gates, and only the first safe Architect issue marked automation-ready.
+  - type: input
+    id: campaign-name
+    attributes:
+      label: Campaign name
+      description: Short name for the campaign.
+      placeholder: Self-service campaign factory
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What outcome should the campaign produce?
+      placeholder: Create a safe intake workflow that turns structured campaign requests into groomed Linear issues.
+    validations:
+      required: true
+  - type: textarea
+    id: current-state
+    attributes:
+      label: Current state
+      description: What already exists, and what is missing?
+      placeholder: |
+        Tanchiki already has Level 6 orchestration docs, Planner + Auto-Groomer, Dispatcher routing, and Level 5 labels. It does not yet have a durable self-service intake template.
+    validations:
+      required: true
+  - type: textarea
+    id: requested-shape
+    attributes:
+      label: Requested campaign shape
+      description: List the desired issue count and rough issue sequence. The Planner may split or reorder for safety.
+      value: |
+        Desired issue count:
+
+        Suggested sequence:
+        1. Architect review
+        2. Human approval gate
+        3. Coder/docs issue
+        4. Test or validation issue
+        5. Reviewer issue
+        6. Release summary
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and do-not-touch list
+      description: Name protected files, systems, and behaviors.
+      value: |
+        - Do not modify src/game/movement.js.
+        - Do not change movement, collision, shooting, enemy AI, level difficulty, progression, or upgrade behavior unless explicitly scoped and human-approved.
+        - Do not add dependencies without a human approval gate.
+        - Do not open a PR during planning.
+        - Do not merge anything.
+        - Do not mark issues Done.
+    validations:
+      required: true
+  - type: dropdown
+    id: primary-category
+    attributes:
+      label: Primary request category
+      description: Pick the safest matching category. Unsafe categories require a human gate.
+      options:
+        - Docs or prompt workflow
+        - Harness, policy, checklist, or template
+        - Test-only or static validation
+        - UI copy or layout
+        - Gameplay behavior
+        - Progression or carried state
+        - Movement, collision, spawning, or control feel
+        - Persistence, credentials, destructive repo work, or broad architecture
+    validations:
+      required: true
+  - type: textarea
+    id: human-gates
+    attributes:
+      label: Human approval gates
+      description: Decisions a human must make before any implementation issue can become automation-ready.
+      placeholder: |
+        - Approve intake categories and unsafe-category handling.
+        - Approve whether a new dependency is allowed.
+        - Approve any gameplay, progression, persistence, or movement behavior change.
+    validations:
+      required: true
+  - type: textarea
+    id: validation-expectations
+    attributes:
+      label: Validation expectations
+      description: Commands or manual QA the campaign should require.
+      value: |
+        Baseline:
+        - npm test
+        - npm run build
+        - npm run lint
+
+        Docs and harness work:
+        - git diff --check
+
+        Manual QA:
+        - Read changed docs/prompts/templates for clear gates, labels, dependencies, and failure modes.
+    validations:
+      required: true
+  - type: dropdown
+    id: visible-ui
+    attributes:
+      label: Visible UI expectation
+      options:
+        - No product UI change expected
+        - GitHub or repo workflow UI only
+        - Visible product UI change expected
+        - Visible gameplay change expected
+    validations:
+      required: true
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: What should this campaign explicitly avoid?
+      placeholder: |
+        - Do not implement gameplay from this request.
+        - Do not make Coder issues automation-ready until Architect and human gates are complete.
+        - Do not create broad catch-all issues.
+    validations:
+      required: true
+  - type: textarea
+    id: planner-output
+    attributes:
+      label: Expected Planner + Auto-Groomer output
+      description: Confirm the requested campaign output.
+      value: |
+        The Planner should create 6-8 small Linear issues when appropriate. Every issue should include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, role/type/risk/validation labels, dependency order, visible UI expectation, and central-file conflict risk.
+
+        Auto-Groomer should normalize labels, keep blocked/gated work out of automation, mark human gates with needs-human-approval or human-only, and expose only the first safe Architect issue as Todo + automation-ready.
+    validations:
+      required: true
