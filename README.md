@@ -5,6 +5,10 @@ This pack is meant to be copied into the root of the local game repository befor
 It contains:
 
 - `CODEX_HANDOFF.md` - project brief and constraints.
+- `ARCHITECTURE.md` - current module ownership and extension points.
+- `TASK_PROTOCOL.md` - Linear, branch, PR, CI, review, merge, and Done rules.
+- `VALIDATION_MATRIX.md` - role/type/risk/validation requirements.
+- `SAFETY_BOUNDARIES.md` - protected files, human gates, and repository safety rules.
 - `prompts/CODEX_START_PROMPT.md` - first prompt to paste into Codex.
 - `docs/ASSET_PIPELINE.md` - recommended sprite/tileset pipeline.
 - `assets/style_reference_sprite_sheet.png` - visual style reference only, not yet a clean production sprite sheet.
@@ -68,6 +72,50 @@ npm run lint
 
 If any command fails, the commit is blocked. Do not push automatically.
 
+## Level 1-6 Workflow Ladder
+
+Tanchiki uses the repository itself as the operating manual for agentic development.
+
+- Level 1: one small PR per issue, CI required, no direct `main` pushes.
+- Level 2: Codex selects the next eligible Linear issue instead of being handed one manually.
+- Level 3: Planner turns a campaign brief into small Linear issues and runs Auto-Groomer.
+- Level 4: role-separated agents handle Architect, Coder, Test, Reviewer, and Release work.
+- Level 5: every automated issue must declare one role, one type, one risk, and one validation profile.
+- Level 6: root docs, GitHub templates, workflows, ops policies, and checklists make the repo the orchestration system.
+
+Level 6 source-of-truth docs:
+
+- `ARCHITECTURE.md`
+- `TASK_PROTOCOL.md`
+- `VALIDATION_MATRIX.md`
+- `SAFETY_BOUNDARIES.md`
+- `ops/policies/`
+- `ops/checklists/`
+
+Normal dispatcher prompt:
+
+```text
+Use Linear MCP and GitHub.
+Run the Tanchiki dispatcher for the next eligible issue.
+Choose the correct role automatically.
+Follow the repo harness protocols, including Level 5 risk-gated validation.
+Work one issue only.
+Do not merge.
+Do not mark Done.
+```
+
+Planner + Auto-Groomer prompt:
+
+```text
+Use Linear MCP and GitHub.
+Run prompts/codex-plan-and-groom-campaign.md for this Tanchiki campaign brief.
+Create 5-7 issues, groom the campaign queue, expose only the first runnable issue, and report the final queue.
+Do not implement gameplay.
+Do not merge.
+```
+
+Use human review when a task has movement, persistence, destructive repository operations, broad architecture rewrites, broad AI rewrites, or any unclear product decision. Use Level 5 gates for every automated issue. Use Level 6 docs when deciding where logic belongs, which validation profile applies, and whether an issue is safe for automation.
+
 ## Level 1 PR Workflow
 
 Every pull request must be tied to one issue and stay small enough to review in one pass.
@@ -82,7 +130,7 @@ npm run lint
 
 CI uses Node.js 20. It installs dependencies with `npm ci` when `package-lock.json` exists, otherwise it uses `npm install`.
 
-Use `.github/pull_request_template.md` for PR descriptions and `ops/policies/level-1-agent-boundaries.md` for agent boundaries. Do not push directly to `main`, force push, start broad refactors, or include unrelated cleanup in a Level 1 PR.
+Use `.github/PULL_REQUEST_TEMPLATE.md` for PR descriptions and `ops/policies/level-1-agent-boundaries.md` for agent boundaries. Do not push directly to `main`, force push, start broad refactors, or include unrelated cleanup in a Level 1 PR.
 
 Harness smoke-test PRs should use an `agent/` branch, be opened as drafts with the PR template filled out, and remain unmerged until reviewed.
 

@@ -1,0 +1,101 @@
+name: Human review
+description: Request a human decision or approval gate.
+title: "[Human review]: "
+labels: ["needs-human-approval"]
+body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role label
+      options:
+        - role:architect
+        - role:reviewer
+        - role:release
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type label
+      options:
+        - type:architecture
+        - type:harness
+        - type:gameplay
+        - type:progression
+        - type:movement
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk label
+      options:
+        - risk:medium
+        - risk:high
+        - risk:human-only
+    validations:
+      required: true
+  - type: dropdown
+    id: validation
+    attributes:
+      label: Validation label
+      options:
+        - validation:docs
+        - validation:harness
+        - validation:gameplay
+        - validation:progression
+        - validation:movement
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision needed
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+    validations:
+      required: true
+  - type: textarea
+    id: do-not-touch
+    attributes:
+      label: Do-not-touch list
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Tests required
+    validations:
+      required: true
+  - type: textarea
+    id: manual-qa
+    attributes:
+      label: Manual QA
+    validations:
+      required: true
+  - type: dropdown
+    id: visible-ui
+    attributes:
+      label: Visible UI expectation
+      options:
+        - "No visible UI change"
+        - "Visible UI change expected"
+        - "Visible gameplay change expected"
+    validations:
+      required: true
+  - type: textarea
+    id: conflict-risk
+    attributes:
+      label: Central-file conflict risk
+    validations:
+      required: true
