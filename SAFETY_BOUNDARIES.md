@@ -43,6 +43,12 @@ PR acceptance and auto-merge preparation must follow
 as accepted, or merge their own PRs. `merge:do-not-merge` overrides every
 positive acceptance label.
 
+Stop labels are hard vetoes for auto-merge. Coder, Test, Reviewer, Release,
+Planner, and Groomer agents may recommend stop-label removal in PR or Linear
+comments, but must not remove stop labels from active PRs. A human operator must
+remove stop labels manually unless a future gate-management automation is
+explicitly approved.
+
 Auto-merge must not be available for movement or collision work, `risk:high`,
 `risk:human-only`, deployment, dependencies, CI workflow changes, broad gameplay
 changes, save or persistence behavior, security-sensitive changes, or

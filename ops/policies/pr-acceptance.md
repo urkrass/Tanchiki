@@ -42,11 +42,26 @@ An eligible PR must satisfy every gate in this policy. `merge:auto-eligible` is 
 
 ### Do Not Merge
 
-`merge:do-not-merge` is the highest-priority stop signal. It overrides:
+Stop labels are hard vetoes. The presence of any stop label blocks every
+auto-merge lane until a human operator removes the stop label manually.
+
+Stop labels are:
+
+- `merge:do-not-merge`
+- `merge:human-required`
+- `needs-human-approval`
+- `blocked`
+- `human-only`
+- `risk:human-only`
+
+`merge:do-not-merge` is the highest-priority stop signal. Stop labels override:
 
 - `merge:auto-eligible`
 - `merge:agent-approved`
 - `reviewer:approved`
+- passing CI
+- passing PR metadata checks
+- low-risk issue metadata
 - any positive review summary
 
 ## Required Merge And Review Labels
@@ -66,14 +81,29 @@ The repository uses these PR acceptance labels:
 | --- | --- | --- | --- |
 | `merge:auto-eligible` | Human, or a future workflow explicitly approved by a human | Human, Reviewer, or approved workflow | Requires every auto-merge gate. Must not be added by the PR author. |
 | `merge:agent-approved` | Independent Reviewer agent | Human, Reviewer, or approved workflow | Records reviewer-agent acceptance only. It is not merge authority by itself. |
-| `merge:human-required` | Human, Reviewer, Coder, Test, or approved workflow | Human only, unless the same Reviewer removes it after documented resolution | Use when policy requires human judgment before merge. |
-| `merge:do-not-merge` | Human, Reviewer, Coder, Test, or approved workflow | Human only, unless the same Reviewer removes it after documented resolution | Hard stop. Overrides every positive label. |
+| `merge:human-required` | Human, Reviewer, Coder, Test, or approved workflow | Human operator only | Use when policy requires human judgment before merge. Hard veto for auto-merge. |
+| `merge:do-not-merge` | Human, Reviewer, Coder, Test, or approved workflow | Human operator only | Hard stop. Overrides every positive label. Hard veto for auto-merge. |
 | `reviewer:approved` | Human or independent Reviewer agent | Human, Reviewer, or approved workflow | Must not be added by the Coder or Test author of the PR. |
 | `reviewer:changes-requested` | Human or independent Reviewer agent | Human, Reviewer, or approved workflow after changes are resolved | Blocks auto-merge and reviewer-agent acceptance. |
 
 Agents may add stop labels to protect the repository, but positive acceptance
 labels require independent review or human action. If there is any doubt about
 who authored the PR, do not add positive labels.
+
+### Stop-Label Removal Authority
+
+Stop-label removal is human-controlled.
+
+- Coder agents must not remove stop labels.
+- Test agents must not remove stop labels.
+- Reviewer agents must not remove stop labels.
+- Release agents must not remove stop labels.
+- Planner and Groomer agents must not remove stop labels from active PRs.
+- Agents may recommend stop-label removal in a PR comment or Linear comment.
+- A human operator must remove stop labels manually.
+- The only exception is a future explicitly approved automation whose sole
+  purpose is gate management. That automation does not exist yet and must be
+  separately approved before use.
 
 ### Label Transitions
 
@@ -87,6 +117,23 @@ who authored the PR, do not add positive labels.
 - Remove or refresh positive labels after any new commit unless the approval is explicitly rechecked.
 - `merge:do-not-merge` and `reviewer:changes-requested` must be removed before any positive acceptance label can be acted on.
 - `merge:human-required` must be removed by a human before any auto-merge path can proceed.
+
+A PR may not enter an auto-merge lane if any stop label is present, regardless
+of passing CI, passing PR metadata checks, reviewer-agent approval, low-risk
+issue metadata, `merge:auto-eligible`, or `merge:agent-approved`.
+
+### Reviewer-Agent Language
+
+Reviewer agents may use these decision phrases:
+
+- `APPROVED FOR MERGE`
+- `APPROVED FOR AUTO-MERGE AFTER HUMAN REMOVES STOP LABELS`
+- `CHANGES REQUESTED`
+- `HUMAN REVIEW REQUIRED`
+- `BLOCKED`
+
+Reviewer agents must not say or imply that they removed stop labels, authorized
+themselves to remove stop labels, or treat stop labels as advisory only.
 
 ### GitHub Label Setup
 
@@ -126,6 +173,29 @@ Auto-merge must not be available for PRs that involve any of the following:
 
 When in doubt, use `merge:human-required`.
 
+## Safe Low-Risk Auto-Merge Lane
+
+Live auto-merge does not exist yet. If separately approved later, it may only
+apply to low-risk categories such as:
+
+- `type:docs` + `risk:low` + `validation:docs`
+- `type:harness` + `risk:low` + `validation:harness`
+- `type:test` + `risk:low` + `validation:test`
+
+Even in these low-risk categories, stop labels remain hard vetoes.
+
+Human merge or human review remains required for:
+
+- `type:ui`
+- `type:gameplay`
+- `type:progression`
+- `type:movement`
+- deployment changes
+- dependency changes
+- CI or workflow changes
+- `risk:medium` or higher unless explicitly approved by a human
+- anything touching `src/game.js`, `src/render.js`, `src/game/movement.js`, or broad architecture files
+
 ## Minimum Auto-Merge Gates
 
 Any future auto-merge workflow or documented procedure must require all of these:
@@ -144,6 +214,7 @@ Any future auto-merge workflow or documented procedure must require all of these
 - `merge:auto-eligible` is present.
 - `merge:do-not-merge` is absent.
 - `merge:human-required` is absent.
+- `needs-human-approval`, `blocked`, `human-only`, and `risk:human-only` are absent from the linked issue.
 - `reviewer:changes-requested` is absent.
 - Independent approval is present through `reviewer:approved` or an approved human label.
 - The approval actor is not the Coder or Test author of the PR.

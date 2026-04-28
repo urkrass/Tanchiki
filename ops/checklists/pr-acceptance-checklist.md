@@ -57,6 +57,9 @@ If any exclusion is true, use `merge:human-required` or `merge:do-not-merge`.
 - [ ] Required GitHub labels exist before they are used.
 - [ ] Label ownership follows `ops/policies/pr-acceptance.md`.
 - [ ] Positive acceptance labels were not added by the PR author.
+- [ ] No stop labels are present: `merge:do-not-merge`, `merge:human-required`, `needs-human-approval`, `blocked`, `human-only`, or `risk:human-only`.
+- [ ] Stop labels were not removed by a Coder, Test, Reviewer, Release, Planner, or Groomer agent.
+- [ ] If a stop label was previously present, the PR body records which human operator approved gate removal.
 - [ ] `merge:do-not-merge` is absent.
 - [ ] `reviewer:changes-requested` is absent.
 - [ ] `merge:human-required` is absent before auto-merge eligibility.
@@ -71,14 +74,22 @@ If any exclusion is true, use `merge:human-required` or `merge:do-not-merge`.
 
 - [ ] The approval actor is not the Coder or Test author of the PR.
 - [ ] Coder/Test agents did not approve or label their own PR as accepted.
+- [ ] Agents only recommended stop-label removal in PR or Linear comments; they did not remove stop labels.
 - [ ] Reviewer did not push commits to the PR branch.
 - [ ] Any new commit after approval rechecks or refreshes approval.
 - [ ] If actor independence cannot be proven, auto-merge remains unavailable.
+
+## Validation Evidence Gate
+
+- [ ] The PR still satisfies role/type/risk/validation metadata after all changes.
+- [ ] CI passed after the latest commit.
+- [ ] PR metadata checks passed after the latest commit.
+- [ ] QA evidence is present when the validation profile or risk level requires it.
 
 ## Final Decision
 
 - [ ] Recommendation only: post findings, no approval or merge authority.
 - [ ] Reviewer-agent accepted: independent review passed, but merge remains controlled by policy.
 - [ ] Human required: human must decide before merge.
-- [ ] Auto-merge eligible: all gates passed and the repository policy/workflow explicitly allows it.
+- [ ] Auto-merge eligible: all gates passed, no stop label is present, any previous stop-label removal was approved by a human operator, and the repository policy/workflow explicitly allows it.
 - [ ] Do not merge: blocking issue exists.
