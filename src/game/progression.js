@@ -166,6 +166,24 @@ export function getUpgradeDefinition(upgradeId) {
   return upgrade;
 }
 
+export function calculateProgressionEffects(progressionState = DEFAULT_PROGRESSION_STATE) {
+  const progression = createProgressionState(progressionState);
+  const effects = Object.fromEntries(UPGRADE_EFFECT_KEYS.map((key) => [key, 0]));
+
+  for (const [upgradeId, rank] of Object.entries(progression.appliedUpgrades)) {
+    if (rank === 0) {
+      continue;
+    }
+
+    const upgrade = getUpgradeDefinition(upgradeId);
+    for (const effect of upgrade.effects) {
+      effects[effect.key] += effect.amount * rank;
+    }
+  }
+
+  return effects;
+}
+
 export function validateUpgradeCatalog(catalog) {
   if (!Array.isArray(catalog)) {
     throw new Error("Upgrade catalog must be an array.");

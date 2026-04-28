@@ -146,6 +146,49 @@ test("space shooting during held movement does not affect speed, facing, or targ
   assert.equal(harness.snapshot().projectiles.length, 1);
 });
 
+test("player projectiles use default cooldown and range without upgrades", () => {
+  const harness = createHarness({ x: 1, y: 1, facing: "right" });
+
+  harness.keyDown("Space");
+  harness.advanceSteps(1);
+
+  const state = harness.debugState();
+  assert.equal(state.playerFireCooldownSeconds, 0.4);
+  assert.equal(state.playerProjectileMaxRangeCells, 5);
+  assert.equal(harness.snapshot().projectiles[0].maxRangeCells, 5);
+});
+
+test("progression reload and shell range upgrades affect only player projectiles", () => {
+  const sentry = createTarget({ id: "sentry", gridX: 3, gridY: 1 });
+  const harness = createHarness({
+    x: 1,
+    y: 1,
+    facing: "right",
+    targets: [sentry],
+    progression: {
+      appliedUpgrades: {
+        reload: 3,
+        shellRange: 2
+      }
+    },
+    validateSpawn: false
+  });
+
+  harness.keyDown("Space");
+  harness.advanceSteps(1);
+
+  assert.equal(harness.debugState().playerFireCooldownSeconds, 0.1);
+  assert.equal(harness.debugState().playerProjectileMaxRangeCells, 7);
+  assert.equal(harness.snapshot().projectiles[0].team, "player");
+  assert.equal(harness.snapshot().projectiles[0].maxRangeCells, 7);
+
+  harness.advance(1);
+
+  const enemyProjectile = harness.snapshot().projectiles.find((projectile) => projectile.team === "enemy");
+  assert.equal(enemyProjectile.maxRangeCells, 7);
+  assert.equal(enemyProjectile.speedCellsPerSecond, 2.75);
+});
+
 test("visual position never interpolates over more than one cell for a single input", () => {
   const harness = createHarness({ x: 1, y: 8, facing: "right" });
 
@@ -301,7 +344,8 @@ test("debug state exposes combat fairness tuning", () => {
     enemyPatrolSpeedCellsPerSecond: 1.5,
     enemyPursuitSpeedCellsPerSecond: 1.25,
     playerInvulnerabilitySeconds: 0.7,
-    playerDamageFlashSeconds: 0.24
+    playerDamageFlashSeconds: 0.24,
+    playerMinFireCooldownSeconds: 0.1
   });
 });
 

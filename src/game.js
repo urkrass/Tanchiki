@@ -14,6 +14,7 @@ import {
 } from "./game/level.js";
 import {
   FIRE_COOLDOWN_SECONDS,
+  PROJECTILE_MAX_RANGE_CELLS,
   PROJECTILE_SPEED_CELLS_PER_SECOND,
   createProjectileStore,
   spawnPointFromTank,
@@ -38,6 +39,7 @@ import {
   ENEMY_PATROL_SPEED_CELLS_PER_SECOND,
   ENEMY_PURSUIT_SPEED_CELLS_PER_SECOND,
   PLAYER_DAMAGE_FLASH_SECONDS,
+  PLAYER_MIN_FIRE_COOLDOWN_SECONDS,
   PLAYER_MAX_HP,
   PLAYER_INVULNERABILITY_SECONDS
 } from "./game/combatTuning.js";
@@ -51,6 +53,7 @@ import {
 } from "./game/pickups.js";
 import {
   calculateMissionXpReward,
+  calculateProgressionEffects,
   cloneProgressionState,
   createProgressionState,
   derivePlayerDefensiveStats
@@ -181,9 +184,10 @@ export function createGame(options = {}) {
   const isBlocked = (x, y) => isBlockedCell(level, x, y);
   const isSolid = (x, y) => isBlocked(x, y) || isSolidEntityAt(targets, x, y);
   const canEnter = (x, y) => !isBlocked(x, y);
-  const projectiles = createProjectileStore();
-  const canEnterWithEntities = (x, y) => !isSolid(x, y);
   const progression = createProgressionState(options.progression);
+  const playerCombatStats = createPlayerCombatStats(progression);
+  const projectiles = createProjectileStore(playerCombatStats);
+  const canEnterWithEntities = (x, y) => !isSolid(x, y);
   const defensiveStats = derivePlayerDefensiveStats(progression, {
     maxHp: options.playerMaxHp ?? PLAYER_MAX_HP
   });
@@ -350,7 +354,7 @@ export function createGame(options = {}) {
       const cooldownMs = Math.ceil(projectiles.cooldownRemaining * 1000);
       const shotText = lastShotAccepted
         ? "Shell fired."
-        : `Space: fire shell (${Math.round(FIRE_COOLDOWN_SECONDS * 1000)}ms cooldown).`;
+        : `Space: fire shell (${Math.round(projectiles.cooldownSeconds * 1000)}ms cooldown).`;
       const cooldownText = cooldownMs > 0 ? ` Cooldown ${cooldownMs}ms.` : "";
       const base = targets.find((target) => target.type === "base" && target.team === "enemy");
       const liveEnemyTanks = targets.filter((target) => (
@@ -412,6 +416,8 @@ export function createGame(options = {}) {
         missionStatus,
         cooldownRemaining: Number(projectiles.cooldownRemaining.toFixed(3)),
         projectileSpeedCellsPerSecond: PROJECTILE_SPEED_CELLS_PER_SECOND,
+        playerProjectileMaxRangeCells: projectiles.maxRangeCells,
+        playerFireCooldownSeconds: projectiles.cooldownSeconds,
         combatTuning: {
           enemyProjectileDamage: ENEMY_PROJECTILE_DAMAGE,
           enemyProjectileSpeedCellsPerSecond: ENEMY_PROJECTILE_SPEED_CELLS_PER_SECOND,
@@ -422,7 +428,8 @@ export function createGame(options = {}) {
           enemyPatrolSpeedCellsPerSecond: ENEMY_PATROL_SPEED_CELLS_PER_SECOND,
           enemyPursuitSpeedCellsPerSecond: ENEMY_PURSUIT_SPEED_CELLS_PER_SECOND,
           playerInvulnerabilitySeconds: PLAYER_INVULNERABILITY_SECONDS,
-          playerDamageFlashSeconds: PLAYER_DAMAGE_FLASH_SECONDS
+          playerDamageFlashSeconds: PLAYER_DAMAGE_FLASH_SECONDS,
+          playerMinFireCooldownSeconds: PLAYER_MIN_FIRE_COOLDOWN_SECONDS
         }
       };
       return {
@@ -438,6 +445,19 @@ export function createGame(options = {}) {
         })
       };
     }
+  };
+}
+
+function createPlayerCombatStats(progressionState) {
+  const effects = calculateProgressionEffects(progressionState);
+  return {
+    speedCellsPerSecond: PROJECTILE_SPEED_CELLS_PER_SECOND,
+    maxRangeCells: PROJECTILE_MAX_RANGE_CELLS + effects.projectileMaxRangeCells,
+    cooldownSeconds: Math.max(
+      PLAYER_MIN_FIRE_COOLDOWN_SECONDS,
+      FIRE_COOLDOWN_SECONDS + effects.fireCooldownSeconds
+    ),
+    team: "player"
   };
 }
 

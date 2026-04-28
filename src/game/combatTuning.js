@@ -1,6 +1,7 @@
 export const PLAYER_MAX_HP = 3;
 export const PLAYER_INVULNERABILITY_SECONDS = 0.7;
 export const PLAYER_DAMAGE_FLASH_SECONDS = 0.24;
+export const PLAYER_MIN_FIRE_COOLDOWN_SECONDS = 0.1;
 
 // Enemy values favor readable corridor pressure over instant long-lane punishment.
 export const ENEMY_PROJECTILE_DAMAGE = 1;
