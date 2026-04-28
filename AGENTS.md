@@ -194,6 +194,24 @@ Level 3 planner workflow:
 - Avoid broad vague issues like "improve AI", "polish game", or "add campaign".
 - Use `ops/prompts/planner-agent.md`, `ops/policies/planner-boundaries.md`, `ops/policies/campaign-execution.md`, `ops/checklists/conflict-risk-checklist.md`, `ops/checklists/planner-output-checklist.md`, and `prompts/codex-plan-campaign.md` for this workflow.
 
+Level 4 role-separated workflow:
+
+- Use Level 4 when a Codex run must act as one clear role: Planner, Architect, Coder, Test, Reviewer, or Release.
+- Use `ops/policies/role-boundaries.md` as the shared boundary source.
+- Planner may create Linear issues only.
+- Architect may review issues, architecture risk, dependency order, file ownership, and conflict risk only; no implementation.
+- Coder may implement exactly one Linear issue that is `Todo` + `agent-ready`.
+- Test agent may add or improve tests but must not change gameplay behavior unless required to make tests meaningful and explicitly reported.
+- Reviewer agent reviews PR diffs, comments, tests, CI, and role-boundary compliance; it must not merge.
+- Release agent summarizes merged PRs and updates campaign or release notes; no gameplay changes.
+- Any role must start from updated `main`.
+- Any PR must target `main`.
+- No role may bypass CI.
+- No role may push directly to `main`, merge automatically, or close parent campaign issues unless all children are done and a release summary exists.
+- Use `ops/prompts/architect-agent.md`, `ops/prompts/coder-agent.md`, `ops/prompts/test-agent.md`, `ops/prompts/reviewer-agent.md`, and `ops/prompts/release-agent.md` for role runs.
+- Use `ops/checklists/architect-review-checklist.md`, `ops/checklists/pr-review-checklist.md`, and `ops/checklists/release-summary-checklist.md` for role validation.
+- Use `prompts/codex-architect-review.md`, `prompts/codex-test-pass.md`, `prompts/codex-review-pr.md`, and `prompts/codex-release-summary.md` as reusable launch prompts.
+
 ## Harness Conflict Prevention
 
 - `src/game.js` and `test/game.test.js` are integration points, not dumping grounds.
@@ -251,6 +269,18 @@ When the user asks Codex to plan a campaign brief:
 6. Do not apply `agent-ready` unless a human explicitly instructs it.
 7. Include dependency order, blocked-by relationships where possible, visible UI expectation, central-file conflict risk, and the first issue that should become `Todo` + `agent-ready`.
 8. Stop after creating issues and reporting the summary.
+
+## Level 4 role-separated workflow
+When the user asks Codex to run a role-separated workflow:
+
+1. Choose exactly one role: Planner, Architect, Coder, Test, Reviewer, or Release.
+2. Read `ops/policies/role-boundaries.md` and the matching role prompt in `ops/prompts/`.
+3. Start from updated `main`.
+4. Stay inside the role's authority.
+5. Open PRs only against `main`.
+6. Do not bypass CI.
+7. Do not merge automatically.
+8. Do not close parent campaign issues unless all children are done and a release summary exists.
 
 ## Before implementation
 1. Use the Linear MCP server to read the assigned issue.
