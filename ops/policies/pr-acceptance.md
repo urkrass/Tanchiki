@@ -89,6 +89,8 @@ The repository uses these PR acceptance labels:
 Agents may add stop labels to protect the repository, but positive acceptance
 labels require independent review or human action. If there is any doubt about
 who authored the PR, do not add positive labels.
+Human operators should apply `merge:auto-eligible` only after an independent
+Reviewer-agent approval is already recorded on the PR.
 
 ### Stop-Label Removal Authority
 
