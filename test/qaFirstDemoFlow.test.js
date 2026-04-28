@@ -5,6 +5,7 @@ import {
   assertQaFirstDemoFlowEvidence,
   createQaFirstDemoFlowEvidence
 } from "../scripts/qa-first-demo-flow.js";
+import { createCampaignGame } from "../src/game.js";
 
 test("scripted first-demo flow exposes repeatable PR evidence", () => {
   const evidence = createQaFirstDemoFlowEvidence();
@@ -82,4 +83,16 @@ test("scripted first-demo flow CLI prints valid JSON evidence", () => {
   const evidence = JSON.parse(result.stdout);
   assertQaFirstDemoFlowEvidence(evidence);
   assert.equal(evidence.flow.nextLevel.level.id, "checkpoint-mission");
+});
+
+test("scripted first-demo flow helper does not mutate fresh campaign defaults", () => {
+  createQaFirstDemoFlowEvidence();
+
+  const fresh = createCampaignGame().debugState();
+  assert.equal(fresh.currentLevelIndex, 0);
+  assert.equal(fresh.missionStatus, "playing");
+  assert.equal(fresh.player.gridX, 1);
+  assert.equal(fresh.player.gridY, 1);
+  assert.equal(fresh.progression.xp, 0);
+  assert.deepEqual(fresh.progression.appliedUpgrades, {});
 });
