@@ -13,8 +13,6 @@ import {
   validatePlayerSpawn
 } from "./game/level.js";
 import {
-  FIRE_COOLDOWN_SECONDS,
-  PROJECTILE_MAX_RANGE_CELLS,
   PROJECTILE_SPEED_CELLS_PER_SECOND,
   createProjectileStore,
   spawnPointFromTank,
@@ -40,7 +38,6 @@ import {
   ENEMY_PURSUIT_SPEED_CELLS_PER_SECOND,
   PLAYER_DAMAGE_FLASH_SECONDS,
   PLAYER_MIN_FIRE_COOLDOWN_SECONDS,
-  PLAYER_MAX_HP,
   PLAYER_INVULNERABILITY_SECONDS
 } from "./game/combatTuning.js";
 import { updateEnemySentries } from "./game/sentries.js";
@@ -52,12 +49,16 @@ import {
   consumeShieldCharge
 } from "./game/pickups.js";
 import {
-  calculateMissionXpReward,
-  calculateProgressionEffects,
-  cloneProgressionState,
-  createProgressionState,
-  derivePlayerDefensiveStats
+  createProgressionState
 } from "./game/progression.js";
+import {
+  addCampaignState,
+  createCampaignRewardTracker
+} from "./game/campaignProgression.js";
+import {
+  createPlayerCombatStats,
+  createPlayerStateFromProgression
+} from "./game/playerStats.js";
 
 const tileSize = 48;
 
@@ -67,8 +68,7 @@ export function createCampaignGame(options = {}) {
   const levelCount = getCampaignLevelCount();
   let currentLevelIndex = normalizeLevelIndex(options.levelIndex ?? 0, levelCount);
   const progression = createProgressionState(options.progression);
-  const rewardedLevelIndexes = new Set();
-  let lastMissionReward = null;
+  const rewardTracker = createCampaignRewardTracker();
   let levelGame = createLevelGame(options, currentLevelIndex, progression);
 
   function currentStatus() {
@@ -92,7 +92,8 @@ export function createCampaignGame(options = {}) {
         levelCount,
         currentStatus(),
         progression,
-        lastMissionReward
+        rewardTracker.lastMissionReward(),
+        createMissionSummary
       );
     },
 
@@ -115,7 +116,8 @@ export function createCampaignGame(options = {}) {
         levelCount,
         currentStatus(),
         progression,
-        lastMissionReward
+        rewardTracker.lastMissionReward(),
+        createMissionSummary
       );
     },
 
@@ -136,10 +138,7 @@ export function createCampaignGame(options = {}) {
 
   function awardCurrentLevelReward() {
     const status = currentStatus();
-    if (
-      (status !== "won" && status !== "campaign-complete")
-      || rewardedLevelIndexes.has(currentLevelIndex)
-    ) {
+    if (status !== "won" && status !== "campaign-complete") {
       return;
     }
 
@@ -151,15 +150,10 @@ export function createCampaignGame(options = {}) {
       levelCount,
       canAdvanceLevel: status === "won" && currentLevelIndex < levelCount - 1
     });
-    const xp = calculateMissionXpReward(summary);
-    rewardedLevelIndexes.add(currentLevelIndex);
-    lastMissionReward = {
-      levelIndex: currentLevelIndex,
-      levelId: summary.levelId,
-      xp,
-      enemiesDestroyed: summary.enemiesDestroyed
-    };
-    progression.xp += xp;
+    const reward = rewardTracker.awardLevel({ currentLevelIndex, summary });
+    if (reward) {
+      progression.xp += reward.xp;
+    }
   }
 }
 
@@ -188,18 +182,10 @@ export function createGame(options = {}) {
   const playerCombatStats = createPlayerCombatStats(progression);
   const projectiles = createProjectileStore(playerCombatStats);
   const canEnterWithEntities = (x, y) => !isSolid(x, y);
-  const defensiveStats = derivePlayerDefensiveStats(progression, {
-    maxHp: options.playerMaxHp ?? PLAYER_MAX_HP
+  const { effectiveStats, playerState } = createPlayerStateFromProgression({
+    ...options,
+    progression
   });
-  const playerState = {
-    hp: Math.min(options.playerHp ?? defensiveStats.maxHp, defensiveStats.maxHp),
-    maxHp: defensiveStats.maxHp,
-    repairAmountBonus: defensiveStats.repairAmountBonus,
-    ammoReserve: options.ammoReserve ?? 0,
-    shieldCharges: options.shieldCharges ?? 0,
-    damageFlashSeconds: 0,
-    invulnerabilityRemaining: 0
-  };
   let missionStatus = "playing";
   let lastShotAccepted = false;
 
@@ -325,7 +311,7 @@ export function createGame(options = {}) {
           visual: getVisualPosition(player),
           hp: playerState.hp,
           maxHp: playerState.maxHp,
-          effectiveStats: { ...defensiveStats },
+          effectiveStats: { ...effectiveStats },
           ammoReserve: playerState.ammoReserve,
           shieldCharges: playerState.shieldCharges,
           damageFlashSeconds: playerState.damageFlashSeconds,
@@ -397,7 +383,7 @@ export function createGame(options = {}) {
           type: "tank",
           hp: playerState.hp,
           maxHp: playerState.maxHp,
-          effectiveStats: { ...defensiveStats },
+          effectiveStats: { ...effectiveStats },
           ammoReserve: playerState.ammoReserve,
           shieldCharges: playerState.shieldCharges,
           damageFlashSeconds: Number(playerState.damageFlashSeconds.toFixed(3)),
@@ -445,19 +431,6 @@ export function createGame(options = {}) {
         })
       };
     }
-  };
-}
-
-function createPlayerCombatStats(progressionState) {
-  const effects = calculateProgressionEffects(progressionState);
-  return {
-    speedCellsPerSecond: PROJECTILE_SPEED_CELLS_PER_SECOND,
-    maxRangeCells: PROJECTILE_MAX_RANGE_CELLS + effects.projectileMaxRangeCells,
-    cooldownSeconds: Math.max(
-      PLAYER_MIN_FIRE_COOLDOWN_SECONDS,
-      FIRE_COOLDOWN_SECONDS + effects.fireCooldownSeconds
-    ),
-    team: "player"
   };
 }
 
@@ -523,34 +496,6 @@ function normalizeLevelIndex(levelIndex, levelCount) {
   }
 
   return levelIndex;
-}
-
-function addCampaignState(
-  state,
-  currentLevelIndex,
-  levelCount,
-  missionStatus,
-  progression,
-  lastMissionReward
-) {
-  const campaignState = {
-    ...state,
-    missionStatus,
-    currentLevelIndex,
-    levelNumber: currentLevelIndex + 1,
-    levelCount,
-    canAdvanceLevel: missionStatus === "won" && currentLevelIndex < levelCount - 1,
-    progression: cloneProgressionState(progression),
-    lastMissionReward: cloneMissionReward(lastMissionReward)
-  };
-  return {
-    ...campaignState,
-    missionSummary: createMissionSummary(campaignState)
-  };
-}
-
-function cloneMissionReward(missionReward) {
-  return missionReward ? { ...missionReward } : null;
 }
 
 export function createMissionSummary({
