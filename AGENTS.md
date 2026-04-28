@@ -152,6 +152,35 @@ Current history uses a plain descriptive commit style, for example `Initial Tanc
 
 Pull requests should include a concise summary, changed files or systems, manual test steps, and screenshots or clips for visible gameplay or asset changes. Link issues when available.
 
+## Linear Label Taxonomy
+
+Use explicit role, readiness, and gate labels for Level 4 automation.
+
+Role labels:
+
+- `role:architect`
+- `role:coder`
+- `role:test`
+- `role:reviewer`
+- `role:release`
+
+Readiness label:
+
+- `automation-ready`
+
+Gate labels:
+
+- `needs-human-approval`
+- `blocked`
+- `human-only`
+
+Deprecated ambiguous usage:
+
+- Do not use `agent-ready` for new Level 4 routing.
+- Do not use `human-review` to mean reviewer-agent work.
+- Use `needs-human-approval` for human gates.
+- Use `role:reviewer` for reviewer-agent work.
+
 Level 1 PR workflow:
 
 - Use one issue per PR.
@@ -168,11 +197,11 @@ Level 2 command-center workflow:
 
 - Codex must select work from Linear, not from a manually named issue, when using the Level 2 workflow.
 - Codex must not pick Backlog issues.
-- Codex may pick only issues with status `Todo` and label `agent-ready`.
-- Codex must not pick issues labeled `blocked` or `human-only`, issues blocked by another issue, or safety-critical work.
+- Codex may pick only issues with status `Todo`, label `automation-ready`, and exactly one `role:*` label.
+- Codex must not pick issues labeled `blocked`, `needs-human-approval`, or `human-only`, issues blocked by another issue, or safety-critical work.
 - Codex must not pick parent, epic, or campaign umbrella issues.
-- Codex must not implement `human-review` issues until a human explicitly moves them to `Todo` and applies `agent-ready`.
-- For dependency chains, only one implementation issue may be `Todo` + `agent-ready` at a time.
+- Codex must not implement issues gated by `needs-human-approval` until a human removes the gate and applies `automation-ready`.
+- For dependency chains, only one implementation issue may be `Todo` + `automation-ready` at a time.
 - Codex must work one issue only per branch and PR.
 - Codex must move the selected Linear issue to `In Progress` when starting.
 - Before creating a branch, Codex must run `git fetch --prune origin`, `git switch main`, `git pull --ff-only origin main`, and `git status --short`.
@@ -180,7 +209,7 @@ Level 2 command-center workflow:
 - Codex must open a draft PR against `main`.
 - Codex must move the Linear issue to `In Review` when the draft PR is opened.
 - Codex must not move the issue to `Done` until the PR is merged or a human explicitly approves closing it.
-- Use `prompts/codex-next-agent-ready.md` as the reusable prompt for this workflow.
+- Use `prompts/codex-next.md` as the reusable dispatcher prompt for this workflow.
 - Before implementation, Codex must inspect recent merged PRs or git history when available. If the issue touches files modified by the previous one to three merged PRs, report conflict risk.
 - If several consecutive issues touch `src/game.js` or `test/game.test.js`, recommend a seam-extraction issue before continuing feature work.
 
@@ -189,25 +218,28 @@ Level 3 planner workflow:
 - Use Level 3 only to turn a high-level campaign brief into small Linear issues.
 - The planner may create Linear issues only.
 - The planner must not edit source code or implement gameplay.
-- The planner must not mark issues `agent-ready` automatically unless explicitly instructed.
-- The planner must not apply `agent-ready` to parent, epic, blocked, or `human-review` issues.
-- The planner must classify every issue as `agent-ready candidate`, `human-review required`, `human-only`, or `blocked/dependency`.
-- Each planned issue must include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, Planner classification, Dependencies or blockers, Dependency order, Blocked-by relationships where possible, Visible UI change expected, Central-file conflict risk, and First issue that should become `Todo` + `agent-ready`.
+- The planner must not apply `automation-ready` automatically.
+- The planner must not apply `automation-ready` to parent, epic, blocked, or `needs-human-approval` issues.
+- The planner must classify every issue as `automation-ready candidate`, `needs-human-approval`, `human-only`, or `blocked/dependency`.
+- The planner must assign suggested role labels in the issue description.
+- Each planned issue must include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, Planner classification, Dependencies or blockers, Dependency order, Blocked-by relationships where possible, Visible UI change expected, Central-file conflict risk, Suggested role label, and First issue that should become `Todo` + `automation-ready`.
 - Issues must be small enough for one Level 2 implementation pass.
 - Avoid broad vague issues like "improve AI", "polish game", or "add campaign".
 - Use `ops/prompts/planner-agent.md`, `ops/policies/planner-boundaries.md`, `ops/policies/campaign-execution.md`, `ops/checklists/conflict-risk-checklist.md`, `ops/checklists/planner-output-checklist.md`, and `prompts/codex-plan-campaign.md` for this workflow.
+- Use `ops/prompts/campaign-groomer.md` and `ops/checklists/campaign-grooming-checklist.md` after planning to ensure exactly one issue is ready for automation.
 
 Level 4 role-separated workflow:
 
 - Use Level 4 when a Codex run must act as one clear role: Planner, Architect, Coder, Test, Reviewer, or Release.
 - Prefer the Level 4 Dispatcher when the user asks to continue the next eligible issue without naming a role.
 - The Dispatcher must use Linear MCP, read one full issue, and route by `ops/policies/role-router.md`.
-- The Dispatcher may route to Architect, Coder, Test, Reviewer, or Release; it must stop on blocked, human-review-only, or ambiguous issues.
-- Never route `architect-review`, `test-agent`, `reviewer-agent`, or `release-agent` issues to Coder.
+- The Dispatcher may route to Architect, Coder, Test, Reviewer, or Release; it must skip blocked/gated issues and stop for missing or ambiguous role labels.
+- The Dispatcher must require `Todo`, `automation-ready`, exactly one `role:*` label, and no gate labels.
+- Never route Architect, Test, Reviewer, or Release issues to Coder.
 - Use `ops/policies/role-boundaries.md` as the shared boundary source.
 - Planner may create Linear issues only.
 - Architect may review issues, architecture risk, dependency order, file ownership, and conflict risk only; no implementation.
-- Coder may implement exactly one Linear issue that is `Todo` + `agent-ready`.
+- Coder may implement exactly one Linear issue that is `Todo` + `automation-ready` + `role:coder`.
 - Test agent may add or improve tests but must not change gameplay behavior unless required to make tests meaningful and explicitly reported.
 - Reviewer agent reviews PR diffs, comments, tests, CI, and role-boundary compliance; it must not merge.
 - Release agent summarizes merged PRs and updates campaign or release notes; no gameplay changes.
@@ -216,7 +248,7 @@ Level 4 role-separated workflow:
 - No role may bypass CI.
 - No role may push directly to `main`, merge automatically, or close parent campaign issues unless all children are done and a release summary exists.
 - Use `ops/prompts/architect-agent.md`, `ops/prompts/coder-agent.md`, `ops/prompts/test-agent.md`, `ops/prompts/reviewer-agent.md`, and `ops/prompts/release-agent.md` for role runs.
-- Use `ops/policies/role-router.md`, `ops/checklists/role-routing-checklist.md`, `ops/checklists/architect-review-checklist.md`, `ops/checklists/pr-review-checklist.md`, and `ops/checklists/release-summary-checklist.md` for routing and validation.
+- Use `ops/policies/role-router.md`, `ops/checklists/role-routing-checklist.md`, `ops/checklists/campaign-grooming-checklist.md`, `ops/checklists/architect-review-checklist.md`, `ops/checklists/pr-review-checklist.md`, and `ops/checklists/release-summary-checklist.md` for routing and validation.
 - Use `prompts/codex-next.md`, `prompts/codex-role-router.md`, `prompts/codex-architect-review.md`, `prompts/codex-test-pass.md`, `prompts/codex-review-pr.md`, and `prompts/codex-release-summary.md` as reusable launch prompts.
 
 ## Harness Conflict Prevention
@@ -253,12 +285,12 @@ This project uses Linear as the development program and Codex as the implementat
 Do not start broad rewrites. Work from one Linear issue at a time.
 
 ## Level 2 issue selection
-When no issue is named and the user asks Codex to continue agent-ready work:
+When no issue is named and the user asks Codex to continue automation-ready work:
 
-1. Query Linear for issues in `Todo` with label `agent-ready`.
-2. Select the highest-priority eligible issue.
-3. Exclude `Backlog`, `blocked`, `human-only`, blocked-by relations, parent/epic issues, unapproved `human-review` issues, and safety-critical work.
-4. Confirm dependency chains expose only one `Todo` + `agent-ready` issue.
+1. Query Linear for all `Todo` issues.
+2. Select the highest-priority issue with `automation-ready` and exactly one `role:*` label.
+3. Exclude `Backlog`, `blocked`, `needs-human-approval`, `human-only`, blocked-by relations, parent/epic issues, and safety-critical work.
+4. Confirm dependency chains expose only one `Todo` + `automation-ready` issue.
 5. Move the issue to `In Progress` before editing.
 6. Sync `main` with `git fetch --prune origin`, `git switch main`, `git pull --ff-only origin main`, and `git status --short`.
 7. Inspect recent merged PRs or git history for conflict risk.
@@ -273,8 +305,8 @@ When the user asks Codex to plan a campaign brief:
 3. Create 5-8 small Linear issues when the brief is large enough.
 4. Preserve dependencies between issues.
 5. Do not implement gameplay or edit source code.
-6. Do not apply `agent-ready` unless a human explicitly instructs it.
-7. Include dependency order, blocked-by relationships where possible, visible UI expectation, central-file conflict risk, and the first issue that should become `Todo` + `agent-ready`.
+6. Do not apply `automation-ready` unless a human explicitly instructs it.
+7. Include dependency order, blocked-by relationships where possible, visible UI expectation, central-file conflict risk, suggested role labels, and the first issue that should become `Todo` + `automation-ready`.
 8. Stop after creating issues and reporting the summary.
 
 ## Level 4 role-separated workflow

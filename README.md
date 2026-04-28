@@ -86,6 +86,35 @@ Use `.github/pull_request_template.md` for PR descriptions and `ops/policies/lev
 
 Harness smoke-test PRs should use an `agent/` branch, be opened as drafts with the PR template filled out, and remain unmerged until reviewed.
 
+## Linear Label Taxonomy
+
+Use explicit role, readiness, and gate labels for automation.
+
+Role labels:
+
+- `role:architect`
+- `role:coder`
+- `role:test`
+- `role:reviewer`
+- `role:release`
+
+Readiness label:
+
+- `automation-ready`
+
+Gate labels:
+
+- `needs-human-approval`
+- `blocked`
+- `human-only`
+
+Deprecated ambiguous usage:
+
+- Do not use `agent-ready` for new Level 4 routing.
+- Do not use `human-review` to mean reviewer-agent work.
+- Use `needs-human-approval` for human gates.
+- Use `role:reviewer` for reviewer-agent work.
+
 ## Level 2 Command Center Workflow
 
 Level 2 lets Codex select the next unit of work from Linear instead of requiring a manually named issue.
@@ -105,30 +134,20 @@ Use these Linear states:
 Codex may pick only issues that are all of the following:
 
 - status `Todo`
-- labeled `agent-ready`
+- labeled `automation-ready`
+- exactly one `role:*` label
 - not blocked
 - not safety-critical
+- not labeled `needs-human-approval`
 - not labeled `human-only`
 
-Level 2 labels:
-
-- `agent-ready`
-- `human-review`
-- `gameplay`
-- `testing`
-- `level-design`
-- `ai`
-- `assets`
-- `polish`
-- `harness`
-- `human-only`
-- `blocked`
+Older `agent-ready` issues may exist in history, but new automation should use `automation-ready` plus one role label.
 
 When Codex starts a Level 2 issue, it must move the issue to `In Progress`, create a branch from `main`, make one scoped change, run `npm test`, `npm run build`, and `npm run lint`, commit, push, and open a draft PR against `main`. After the draft PR is opened, Codex must move the Linear issue to `In Review`.
 
 Codex must not pick `Backlog` issues and must not move an issue to `Done` until the PR is merged or a human explicitly approves closing it.
 
-Use `prompts/codex-next-agent-ready.md` to start a Level 2 agent-ready run.
+Use `prompts/codex-next.md` to start the default dispatcher run.
 
 Before creating a Level 2 branch, Codex must run:
 
@@ -139,7 +158,7 @@ git pull --ff-only origin main
 git status --short
 ```
 
-Campaign chains must expose only one `Todo` + `agent-ready` implementation issue at a time. Parent or epic issues must not have `agent-ready`; blocked and `human-review` issues must not be implemented until a human explicitly makes them eligible.
+Campaign chains must expose only one `Todo` + `automation-ready` implementation issue at a time. Parent or epic issues must not have `automation-ready`; blocked and `needs-human-approval` issues must not be implemented until a human explicitly makes them eligible.
 
 Before implementation, Codex should inspect recent merged PRs or git history. If the issue touches files changed by the previous one to three merged PRs, Codex must report conflict risk. Repeated changes to `src/game.js` or `test/game.test.js` should trigger a seam-extraction recommendation.
 
@@ -163,19 +182,19 @@ Planner agents must not:
 
 - edit source code
 - implement gameplay
-- mark issues `agent-ready` automatically unless explicitly instructed
+- apply `automation-ready` automatically
 - move issues into implementation states
 
-Planner agents must also avoid applying `agent-ready` to parent, epic, blocked, or `human-review` issues. They may recommend `agent-ready candidate` items, but a human controls which single dependency-chain issue becomes `Todo` + `agent-ready` first.
+Planner agents must avoid applying `automation-ready` to parent, epic, blocked, or `needs-human-approval` issues. They may recommend `automation-ready candidate` items and suggested role labels in issue bodies, but a human controls which single dependency-chain issue becomes `Todo` + `automation-ready` first.
 
 Every planned issue must be classified as one of:
 
-- `agent-ready candidate`
-- `human-review required`
+- `automation-ready candidate`
+- `needs-human-approval`
 - `human-only`
 - `blocked/dependency`
 
-Every planned issue must also include dependency order, blocked-by relationships where possible, whether visible UI change is expected, central-file conflict risk, and which issue should become `Todo` + `agent-ready` first.
+Every planned issue must also include dependency order, blocked-by relationships where possible, whether visible UI change is expected, central-file conflict risk, a suggested role label, and which issue should become `Todo` + `automation-ready` first.
 
 Use these files for Level 3 planning:
 
@@ -196,7 +215,7 @@ Roles:
 
 - Planner: creates Linear issues only.
 - Architect: reviews issue shape, architecture risk, dependency order, and conflict risk only.
-- Coder: implements one `Todo` + `agent-ready` issue only.
+- Coder: implements one `Todo` + `automation-ready` + `role:coder` issue only.
 - Test agent: adds or improves focused tests without changing gameplay behavior unless required to make tests meaningful.
 - Reviewer: reviews PR diffs and comments; it must not merge.
 - Release agent: summarizes merged PRs and updates release or campaign notes; it must not change gameplay.
@@ -221,33 +240,39 @@ Default prompt:
 ```text
 Use Linear MCP and GitHub.
 Run the Level 4 Dispatcher for the next eligible Tanchiki issue.
-Choose the correct role automatically.
+Choose the correct role automatically from role labels.
+Follow repo harness protocols.
 Work one issue only.
 Do not merge.
+Do not mark Done.
 ```
 
-The dispatcher follows `ops/policies/role-router.md` and `ops/checklists/role-routing-checklist.md`. It must read the full Linear issue, choose the role from labels and classification, and stop for blocked, human-review-only, or ambiguous issues.
+The dispatcher follows `ops/policies/role-router.md` and `ops/checklists/role-routing-checklist.md`. It must scan all Todo issues, skip blocked/gated issues, read the full selected Linear issue, and choose the role from exactly one `role:*` label.
 
 Role routing:
 
-- `architect-review` routes to Architect.
-- `coder-ready` or `agent-ready` implementation scope routes to Coder.
-- `test-agent` routes to Test.
-- `reviewer-agent` routes to Reviewer.
-- `release-agent` routes to Release.
+- `role:architect` routes to Architect.
+- `role:coder` routes to Coder.
+- `role:test` routes to Test.
+- `role:reviewer` routes to Reviewer.
+- `role:release` routes to Release.
 
 The dispatcher must never route architect, test, reviewer, or release work to Coder.
+
+If no eligible issue exists, the dispatcher reports all blocked/gated candidates and the human action required to make one eligible.
 
 Use these files for Level 4 work:
 
 - `ops/policies/role-router.md`
 - `ops/policies/role-boundaries.md`
 - `ops/checklists/role-routing-checklist.md`
+- `ops/checklists/campaign-grooming-checklist.md`
 - `ops/prompts/architect-agent.md`
 - `ops/prompts/coder-agent.md`
 - `ops/prompts/test-agent.md`
 - `ops/prompts/reviewer-agent.md`
 - `ops/prompts/release-agent.md`
+- `ops/prompts/campaign-groomer.md`
 - `ops/checklists/architect-review-checklist.md`
 - `ops/checklists/pr-review-checklist.md`
 - `ops/checklists/release-summary-checklist.md`

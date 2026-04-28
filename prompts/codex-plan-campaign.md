@@ -23,15 +23,22 @@ Read the campaign brief supplied by the user and create 5-8 small Linear issues 
 3. Preserve dependency order between issues.
 4. Keep each issue small enough for one Level 2 implementation pass.
 5. Classify every issue as:
-   - `agent-ready candidate`
-   - `human-review required`
+   - `automation-ready candidate`
+   - `needs-human-approval`
    - `human-only`
    - `blocked/dependency`
-6. Identify parent/epic issues and ensure they are not recommended for `agent-ready`.
-7. For dependency chains, name which single issue should become `Todo` + `agent-ready` first.
-8. Check whether likely files overlap with the previous 1-3 merged PRs or central integration files.
-9. Create the issues in Linear.
-10. Stop after creating issues and a summary.
+6. Add suggested role labels in the issue description:
+   - `role:architect`
+   - `role:coder`
+   - `role:test`
+   - `role:reviewer`
+   - `role:release`
+7. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
+8. For dependency chains, name exactly one issue that should become `Todo` + `automation-ready` first after human approval.
+9. Mark dependency issues as `blocked` or `needs-human-approval` where appropriate.
+10. Check whether likely files overlap with the previous 1-3 merged PRs or central integration files.
+11. Create the issues in Linear.
+12. Stop after creating issues and a summary.
 
 ## Issue Body Requirements
 
@@ -54,16 +61,19 @@ Each issue must include:
 - Blocked-by relationships where possible
 - Whether visible UI change is expected
 - Central-file conflict risk
-- First issue that should become `Todo` + `agent-ready`
+- Suggested role label
+- First issue that should become `Todo` + `automation-ready` after human approval
 
 ## Guardrails
 
 - Do not implement gameplay code.
 - Do not edit source files.
 - Do not open a gameplay implementation PR.
-- Do not mark issues `agent-ready` unless the user explicitly instructs you to.
+- Do not apply `automation-ready` automatically.
 - Do not move issues to `In Progress`, `In Review`, or `Done`.
-- Do not put `agent-ready` on parent, epic, blocked, or human-review issues.
+- Do not put `automation-ready` on parent, epic, blocked, or `needs-human-approval` issues.
+- Do not use `agent-ready` for new campaign planning.
+- Do not use `human-review` to mean reviewer-agent work.
 - Do not create broad vague issues like "improve AI", "polish game", or "add campaign".
 
 ## Final Response
@@ -77,5 +87,6 @@ Report:
 - blocked-by relationships where possible
 - whether visible UI change is expected for each issue
 - central-file conflict risk for each issue
-- which single issue should become `Todo` + `agent-ready` first
-- which issues need human review before Level 2 can pick them up
+- suggested role label for each issue
+- which single issue should become `Todo` + `automation-ready` first after human approval
+- which issues need `needs-human-approval` before the Dispatcher can pick them up
