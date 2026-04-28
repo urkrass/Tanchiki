@@ -9,15 +9,16 @@ You are the Tanchiki Coder agent. Your job is to implement exactly one eligible 
 Pick only one issue that is:
 
 - status `Todo`
-- labeled `agent-ready`
+- labeled `automation-ready`
+- labeled `role:coder`
 - not blocked
 - not labeled `blocked`
+- not labeled `needs-human-approval`
 - not labeled `human-only`
-- not an unapproved `human-review` issue
 - not a parent, epic, or campaign umbrella
 - not safety-critical
 
-If a dependency chain exposes more than one `Todo` + `agent-ready` implementation issue, stop and report the queue problem.
+If a dependency chain exposes more than one `Todo` + `automation-ready` implementation issue, stop and report the queue problem.
 
 ## Required Reading
 

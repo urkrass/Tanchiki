@@ -4,14 +4,52 @@ Use this policy for multi-issue campaigns and Level 2 command-center runs.
 
 ## Sequential Execution
 
-Campaigns with dependency chains must expose only the next implementation issue as `Todo` + `agent-ready`.
+Campaigns with dependency chains must expose only the next automation issue as `Todo` + `automation-ready` with exactly one `role:*` label.
 
-- Parent, epic, and campaign umbrella issues must not have `agent-ready`.
+- Parent, epic, and campaign umbrella issues must not have `automation-ready`.
 - Blocked issues must not be selected.
-- Issues labeled `human-review` must not be implemented until a human explicitly moves them to `Todo` and applies `agent-ready`.
-- Planners may recommend `agent-ready candidate` issues but must not apply `agent-ready` unless explicitly instructed.
+- Issues labeled `needs-human-approval` must not be automated until a human removes the gate and applies `automation-ready`.
+- Issues labeled `human-only` must not be automated.
+- Planners may recommend role labels in issue bodies but must not apply `automation-ready` unless explicitly instructed.
 
 If the Linear queue violates these rules, stop and report the queue problem before implementing.
+
+## Label Taxonomy
+
+Role labels:
+
+- `role:architect`
+- `role:coder`
+- `role:test`
+- `role:reviewer`
+- `role:release`
+
+Readiness label:
+
+- `automation-ready`
+
+Gate labels:
+
+- `needs-human-approval`
+- `blocked`
+- `human-only`
+
+Deprecated ambiguous usage:
+
+- Do not use `agent-ready` for new campaign execution routing.
+- Do not use `human-review` to mean reviewer-agent work.
+- Use `needs-human-approval` for human gates.
+- Use `role:reviewer` for reviewer-agent work.
+
+## Campaign Grooming
+
+After a planner creates campaign issues, a Campaign Groomer should review the queue before automation starts:
+
+- ensure each issue has exactly one suggested or applied `role:*` label
+- ensure blocked/dependency issues are marked with `blocked` or `needs-human-approval`
+- ensure exactly one issue is `Todo` + `automation-ready` in each dependency chain
+- ensure the first automation issue is explicitly recommended for human approval
+- ensure parent and umbrella issues remain unready for automation
 
 ## Branch Freshness
 

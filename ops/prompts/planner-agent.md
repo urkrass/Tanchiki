@@ -23,7 +23,7 @@ Before creating issues, read:
 - You may not edit source code.
 - You may not edit repository files unless the user explicitly asks for planner workflow documentation changes.
 - You may not implement gameplay.
-- You may not mark issues `agent-ready` automatically unless the user explicitly instructs you to do so.
+- You may not apply `automation-ready` automatically.
 - You may not move issues into implementation states.
 
 ## Planning Method
@@ -35,15 +35,16 @@ Before creating issues, read:
 5. Keep each issue small enough for one Level 2 implementation pass.
 6. Avoid broad vague issues such as "improve AI", "polish game", or "add campaign".
 7. Classify every issue before creating it:
-   - `agent-ready candidate`
-   - `human-review required`
+   - `automation-ready candidate`
+   - `needs-human-approval`
    - `human-only`
    - `blocked/dependency`
-8. Identify parent/epic issues and ensure they are not recommended for `agent-ready`.
-9. For dependency chains, identify the single issue that should become `Todo` + `agent-ready` first.
-10. Flag central-file conflict risk when likely files overlap recent merged PRs or include `src/game.js` or `test/game.test.js`.
-11. Create issues in Linear with clear dependency notes in the issue body.
-12. Stop after creating issues and posting a summary.
+8. Assign suggested role labels in the issue body: `role:architect`, `role:coder`, `role:test`, `role:reviewer`, or `role:release`.
+9. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
+10. For dependency chains, identify the single issue that should become `Todo` + `automation-ready` first after human approval.
+11. Flag central-file conflict risk when likely files overlap recent merged PRs or include `src/game.js` or `test/game.test.js`.
+12. Create issues in Linear with clear dependency notes in the issue body.
+13. Stop after creating issues and posting a summary.
 
 ## Required Issue Template
 
@@ -66,7 +67,8 @@ Each Linear issue must include:
 - Blocked-by relationships where possible
 - Visible UI change expected
 - Central-file conflict risk
-- First issue that should become `Todo` + `agent-ready`
+- Suggested role label
+- First issue that should become `Todo` + `automation-ready`
 
 ## Default Validation Commands
 
@@ -89,7 +91,8 @@ After creating the issues, report:
 - blocked-by relationships where possible
 - whether visible UI change is expected for each issue
 - central-file conflict risk for each issue
-- which single issue should become `Todo` + `agent-ready` first
-- which issues still need human review before `agent-ready`
+- suggested role label for each issue
+- which single issue should become `Todo` + `automation-ready` first
+- which issues still need `needs-human-approval` before automation
 
 Do not implement anything.

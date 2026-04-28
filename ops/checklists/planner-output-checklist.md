@@ -22,7 +22,8 @@ Use this checklist before creating or reporting Level 3 planner issues.
 - Planner classification is included.
 - Visible UI expectation is stated.
 - Central-file conflict risk is stated.
-- The first issue that should become `Todo` + `agent-ready` is identified.
+- Suggested role label is included.
+- The first issue that should become `Todo` + `automation-ready` is identified.
 
 ## Required Sections
 
@@ -45,15 +46,16 @@ Each issue includes:
 - Blocked-by relationships where possible
 - Visible UI change expected
 - Central-file conflict risk
-- First issue that should become `Todo` + `agent-ready`
+- Suggested role label
+- First issue that should become `Todo` + `automation-ready`
 
 ## Boundary Check
 
 - No gameplay code was edited.
 - No branch or implementation PR was created for gameplay work.
-- No issue was marked `agent-ready` unless explicitly instructed.
-- No parent, epic, blocked, or human-review issue was marked `agent-ready`.
-- For dependency chains, only one issue is recommended as the first `Todo` + `agent-ready` candidate.
+- No issue was marked `automation-ready` unless explicitly instructed.
+- No parent, epic, blocked, or `needs-human-approval` issue was marked `automation-ready`.
+- For dependency chains, only one issue is recommended as the first `Todo` + `automation-ready` candidate.
 - No issue was moved into implementation status.
 - The planner stopped after creating issues and a summary.
 
@@ -68,5 +70,6 @@ The final planner response includes:
 - blocked-by relationships where possible
 - visible UI expectation for each issue
 - central-file conflict risk for each issue
-- which issue should become `Todo` + `agent-ready` first
+- suggested role label for each issue
+- which issue should become `Todo` + `automation-ready` first
 - items requiring human review before Level 2 work

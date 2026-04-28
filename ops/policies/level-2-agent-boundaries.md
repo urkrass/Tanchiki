@@ -7,22 +7,24 @@ Level 2 is the autonomous implementation workflow. It may implement one Linear i
 Codex may select only issues that are all of the following:
 
 - status `Todo`
-- labeled `agent-ready`
+- labeled `automation-ready`
+- labeled with exactly one `role:*`
 - not labeled `blocked`
+- not labeled `needs-human-approval`
 - not labeled `human-only`
 - not safety-critical
 - not blocked by another issue
 - not a parent, epic, or campaign umbrella issue
 
-Human-review issues are not eligible until a human explicitly moves them to `Todo` and applies `agent-ready`.
+Issues gated by `needs-human-approval` are not eligible until a human removes the gate and applies `automation-ready`.
 
 ## Sequential Campaign Execution
 
-For dependency chains, only one implementation issue may be `Todo` + `agent-ready` at a time.
+For dependency chains, only one implementation issue may be `Todo` + `automation-ready` at a time.
 
-Parent or epic issues must not have `agent-ready`. They are containers for planning and tracking, not Level 2 implementation targets.
+Parent or epic issues must not have `automation-ready`. They are containers for planning and tracking, not Level 2 implementation targets.
 
-If multiple issues in a chain are marked `Todo` + `agent-ready`, Codex must stop and report the harness violation instead of choosing one silently.
+If multiple issues in a chain are marked `Todo` + `automation-ready`, Codex must stop and report the harness violation instead of choosing one silently.
 
 ## Stale-Main Prevention
 

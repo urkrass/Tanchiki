@@ -4,7 +4,7 @@ Use this prompt when the user asks Codex to continue Tanchiki work without namin
 
 ## Goal
 
-Inspect the next eligible Linear issue and choose the correct Level 4 role automatically: Architect, Coder, Test, Reviewer, or Release.
+Inspect the next eligible Linear issue and choose the correct Level 4 role automatically from explicit role labels: Architect, Coder, Test, Reviewer, or Release.
 
 ## Required Reading
 
@@ -17,45 +17,53 @@ Inspect the next eligible Linear issue and choose the correct Level 4 role autom
 
 ## Selection
 
-Use Linear MCP to search the Tanchiki project for the highest-priority issue that is:
+Use Linear MCP to scan all `Todo` issues in the Tanchiki project.
 
-- status `Todo`
-- labeled `agent-ready` or with a specific role label
-- not blocked by another issue
-- not labeled `blocked`
-- not labeled `human-only`
-- not canceled
-- not `Done`
+An issue is eligible only when all of these are true:
 
-If no issue qualifies, stop and report that the queue has no routable issue.
+- status is `Todo`
+- has `automation-ready`
+- has exactly one `role:*` label
+- does not have `blocked`
+- does not have `needs-human-approval`
+- does not have `human-only`
+- is not blocked by another issue
+- is not canceled or `Done`
+
+Skip blocked or gated issues while scanning. Do not stop at the first gated issue.
+
+If no issue qualifies, stop and report all blocked/gated candidates plus the human action needed for each.
 
 ## Role Mapping
 
-- `architect-review` label or classification: Architect agent
-- `coder-ready` label or implementation scope with `agent-ready`: Coder agent
-- `test-agent` label or classification: Test agent
-- `reviewer-agent` label or classification: Reviewer agent
-- `release-agent` label or classification: Release agent
-- `agent-ready` plus implementation scope: Coder agent
-- `agent-ready` plus architect-review classification: Architect agent
-- `human-review` only: stop and ask for human action
-- `blocked/dependency`: stop
-- missing or ambiguous classification: stop and comment on the Linear issue asking for triage
+- `role:architect`: Architect agent
+- `role:coder`: Coder agent
+- `role:test`: Test agent
+- `role:reviewer`: Reviewer agent
+- `role:release`: Release agent
+
+Deprecated signals:
+
+- Do not use `agent-ready` for new Level 4 routing.
+- Do not use `human-review` to mean reviewer work.
+- Use `needs-human-approval` for human gates.
+- Use `role:reviewer` for reviewer-agent work.
 
 ## Routing Guards
 
 - Work one issue only.
-- Never route architect-review, test-agent, reviewer-agent, or release-agent issues to Coder.
+- Never route work without exactly one `role:*` label.
+- Never route Architect, Test, Reviewer, or Release work to Coder.
 - Never let Architect edit source code.
 - Never let Test agent add gameplay features.
 - Never let Reviewer merge PRs.
 - Never let Release agent change gameplay behavior.
-- Never bypass `human-review`.
-- If the role cannot be determined confidently, stop and comment on the Linear issue.
+- Never bypass `blocked`, `needs-human-approval`, or `human-only`.
+- If role labels are missing or ambiguous, stop and comment on the Linear issue asking for triage.
 
 ## After Routing
 
-Announce the selected issue, role, and reason.
+Announce the selected issue, role, and role-label reason.
 
 Then follow the selected role prompt:
 
@@ -68,3 +76,4 @@ Then follow the selected role prompt:
 Start from updated `main` only when the selected role requires repository work.
 
 Do not merge.
+Do not mark Done.
