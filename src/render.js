@@ -1,4 +1,5 @@
 import { createProgressionFeedback } from "./game/progressionFeedback.js";
+import { targetReadabilityCue } from "./game/readability.js";
 
 export function renderGame(context, snapshot) {
   const { level, player, pickups, projectiles, impacts, targets, missionSummary, tileSize } = snapshot;
@@ -161,13 +162,13 @@ function drawTargets(context, targets, tileSize) {
     const visual = entityVisual(target);
     const centerX = (visual.x + 0.5) * tileSize;
     const centerY = (visual.y + 0.5) * tileSize;
+    const size = target.type === "base" ? 40 : 32;
 
     context.save();
     context.translate(centerX, centerY);
     if (target.type !== "base") {
       context.rotate(rotationFor(target.facing ?? "up"));
     }
-    const size = target.type === "base" ? 40 : 32;
     context.fillStyle = target.alive ? colorForTarget(target) : "#5a554c";
     context.fillRect(-size / 2, -size / 2, size, size);
     context.strokeStyle = target.alive ? "#40221f" : "#39362f";
@@ -194,7 +195,29 @@ function drawTargets(context, targets, tileSize) {
     }
 
     context.restore();
+
+    drawTargetCue(context, target, centerX, centerY, size);
   }
+}
+
+function drawTargetCue(context, target, centerX, centerY, size) {
+  const cue = targetReadabilityCue(target);
+  const badgeSize = 18;
+  const x = centerX + (size / 2) - badgeSize + 5;
+  const y = centerY - (size / 2) - 7;
+
+  context.save();
+  context.fillStyle = cue.fillStyle;
+  context.fillRect(x, y, badgeSize, badgeSize);
+  context.strokeStyle = "#2e2f27";
+  context.lineWidth = 2;
+  context.strokeRect(x + 0.5, y + 0.5, badgeSize - 1, badgeSize - 1);
+  context.fillStyle = cue.textStyle;
+  context.font = "800 12px system-ui, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(cue.label, x + badgeSize / 2, y + badgeSize / 2 + 0.5);
+  context.restore();
 }
 
 function entityVisual(entity) {
