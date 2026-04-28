@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { SPRITE_STATUS } from "../src/assets/spriteManifest.js";
 import { drawManifestSprite } from "../src/assets/spriteRenderer.js";
+import { renderGame } from "../src/render.js";
 
 test("drawManifestSprite draws ready frames centered at the requested size", () => {
   const calls = [];
@@ -37,3 +38,200 @@ test("drawManifestSprite reports fallback for missing, loading, and errored spri
     assert.equal(drawManifestSprite(context, { status }, 40), false);
   }
 });
+
+test("renderGame keeps primitive fallback when sprite frames fail", () => {
+  const context = createRecordingContext();
+  const spriteRequests = [];
+
+  renderGame(context, createRenderSnapshot(), {
+    spriteAssets: {
+      getFrame(spriteId, animation, direction) {
+        spriteRequests.push({ spriteId, animation, direction });
+        return { status: SPRITE_STATUS.ERROR };
+      }
+    }
+  });
+
+  assert.equal(context.callsByName.drawImage.length, 0);
+  assert.ok(hasCall(context, "fillRect", [-15, -18, 30, 36]));
+  assert.ok(hasCall(context, "fillRect", [-16, -16, 32, 32]));
+  assert.ok(hasCall(context, "fillRect", [-20, -20, 40, 40]));
+  assert.ok(hasCall(context, "fillRect", [-4, -10, 8, 20]));
+  assert.deepEqual(spriteRequests.map((request) => request.spriteId), [
+    "enemy_tank",
+    "enemy_base",
+    "player_shell",
+    "player_tank"
+  ]);
+});
+
+test("renderGame draws ready sprites while preserving target overlays", () => {
+  const context = createRecordingContext();
+  const imageElement = { id: "core-sprite" };
+
+  renderGame(context, createRenderSnapshot(), {
+    spriteAssets: {
+      getFrame(spriteId, animation, direction) {
+        return {
+          status: SPRITE_STATUS.READY,
+          spriteId,
+          animation,
+          direction,
+          imageElement,
+          frame: {
+            x: 0,
+            y: 0,
+            width: 48,
+            height: 48
+          }
+        };
+      }
+    }
+  });
+
+  assert.equal(context.callsByName.drawImage.length, 4);
+  assert.ok(hasCall(context, "fillRect", [-16, 20, 32, 5]));
+  assert.ok(hasCall(context, "fillRect", [-20, 24, 40, 5]));
+  assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "S"));
+  assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "B"));
+});
+
+test("renderGame keeps the damage flash primitive for the player tank", () => {
+  const context = createRecordingContext();
+  const spriteRequests = [];
+  const snapshot = createRenderSnapshot({
+    player: {
+      damageFlashSeconds: 0.1
+    },
+    targets: [],
+    projectiles: []
+  });
+
+  renderGame(context, snapshot, {
+    spriteAssets: {
+      getFrame(spriteId) {
+        spriteRequests.push(spriteId);
+        return {
+          status: SPRITE_STATUS.READY,
+          imageElement: { id: "core-sprite" },
+          frame: {
+            x: 0,
+            y: 0,
+            width: 48,
+            height: 48
+          }
+        };
+      }
+    }
+  });
+
+  assert.equal(context.callsByName.drawImage.length, 0);
+  assert.ok(hasCall(context, "fillRect", [-15, -18, 30, 36]));
+  assert.deepEqual(spriteRequests, []);
+});
+
+function createRenderSnapshot(overrides = {}) {
+  return {
+    level: {
+      width: 4,
+      height: 4,
+      tiles: [
+        "....",
+        "....",
+        "....",
+        "...."
+      ]
+    },
+    player: {
+      visual: { x: 1, y: 1 },
+      facing: "right",
+      damageFlashSeconds: 0,
+      ...overrides.player
+    },
+    pickups: [],
+    projectiles: overrides.projectiles ?? [{
+      active: true,
+      team: "player",
+      direction: "right",
+      x: 2.5,
+      y: 1.5
+    }],
+    impacts: [],
+    targets: overrides.targets ?? [
+      {
+        type: "dummy",
+        alive: true,
+        hp: 2,
+        maxHp: 3,
+        gridX: 2,
+        gridY: 1,
+        facing: "left"
+      },
+      {
+        type: "base",
+        team: "enemy",
+        alive: true,
+        hp: 4,
+        maxHp: 6,
+        gridX: 3,
+        gridY: 2
+      }
+    ],
+    missionSummary: null,
+    tileSize: 48
+  };
+}
+
+function createRecordingContext() {
+  const calls = [];
+  const callsByName = new Proxy({}, {
+    get(target, property) {
+      if (!target[property]) {
+        target[property] = [];
+      }
+      return target[property];
+    }
+  });
+
+  const context = {
+    canvas: {
+      width: 0,
+      height: 0
+    },
+    calls,
+    callsByName
+  };
+
+  for (const name of [
+    "arc",
+    "beginPath",
+    "clearRect",
+    "drawImage",
+    "fill",
+    "fillRect",
+    "fillText",
+    "lineTo",
+    "moveTo",
+    "restore",
+    "rotate",
+    "save",
+    "stroke",
+    "strokeRect",
+    "translate"
+  ]) {
+    context[name] = (...args) => {
+      const call = { name, args };
+      calls.push(call);
+      callsByName[name].push(call);
+    };
+  }
+
+  return context;
+}
+
+function hasCall(context, name, expectedArgs) {
+  return context.callsByName[name].some((call) => (
+    call.args.length === expectedArgs.length
+    && call.args.every((arg, index) => Object.is(arg, expectedArgs[index]))
+  ));
+}
