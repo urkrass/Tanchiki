@@ -347,7 +347,12 @@ test("campaign applies chosen upgrades before advancing to the next level", () =
   destroyEnemyBase(harness.game);
   harness.advanceStep();
 
-  const upgradeResult = harness.game.applyUpgrade("armor");
+  const [displayedChoice] = harness.game.snapshot().upgradeChoice.choices;
+  assert.equal(displayedChoice.id, "armor");
+  assert.equal(displayedChoice.rankLabel, "Current rank 0 -> 1/2");
+  assert.equal(displayedChoice.effectLabel, "Next: max armor +1");
+
+  const upgradeResult = harness.game.applyUpgrade(displayedChoice.id);
   assert.equal(upgradeResult.applied, true);
   assert.equal(upgradeResult.reason, null);
   assert.deepEqual(upgradeResult.progression.appliedUpgrades, {

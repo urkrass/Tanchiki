@@ -43,7 +43,41 @@ export function getEligibleUpgradeChoices(
         description: upgrade.description,
         currentRank,
         nextRank: currentRank + 1,
-        maxRank: upgrade.maxRank
+        maxRank: upgrade.maxRank,
+        rankLabel: `Current rank ${currentRank} -> ${currentRank + 1}/${upgrade.maxRank}`,
+        effectLabel: formatUpgradeEffectLabel(upgrade.effects)
       };
     });
+}
+
+function formatUpgradeEffectLabel(effects) {
+  return effects.map(formatEffect).join(", ");
+}
+
+function formatEffect(effect) {
+  const amount = formatSignedAmount(effect.amount);
+  if (effect.key === "maxHp") {
+    return `Next: max armor ${amount}`;
+  }
+  if (effect.key === "repairAmount") {
+    return `Next: repair pickup ${amount} armor`;
+  }
+  if (effect.key === "fireCooldownSeconds") {
+    return `Next: shell cooldown ${formatSignedSeconds(effect.amount)}`;
+  }
+  if (effect.key === "projectileMaxRangeCells") {
+    return `Next: shell range ${amount} cell`;
+  }
+  if (effect.key === "shieldCapacity") {
+    return `Next: shield capacity ${amount}`;
+  }
+  return `Next: ${effect.key} ${amount}`;
+}
+
+function formatSignedAmount(amount) {
+  return amount > 0 ? `+${amount}` : String(amount);
+}
+
+function formatSignedSeconds(amount) {
+  return `${formatSignedAmount(amount)}s`;
 }
