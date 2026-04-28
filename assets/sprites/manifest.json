@@ -3,7 +3,70 @@
     "tileSize": 48,
     "style": "top-down tactical sprites",
     "background": "transparent",
-    "note": "Runtime manifest starts empty so primitive Canvas rendering remains the active fallback until approved sprite assets are added."
+    "note": "First core sprite slice. Primitive Canvas rendering remains the fallback when any sprite is missing, loading, disabled, or failed."
   },
-  "sheets": {}
+  "sheets": {
+    "player_tank": {
+      "image": "core/player_tank.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "up": [[0, 0]],
+          "right": [[48, 0]],
+          "down": [[96, 0]],
+          "left": [[144, 0]]
+        }
+      }
+    },
+    "enemy_tank": {
+      "image": "core/enemy_tank.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "up": [[0, 0]],
+          "right": [[48, 0]],
+          "down": [[96, 0]],
+          "left": [[144, 0]]
+        }
+      }
+    },
+    "enemy_base": {
+      "image": "core/enemy_base.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "idle": {
+          "any": [[0, 0]]
+        }
+      }
+    },
+    "player_shell": {
+      "image": "core/shells.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "shell": {
+          "up": [[0, 0]],
+          "right": [[48, 0]],
+          "down": [[96, 0]],
+          "left": [[144, 0]]
+        }
+      }
+    },
+    "enemy_shell": {
+      "image": "core/shells.svg",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "animations": {
+        "shell": {
+          "up": [[0, 48]],
+          "right": [[48, 48]],
+          "down": [[96, 48]],
+          "left": [[144, 48]]
+        }
+      }
+    }
+  }
 }
