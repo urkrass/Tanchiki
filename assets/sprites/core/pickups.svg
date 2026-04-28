@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="48" viewBox="0 0 144 48">
+  <g id="repair">
+    <rect x="9" y="9" width="30" height="30" fill="#4f7f58"/>
+    <rect x="12" y="12" width="24" height="24" fill="#5d9167"/>
+    <path d="M21 16h6v6h6v5h-6v6h-6v-6h-6v-5h6z" fill="#f7f4ea"/>
+    <rect x="10" y="36" width="28" height="3" fill="#2f342d" opacity="0.55"/>
+  </g>
+  <g id="ammo" transform="translate(48 0)">
+    <rect x="9" y="9" width="30" height="30" fill="#8a6a2f"/>
+    <rect x="12" y="12" width="24" height="24" fill="#a07a37"/>
+    <rect x="16" y="17" width="5" height="15" fill="#f7f4ea"/>
+    <rect x="23" y="14" width="5" height="18" fill="#e7d37c"/>
+    <rect x="30" y="19" width="4" height="13" fill="#f7f4ea"/>
+    <rect x="10" y="36" width="28" height="3" fill="#3a2c19" opacity="0.55"/>
+  </g>
+  <g id="shield" transform="translate(96 0)">
+    <rect x="9" y="9" width="30" height="30" fill="#3f6f8f"/>
+    <rect x="12" y="12" width="24" height="24" fill="#4d82a5"/>
+    <path d="M24 14l11 4v7c0 6-4 10-11 12-7-2-11-6-11-12v-7z" fill="#f7f4ea"/>
+    <path d="M24 18l6 2v5c0 3-2 6-6 7z" fill="#d6e8ef"/>
+    <rect x="10" y="36" width="28" height="3" fill="#243948" opacity="0.55"/>
+  </g>
+</svg>

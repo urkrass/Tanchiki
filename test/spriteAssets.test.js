@@ -73,15 +73,31 @@ test("runtime sprite manifest exposes the first core entity slice", () => {
   assert.deepEqual(listSpriteImages(runtimeManifest).sort(), [
     "core/enemy_base.svg",
     "core/enemy_tank.svg",
+    "core/enemy_variants.svg",
+    "core/pickups.svg",
     "core/player_tank.svg",
-    "core/shells.svg"
+    "core/shells.svg",
+    "core/wrecks.svg"
   ]);
 
+  assert.deepEqual(validateSpriteManifest(runtimeManifest), []);
   assert.equal(getSpriteFrame(runtimeManifest, "player_tank", "idle", "left").status, SPRITE_STATUS.READY);
   assert.equal(getSpriteFrame(runtimeManifest, "enemy_tank", "idle", "up").status, SPRITE_STATUS.READY);
   assert.equal(getSpriteFrame(runtimeManifest, "enemy_base", "idle", "down").status, SPRITE_STATUS.READY);
   assert.equal(getSpriteFrame(runtimeManifest, "player_shell", "shell", "right").status, SPRITE_STATUS.READY);
   assert.equal(getSpriteFrame(runtimeManifest, "enemy_shell", "shell", "left").status, SPRITE_STATUS.READY);
+});
+
+test("runtime sprite manifest exposes placeholder variant and pickup sprites", () => {
+  assert.equal(getSpriteFrame(runtimeManifest, "sentry_tank", "idle", "up").status, SPRITE_STATUS.READY);
+  assert.equal(getSpriteFrame(runtimeManifest, "patrol_tank", "idle", "right").frame.x, 48);
+  assert.equal(getSpriteFrame(runtimeManifest, "patrol_tank", "idle", "right").frame.y, 48);
+  assert.equal(getSpriteFrame(runtimeManifest, "pursuit_tank", "idle", "down").frame.y, 96);
+  assert.equal(getSpriteFrame(runtimeManifest, "repair_pickup", "idle", "any").frame.x, 0);
+  assert.equal(getSpriteFrame(runtimeManifest, "ammo_pickup", "idle", "any").frame.x, 48);
+  assert.equal(getSpriteFrame(runtimeManifest, "shield_pickup", "idle", "any").frame.x, 96);
+  assert.equal(getSpriteFrame(runtimeManifest, "destroyed_tank", "idle", "any").frame.x, 0);
+  assert.equal(getSpriteFrame(runtimeManifest, "destroyed_base", "idle", "any").frame.x, 48);
 });
 
 test("sprite manifest validation reports malformed sprite sheets", () => {

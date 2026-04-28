@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="144" viewBox="0 0 192 144">
+  <defs>
+    <g id="sentry">
+      <rect x="9" y="14" width="6" height="24" fill="#552820"/>
+      <rect x="33" y="14" width="6" height="24" fill="#552820"/>
+      <rect x="14" y="11" width="20" height="28" fill="#8d3e34"/>
+      <rect x="16" y="13" width="16" height="24" fill="#a64a3e"/>
+      <rect x="20" y="5" width="8" height="17" fill="#d9c56f"/>
+      <rect x="18" y="20" width="12" height="11" fill="#40221f"/>
+      <rect x="19" y="34" width="10" height="3" fill="#2b1714" opacity="0.6"/>
+    </g>
+    <g id="patrol">
+      <rect x="9" y="14" width="6" height="24" fill="#4f3322"/>
+      <rect x="33" y="14" width="6" height="24" fill="#4f3322"/>
+      <rect x="14" y="11" width="20" height="28" fill="#8a5a2f"/>
+      <rect x="16" y="13" width="16" height="24" fill="#a06b38"/>
+      <rect x="20" y="5" width="8" height="17" fill="#ead58a"/>
+      <rect x="18" y="20" width="12" height="11" fill="#3d281c"/>
+      <rect x="17" y="34" width="14" height="3" fill="#2d1d16" opacity="0.6"/>
+    </g>
+    <g id="pursuit">
+      <rect x="8" y="13" width="7" height="26" fill="#5f1f20"/>
+      <rect x="33" y="13" width="7" height="26" fill="#5f1f20"/>
+      <rect x="13" y="10" width="22" height="30" fill="#a6342f"/>
+      <rect x="15" y="12" width="18" height="26" fill="#bd453d"/>
+      <rect x="20" y="4" width="8" height="18" fill="#f0b06a"/>
+      <rect x="18" y="19" width="12" height="12" fill="#401817"/>
+      <path d="M14 36h20l-4 4H18z" fill="#2b1413" opacity="0.68"/>
+    </g>
+  </defs>
+  <use href="#sentry"/>
+  <g transform="translate(48 0) rotate(90 24 24)"><use href="#sentry"/></g>
+  <g transform="translate(96 0) rotate(180 24 24)"><use href="#sentry"/></g>
+  <g transform="translate(144 0) rotate(-90 24 24)"><use href="#sentry"/></g>
+  <g transform="translate(0 48)"><use href="#patrol"/></g>
+  <g transform="translate(48 48) rotate(90 24 24)"><use href="#patrol"/></g>
+  <g transform="translate(96 48) rotate(180 24 24)"><use href="#patrol"/></g>
+  <g transform="translate(144 48) rotate(-90 24 24)"><use href="#patrol"/></g>
+  <g transform="translate(0 96)"><use href="#pursuit"/></g>
+  <g transform="translate(48 96) rotate(90 24 24)"><use href="#pursuit"/></g>
+  <g transform="translate(96 96) rotate(180 24 24)"><use href="#pursuit"/></g>
+  <g transform="translate(144 96) rotate(-90 24 24)"><use href="#pursuit"/></g>
+</svg>
