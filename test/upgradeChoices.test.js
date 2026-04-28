@@ -93,6 +93,39 @@ test("max-rank upgrades are not offered", () => {
   ]);
 });
 
+test("fully maxed upgrade state remains ungated with no choices", () => {
+  assert.deepEqual(createUpgradeChoiceState({
+    xp: 900,
+    level: 10,
+    availableUpgradePoints: 2,
+    appliedUpgrades: {
+      armor: 2,
+      repair: 2,
+      reload: 3,
+      shellRange: 2,
+      shieldCapacity: 2
+    }
+  }), {
+    pending: false,
+    availableUpgradePoints: 2,
+    choices: []
+  });
+});
+
+test("display metadata matches the same upgrade id selected by gameplay", () => {
+  const [choice] = getEligibleUpgradeChoices({
+    xp: 100,
+    level: 2,
+    availableUpgradePoints: 1,
+    appliedUpgrades: {}
+  });
+
+  assert.equal(choice.id, "armor");
+  assert.equal(choice.nextRank, 1);
+  assert.equal(choice.rankLabel, "Current rank 0 -> 1/2");
+  assert.equal(choice.effectLabel, "Next: max armor +1");
+});
+
 test("upgrade choice state is pending only when a point can be spent", () => {
   assert.deepEqual(createUpgradeChoiceState({
     xp: 0,

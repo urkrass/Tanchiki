@@ -44,6 +44,41 @@ test("progression feedback explains no-upgrade state without gating continuation
   });
 });
 
+test("progression feedback uses progression points when choice state is absent", () => {
+  assert.deepEqual(createProgressionFeedback({
+    missionSummary: {
+      result: "campaign complete"
+    },
+    lastMissionReward: {
+      xp: 130
+    },
+    progression: {
+      availableUpgradePoints: 2
+    }
+  }), {
+    rows: [
+      { label: "XP earned", value: "+130 XP" },
+      { label: "Upgrade points", value: "2 points available" }
+    ]
+  });
+});
+
+test("progression feedback avoids fake XP rows when no reward was recorded", () => {
+  assert.deepEqual(createProgressionFeedback({
+    missionSummary: {
+      result: "victory"
+    },
+    lastMissionReward: null,
+    progression: {
+      availableUpgradePoints: 0
+    }
+  }), {
+    rows: [
+      { label: "Upgrade points", value: "None available" }
+    ]
+  });
+});
+
 test("progression feedback stays hidden for failed missions", () => {
   assert.equal(createProgressionFeedback({
     missionSummary: {
