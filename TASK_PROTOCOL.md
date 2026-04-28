@@ -85,9 +85,22 @@ CI must pass before merge. Reviewer agents inspect:
 
 Reviewer agents do not merge and do not push commits.
 
+Reviewers and humans must also apply `ops/policies/pr-acceptance.md` and
+`ops/checklists/pr-acceptance-checklist.md` before adding acceptance labels or
+preparing a PR for any auto-merge path. Coder and Test agents must not approve,
+label as accepted, or merge their own PRs.
+
 ## Merge
 
 Merges are human-controlled unless the user explicitly delegates a merge and the repository policy allows it. Never merge while CI is failing or missing.
+
+Auto-merge, when explicitly approved by a human and implemented by repository
+policy, is limited to the narrow eligible categories in
+`ops/policies/pr-acceptance.md`. It must not be available for movement or
+collision work, `risk:high`, `risk:human-only`, deployment, dependencies, CI
+workflow changes, broad gameplay changes, save or persistence behavior,
+security-sensitive changes, or public-demo-impacting changes without explicit
+human control. `merge:do-not-merge` always overrides positive acceptance labels.
 
 ## Done Rules
 

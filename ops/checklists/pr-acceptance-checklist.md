@@ -1,0 +1,79 @@
+# PR Acceptance Checklist
+
+Use this checklist before adding an acceptance label, recommending merge, or allowing any PR into a future auto-merge path.
+
+## Basic PR Gate
+
+- [ ] PR targets `main`.
+- [ ] PR is not draft before any auto-merge path is considered.
+- [ ] PR links exactly one Linear issue or explicit documentation task.
+- [ ] PR includes role, type, risk, and validation profile.
+- [ ] PR lists files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+- [ ] PR metadata check is passing.
+- [ ] CI is passing.
+- [ ] Branch protection requirements are satisfied and not bypassed.
+
+## Linear Gate
+
+- [ ] Linked issue has exactly one `role:*` label.
+- [ ] Linked issue has exactly one `type:*` label.
+- [ ] Linked issue has exactly one `risk:*` label.
+- [ ] Linked issue has exactly one `validation:*` label.
+- [ ] Linked issue is not blocked.
+- [ ] Linked issue does not have `needs-human-approval`.
+- [ ] Linked issue does not have `human-only`.
+- [ ] Linked issue does not have `risk:human-only`.
+- [ ] Linked issue classification matches the PR body.
+
+## Scope Gate
+
+- [ ] Changed files match the declared role, type, risk, and validation profile.
+- [ ] No unrelated cleanup or refactor is included.
+- [ ] Docs and harness PRs do not change gameplay behavior.
+- [ ] Test-only PRs do not change gameplay behavior unless explicitly justified.
+- [ ] Protected movement files are not touched unless explicitly authorized by a human-gated movement issue.
+
+## Auto-Merge Exclusion Gate
+
+Auto-merge is unavailable if any item below is true:
+
+- [ ] Movement, collision, spawning, interpolation, or control feel changed.
+- [ ] PR has `type:movement` or `validation:movement`.
+- [ ] PR has `risk:high`.
+- [ ] PR has `risk:human-only`.
+- [ ] PR changes deployment workflows or GitHub Pages behavior.
+- [ ] PR changes dependencies, package manager behavior, or lockfiles.
+- [ ] PR changes CI workflows, PR metadata checks, branch-protection-adjacent logic, or auto-merge logic.
+- [ ] PR changes broad gameplay behavior.
+- [ ] PR changes medium or high-risk gameplay, rendering, progression, or public-demo-impacting behavior without human authority.
+- [ ] PR changes save or persistence behavior.
+- [ ] PR touches security-sensitive behavior, secrets, credentials, permissions, tokens, or repository settings.
+- [ ] PR has ambiguous metadata, missing validation evidence, failing CI, pending CI, or stale approval after new commits.
+
+If any exclusion is true, use `merge:human-required` or `merge:do-not-merge`.
+
+## Label Gate
+
+- [ ] `merge:do-not-merge` is absent.
+- [ ] `reviewer:changes-requested` is absent.
+- [ ] `merge:human-required` is absent before auto-merge eligibility.
+- [ ] `merge:auto-eligible` is present before auto-merge eligibility.
+- [ ] `reviewer:approved` or an approved human approval label is present.
+- [ ] Any `merge:agent-approved` label came from an independent reviewer-agent pass.
+- [ ] `merge:do-not-merge` overrides every positive label.
+
+## Independence Gate
+
+- [ ] The approval actor is not the Coder or Test author of the PR.
+- [ ] Coder/Test agents did not approve or label their own PR as accepted.
+- [ ] Reviewer did not push commits to the PR branch.
+- [ ] Any new commit after approval rechecks or refreshes approval.
+- [ ] If actor independence cannot be proven, auto-merge remains unavailable.
+
+## Final Decision
+
+- [ ] Recommendation only: post findings, no approval or merge authority.
+- [ ] Reviewer-agent accepted: independent review passed, but merge remains controlled by policy.
+- [ ] Human required: human must decide before merge.
+- [ ] Auto-merge eligible: all gates passed and the repository policy/workflow explicitly allows it.
+- [ ] Do not merge: blocking issue exists.
