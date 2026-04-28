@@ -1,0 +1,106 @@
+name: Agent task
+description: Create a Level 5/6 automation-ready task for a repo agent.
+title: "[Agent]: "
+labels: ["automation-ready"]
+body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role label
+      options:
+        - role:architect
+        - role:coder
+        - role:test
+        - role:reviewer
+        - role:release
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type label
+      options:
+        - type:docs
+        - type:harness
+        - type:ui
+        - type:test
+        - type:gameplay
+        - type:progression
+        - type:architecture
+        - type:movement
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk label
+      options:
+        - risk:low
+        - risk:medium
+        - risk:high
+        - risk:human-only
+    validations:
+      required: true
+  - type: dropdown
+    id: validation
+    attributes:
+      label: Validation label
+      options:
+        - validation:docs
+        - validation:harness
+        - validation:ui
+        - validation:test
+        - validation:gameplay
+        - validation:progression
+        - validation:movement
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What may change?
+    validations:
+      required: true
+  - type: textarea
+    id: do-not-touch
+    attributes:
+      label: Do-not-touch list
+      description: Files, systems, or behaviors that must not change.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Tests required
+    validations:
+      required: true
+  - type: textarea
+    id: manual-qa
+    attributes:
+      label: Manual QA
+    validations:
+      required: true
+  - type: dropdown
+    id: visible-ui
+    attributes:
+      label: Visible UI expectation
+      options:
+        - "No visible UI change"
+        - "Visible UI change expected"
+        - "Visible gameplay change expected"
+    validations:
+      required: true
+  - type: textarea
+    id: conflict-risk
+    attributes:
+      label: Central-file conflict risk
+      description: Note any expected touch to central files such as src/game.js, test/game.test.js, package.json, README, AGENTS, or movement.js.
+    validations:
+      required: true

@@ -1,0 +1,33 @@
+name: PR Metadata Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, ready_for_review]
+
+jobs:
+  pr-metadata:
+    name: Required PR body sections
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR body metadata
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          missing=0
+          check_section() {
+            local label="$1"
+            if ! printf '%s\n' "$PR_BODY" | grep -qi "$label"; then
+              echo "Missing PR body section or field: $label"
+              missing=1
+            fi
+          }
+
+          check_section "Role"
+          check_section "Type"
+          check_section "Risk"
+          check_section "Validation"
+          check_section "Tests Run"
+          check_section "Manual QA"
+
+          exit "$missing"

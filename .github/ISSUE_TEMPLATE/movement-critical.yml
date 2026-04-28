@@ -1,0 +1,70 @@
+name: Movement critical
+description: Create a human-gated movement, collision, or control-feel issue.
+title: "[Movement]: "
+labels: ["role:architect", "type:movement", "risk:human-only", "validation:movement", "needs-human-approval", "human-only"]
+body:
+  - type: markdown
+    attributes:
+      value: "Movement work is human-only by default. Do not add automation-ready unless a human explicitly approves automation."
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Movement, grid logic, collision, interpolation, spawning, or control-feel change.
+    validations:
+      required: true
+  - type: textarea
+    id: do-not-touch
+    attributes:
+      label: Do-not-touch list
+      value: |
+        - Do not modify src/game/movement.js without explicit human approval.
+        - Do not change control feel without manual QA.
+        - Do not bypass movement regression tests.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Tests required
+      value: |
+        - Full movement regression tests
+        - npm test
+        - npm run build
+        - npm run lint
+    validations:
+      required: true
+  - type: textarea
+    id: manual-qa
+    attributes:
+      label: Manual QA
+      value: |
+        - Verify constant movement speed.
+        - Verify tap-rushing does not accelerate movement.
+        - Verify turning does not drift sideways.
+        - Verify collision at intended target cells.
+        - Verify shooting does not freeze movement or turning.
+    validations:
+      required: true
+  - type: dropdown
+    id: visible-ui
+    attributes:
+      label: Visible UI expectation
+      options:
+        - "Visible gameplay feel change expected"
+        - "No visible UI change"
+    validations:
+      required: true
+  - type: textarea
+    id: conflict-risk
+    attributes:
+      label: Central-file conflict risk
+      value: "High. Movement is protected and central to player feel."
+    validations:
+      required: true

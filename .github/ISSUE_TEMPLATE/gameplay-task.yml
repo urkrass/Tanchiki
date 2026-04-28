@@ -1,0 +1,82 @@
+name: Gameplay task
+description: Create a scoped gameplay issue with explicit validation.
+title: "[Gameplay]: "
+labels: ["type:gameplay", "validation:gameplay"]
+body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role label
+      options:
+        - role:architect
+        - role:coder
+        - role:test
+        - role:reviewer
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk label
+      options:
+        - risk:medium
+        - risk:high
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Enemy behavior, combat, level rule, pickup, win/loss, or other player-facing behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: do-not-touch
+    attributes:
+      label: Do-not-touch list
+      value: |
+        - Do not modify src/game/movement.js unless explicitly approved.
+        - Do not change progression behavior unless explicitly scoped.
+        - Do not retune unrelated levels.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Tests required
+      value: |
+        - Focused tests for changed behavior
+        - npm test
+        - npm run build
+        - npm run lint
+    validations:
+      required: true
+  - type: textarea
+    id: manual-qa
+    attributes:
+      label: Manual QA
+      description: Include gameplay steps.
+    validations:
+      required: true
+  - type: dropdown
+    id: visible-ui
+    attributes:
+      label: Visible UI expectation
+      options:
+        - "No visible UI change"
+        - "Visible gameplay change expected"
+        - "Visible UI change expected"
+    validations:
+      required: true
+  - type: textarea
+    id: conflict-risk
+    attributes:
+      label: Central-file conflict risk
+    validations:
+      required: true

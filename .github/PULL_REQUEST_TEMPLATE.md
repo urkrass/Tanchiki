@@ -1,4 +1,4 @@
-## Linked Issue
+## Linked Linear Issue
 
 Closes:
 
@@ -21,11 +21,9 @@ Closes:
 
 -
 
-## Manual QA Checklist
+## Manual QA
 
-- [ ] Started the prototype locally when UI or gameplay changed.
-- [ ] Verified the changed workflow manually.
-- [ ] Confirmed no unrelated behavior changed.
+-
 
 ## Conflict Risk
 
