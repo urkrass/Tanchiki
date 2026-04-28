@@ -41,6 +41,14 @@ npm run lint
 
 For release checks, also open the local or deployed demo and confirm the objective, controls, canvas, mission status, and upgrade flow are visible and usable.
 
+Agents can collect repeatable local browser smoke evidence with:
+
+```powershell
+npm run qa:browser-smoke
+```
+
+The smoke runner starts or reuses the local demo at `http://127.0.0.1:5173`, launches a local Chrome/Edge browser through DevTools, and checks desktop and narrow viewports for a loaded app, no console errors, a visible nonblank canvas, visible objective/controls/status text, and a usable narrow layout. Set `QA_BROWSER_URL` to target another approved URL, or `QA_BROWSER_PATH` if Chrome/Edge is installed outside the default paths.
+
 ### Known Limitations
 
 - No save or persistence; progress resets when the page reloads.
