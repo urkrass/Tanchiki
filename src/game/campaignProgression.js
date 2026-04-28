@@ -4,6 +4,7 @@ import {
   calculateMissionXpReward,
   cloneProgressionState
 } from "./progression.js";
+import { createUpgradeChoiceState } from "./upgradeChoices.js";
 
 export function createCampaignRewardTracker() {
   const rewardedLevelIndexes = new Set();
@@ -41,15 +42,23 @@ export function addCampaignState(
   lastMissionReward,
   createMissionSummary
 ) {
+  const upgradeChoice = missionStatus === "won"
+    ? createUpgradeChoiceState(progression)
+    : createUpgradeChoiceState({ ...progression, availableUpgradePoints: 0 });
   const campaignState = {
     ...state,
     missionStatus,
     currentLevelIndex,
     levelNumber: currentLevelIndex + 1,
     levelCount,
-    canAdvanceLevel: missionStatus === "won" && currentLevelIndex < levelCount - 1,
+    canAdvanceLevel: (
+      missionStatus === "won"
+      && currentLevelIndex < levelCount - 1
+      && !upgradeChoice.pending
+    ),
     progression: cloneProgressionState(progression),
-    lastMissionReward: cloneMissionReward(lastMissionReward)
+    lastMissionReward: cloneMissionReward(lastMissionReward),
+    upgradeChoice
   };
   return {
     ...campaignState,

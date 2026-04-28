@@ -1,9 +1,15 @@
 import { createCampaignGame } from "./game.js";
 import { createInput } from "./input.js";
 import { renderGame } from "./render.js";
+import {
+  renderUpgradePanel,
+  upgradeChoiceIndexForKey
+} from "./upgradePanel.js";
 
 const canvas = document.querySelector("#game");
 const status = document.querySelector("#status");
+const upgradePanel = document.querySelector("#upgrade-panel");
+const upgradeChoices = document.querySelector("#upgrade-choices");
 const context = canvas.getContext("2d");
 const input = createInput(window);
 const game = createCampaignGame();
@@ -28,15 +34,21 @@ function frame(time) {
     accumulator -= fixedStep;
   }
 
-  renderGame(context, game.snapshot());
+  renderCurrentState();
   status.textContent = game.statusText(input);
   requestAnimationFrame(frame);
 }
 
-renderGame(context, game.snapshot());
+renderCurrentState();
 window.addEventListener("keydown", (event) => {
   if (event.code === "KeyR") {
     game.restartLevel();
+    resetTimingAndRender();
+    return;
+  }
+
+  const choiceIndex = upgradeChoiceIndexForKey(event.code);
+  if (choiceIndex !== null && chooseUpgradeByIndex(choiceIndex)) {
     resetTimingAndRender();
     return;
   }
@@ -53,16 +65,46 @@ window.advanceTime = (milliseconds) => {
   for (let index = 0; index < steps; index += 1) {
     game.update(fixedStep, input);
   }
-  renderGame(context, game.snapshot());
+  renderCurrentState();
   status.textContent = game.statusText(input);
 };
 window.render_game_to_text = () => JSON.stringify(game.debugState());
 requestAnimationFrame(frame);
 
+upgradeChoices.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-upgrade-id]");
+  if (!button) {
+    return;
+  }
+
+  if (chooseUpgrade(button.dataset.upgradeId)) {
+    resetTimingAndRender();
+  }
+});
+
 function resetTimingAndRender() {
   accumulator = 0;
   previousTime = performance.now();
   deterministicMode = false;
-  renderGame(context, game.snapshot());
+  renderCurrentState();
   status.textContent = game.statusText(input);
+}
+
+function renderCurrentState() {
+  const snapshot = game.snapshot();
+  renderGame(context, snapshot);
+  renderUpgradePanel({
+    panel: upgradePanel,
+    choicesContainer: upgradeChoices,
+    snapshot
+  });
+}
+
+function chooseUpgradeByIndex(index) {
+  const choice = game.snapshot().upgradeChoice?.choices[index];
+  return choice ? chooseUpgrade(choice.id) : false;
+}
+
+function chooseUpgrade(upgradeId) {
+  return game.applyUpgrade(upgradeId).applied;
 }

@@ -61,6 +61,7 @@ import {
   createPlayerCombatStats,
   createPlayerStateFromProgression
 } from "./game/playerStats.js";
+import { hasPendingUpgradeChoice } from "./game/upgradeChoices.js";
 
 const tileSize = 48;
 
@@ -105,9 +106,7 @@ export function createCampaignGame(options = {}) {
         return `Campaign complete - Level ${currentLevelIndex + 1}/${levelCount} - Press R to replay the final level.`;
       }
 
-      const nextText = status === "won" && currentLevelIndex < levelCount - 1
-        ? " Press N or Enter for next level."
-        : "";
+      const nextText = nextLevelStatusText(status);
       return `Level ${currentLevelIndex + 1}/${levelCount} - ${levelGame.statusText(input)}${nextText}`;
     },
 
@@ -132,7 +131,11 @@ export function createCampaignGame(options = {}) {
     },
 
     advanceLevel() {
-      if (currentStatus() !== "won" || currentLevelIndex >= levelCount - 1) {
+      if (
+        currentStatus() !== "won"
+        || currentLevelIndex >= levelCount - 1
+        || hasPendingUpgradeChoice(progression)
+      ) {
         return false;
       }
 
@@ -160,6 +163,16 @@ export function createCampaignGame(options = {}) {
     if (reward) {
       applyCampaignReward(progression, reward);
     }
+  }
+
+  function nextLevelStatusText(status) {
+    if (status !== "won" || currentLevelIndex >= levelCount - 1) {
+      return "";
+    }
+
+    return hasPendingUpgradeChoice(progression)
+      ? " Choose one upgrade before next level."
+      : " Press N or Enter for next level.";
   }
 }
 
@@ -511,7 +524,8 @@ export function createMissionSummary({
   targets,
   levelNumber = 1,
   levelCount = 1,
-  canAdvanceLevel = false
+  canAdvanceLevel = false,
+  upgradeChoice = null
 }) {
   if (missionStatus !== "won" && missionStatus !== "lost" && missionStatus !== "campaign-complete") {
     return null;
@@ -566,10 +580,16 @@ export function createMissionSummary({
     enemyBaseStatus: describeEnemyBase(enemyBase),
     enemiesDestroyed,
     failureReason: null,
-    nextAction: canAdvanceLevel
+    nextAction: hasPendingSummaryUpgradeChoice(upgradeChoice)
+      ? "Choose one upgrade to continue"
+      : canAdvanceLevel
       ? "Press N or Enter for next level"
       : "Press R to replay the final level"
   };
+}
+
+function hasPendingSummaryUpgradeChoice(upgradeChoice) {
+  return Boolean(upgradeChoice?.pending);
 }
 
 function describeEnemyBase(enemyBase) {

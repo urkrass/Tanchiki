@@ -15,6 +15,13 @@
           <p>Move cell by cell through a compact test maze. Hold or tap Arrow keys/WASD; Space is reserved for shooting.</p>
         </div>
         <canvas id="game" width="720" height="528" aria-label="Playable Tanchiki canvas"></canvas>
+        <section id="upgrade-panel" class="upgrade-panel" aria-labelledby="upgrade-title" hidden>
+          <div class="upgrade-panel__copy">
+            <p class="eyebrow">Upgrade ready</p>
+            <h2 id="upgrade-title">Choose one upgrade</h2>
+          </div>
+          <div id="upgrade-choices" class="upgrade-choices"></div>
+        </section>
         <p id="status" class="status" aria-live="polite"></p>
       </section>
     </main>
