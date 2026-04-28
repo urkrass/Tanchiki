@@ -19,6 +19,8 @@ Use this checklist before starting any Level 4 role-specific work.
 - [ ] Routed with `ops/policies/role-router.md`.
 - [ ] Stopped and commented in Linear if role labels were missing, ambiguous, or conflicting.
 - [ ] Stopped and commented in Linear if type, risk, or validation labels were missing, ambiguous, or conflicting.
+- [ ] Refusal comments name the exact invalid rows: role, type, risk, validation, and gate labels.
+- [ ] Refusal comments identify `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only` gates when present.
 - [ ] If no eligible issue exists, reported all blocked/gated candidates and required human actions.
 - [ ] Confirmed the selected role's authority in `ops/policies/role-boundaries.md`.
 - [ ] Loaded the selected role prompt from `ops/prompts/`.

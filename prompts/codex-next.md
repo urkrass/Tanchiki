@@ -30,7 +30,12 @@ Dispatcher rules:
    - `role:test` -> Test
    - `role:reviewer` -> Reviewer
    - `role:release` -> Release
-6. Stop and comment if an issue has missing or ambiguous Level 5 metadata.
+6. Stop and comment if an issue has missing or ambiguous Level 5 metadata. The comment must name the invalid rows:
+   - role labels: expected exactly one `role:*`
+   - type labels: expected exactly one `type:*`
+   - risk labels: expected exactly one `risk:*`
+   - validation labels: expected exactly one `validation:*`
+   - gate labels: remove `blocked`, `needs-human-approval`, `human-only`, and `risk:human-only` before automation
 7. If no eligible issue exists, report all blocked/gated candidates and the required human actions.
 8. Use the selected role's existing Level 4 protocol.
 9. Start from updated `main` where repo work is needed:

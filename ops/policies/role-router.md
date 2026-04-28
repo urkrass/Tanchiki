@@ -133,6 +133,23 @@ Stop before changing code or issue state if:
 
 When stopping for ambiguity, add a Linear comment that states the missing or conflicting routing signals and asks for triage.
 
+## Refusal Comment Copy
+
+Use short, specific Linear comments when refusing a candidate:
+
+```text
+Dispatcher stopped: this issue is not eligible for automation yet.
+
+Fix Level 5 metadata before retrying:
+- role labels: expected exactly one `role:*`, found <value>
+- type labels: expected exactly one `type:*`, found <value>
+- risk labels: expected exactly one `risk:*`, found <value>
+- validation labels: expected exactly one `validation:*`, found <value>
+- gate labels: remove any of `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only` before adding `automation-ready`
+```
+
+Omit rows that are already valid. If `automation-ready` appears with a gate label, say which gate blocks automation and ask for Campaign Groomer or human triage.
+
 ## Role Boundaries
 
 - Work one issue only.
