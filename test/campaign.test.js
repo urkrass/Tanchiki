@@ -35,13 +35,18 @@ test("all campaign levels pass validation", () => {
   }
 });
 
-test("victory on a non-final level enables next-level transition", () => {
+test("victory on a non-final level waits for the pending upgrade choice", () => {
   const harness = createCampaignHarness({ levelIndex: 0 });
 
   destroyEnemyBase(harness.game);
   harness.advanceStep();
 
   assert.equal(harness.game.debugState().missionStatus, "won");
+  assert.equal(harness.game.debugState().canAdvanceLevel, false);
+  assert.equal(harness.game.advanceLevel(), false);
+
+  const upgradeResult = harness.game.applyUpgrade("armor");
+  assert.equal(upgradeResult.applied, true);
   assert.equal(harness.game.debugState().canAdvanceLevel, true);
   assert.equal(harness.game.advanceLevel(), true);
   assert.equal(harness.game.debugState().currentLevelIndex, 1);
@@ -59,7 +64,7 @@ test("victory summary contains level, result, and next action data", () => {
   assert.equal(summary.levelLabel, "Level 1/3");
   assert.equal(summary.levelId, "test-mission");
   assert.equal(summary.enemyBaseStatus, "Destroyed");
-  assert.equal(summary.nextAction, "Press N or Enter for next level");
+  assert.equal(summary.nextAction, "Choose one upgrade to continue");
 });
 
 test("campaign does not advance while the current level is still playing", () => {
@@ -171,6 +176,7 @@ test("R-style restart resets the current level without rewinding campaign progre
 
   destroyEnemyBase(harness.game);
   harness.advanceStep();
+  assert.equal(harness.game.applyUpgrade("armor").applied, true);
   assert.equal(harness.game.advanceLevel(), true);
 
   const baseBeforeRestart = enemyBase(harness.game);
@@ -243,6 +249,7 @@ test("restarting the current level preserves in-memory campaign progression", ()
 
   destroyEnemyBase(harness.game);
   harness.advanceStep();
+  assert.equal(harness.game.applyUpgrade("repair").applied, true);
   assert.equal(harness.game.advanceLevel(), true);
 
   harness.game.restartLevel();
@@ -252,9 +259,10 @@ test("restarting the current level preserves in-memory campaign progression", ()
   assert.deepEqual(state.progression, {
     xp: 150,
     level: 2,
-    availableUpgradePoints: 1,
+    availableUpgradePoints: 0,
     appliedUpgrades: {
-      armor: 1
+      armor: 1,
+      repair: 1
     }
   });
 });
@@ -333,6 +341,51 @@ test("campaign applies chosen upgrades before advancing to the next level", () =
   assert.deepEqual(state.progression.appliedUpgrades, {
     armor: 1
   });
+});
+
+test("campaign snapshots expose deterministic post-victory upgrade choices", () => {
+  const harness = createCampaignHarness({ levelIndex: 0 });
+
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+
+  const snapshot = harness.game.snapshot();
+  assert.deepEqual(snapshot.upgradeChoice.choices.map((choice) => choice.id), [
+    "armor",
+    "repair",
+    "reload"
+  ]);
+  assert.equal(snapshot.upgradeChoice.pending, true);
+  assert.equal(snapshot.upgradeChoice.availableUpgradePoints, 1);
+});
+
+test("campaign advance is ungated when no eligible upgrades remain", () => {
+  const harness = createCampaignHarness({
+    levelIndex: 0,
+    progression: {
+      xp: 900,
+      level: 10,
+      availableUpgradePoints: 1,
+      appliedUpgrades: {
+        armor: 2,
+        repair: 2,
+        reload: 3,
+        shellRange: 2,
+        shieldCapacity: 2
+      }
+    }
+  });
+
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+
+  assert.deepEqual(harness.game.snapshot().upgradeChoice, {
+    pending: false,
+    availableUpgradePoints: 2,
+    choices: []
+  });
+  assert.equal(harness.game.debugState().canAdvanceLevel, true);
+  assert.equal(harness.game.advanceLevel(), true);
 });
 
 test("campaign upgrade choices fail deterministically when invalid", () => {
