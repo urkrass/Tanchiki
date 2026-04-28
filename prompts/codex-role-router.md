@@ -67,6 +67,7 @@ Deprecated signals:
 - Never let Release agent change gameplay behavior.
 - Never bypass `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
 - If Level 5 metadata is missing or ambiguous, stop and comment on the Linear issue asking for triage.
+- Refusal comments must be short and must name the failing rows: role, type, risk, validation, and gate labels. Use this shape: "Dispatcher stopped: this issue is not eligible for automation yet. Fix Level 5 metadata before retrying: <specific missing, duplicated, or gated labels>."
 
 ## After Routing
 
