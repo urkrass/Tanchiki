@@ -7,6 +7,7 @@ Level 3 is a planning workflow. It exists to convert campaign-scale ideas into s
 - Read repository documentation and existing source to understand current state.
 - Read the campaign brief supplied by the user.
 - Create Linear issues.
+- Groom the created campaign queue by updating Linear labels, status, dependency links, and comments.
 - Suggest labels, risk levels, dependencies, and review gates.
 - Call out missing decisions or assets that block implementation.
 
@@ -15,7 +16,7 @@ Level 3 is a planning workflow. It exists to convert campaign-scale ideas into s
 - Do not edit source code.
 - Do not implement gameplay.
 - Do not create branches or pull requests for gameplay work.
-- Do not apply `automation-ready` unless explicitly instructed by a human.
+- Do not apply `automation-ready` broadly. The required campaign grooming pass may apply it only to the single first runnable issue allowed by `ops/policies/campaign-execution.md`.
 - Do not move implementation issues to `In Progress`, `In Review`, or `Done`.
 - Do not create broad catch-all issues.
 - Do not add dependencies or tooling.
@@ -45,11 +46,11 @@ Every issue must be classified as one of:
 
 ## Label Rules
 
-The planner may suggest role labels in the issue body. The planner must not apply `automation-ready` automatically unless explicitly instructed.
+The planner must run campaign grooming after issue creation. Grooming should normalize each issue to exactly one applied `role:*` label where applicable. The planner must not apply `automation-ready` broadly.
 
-For dependency chains, the planner may recommend which issue should become `Todo` + `automation-ready` first, but only one issue in the chain should hold that combination at a time.
+For dependency chains, grooming may make only the first runnable issue `Todo` + `automation-ready`. If architecture review is required first, only the first Architect issue should receive `automation-ready`. Coder issues must stay Backlog/blocked immediately after planning unless the user explicitly requested Coder to run first.
 
-Parent, epic, blocked, and `needs-human-approval` issues must not receive `automation-ready`. A gated issue may become automation-ready only after a human explicitly removes the gate and applies `automation-ready`.
+Parent, epic, blocked, `needs-human-approval`, and `human-only` issues must not receive `automation-ready`. A gated issue may become automation-ready only after a human explicitly removes the gate and applies `automation-ready`.
 
 Recommended labels include:
 

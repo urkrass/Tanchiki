@@ -149,6 +149,8 @@ Codex must not pick `Backlog` issues and must not move an issue to `Done` until 
 
 Use `prompts/codex-next.md` to start the default dispatcher run.
 
+For a new multi-issue campaign, use `prompts/codex-plan-and-groom-campaign.md`. That prompt creates the campaign issues and immediately runs the Campaign Groomer so only the first runnable issue is exposed to the dispatcher.
+
 Before creating a Level 2 branch, Codex must run:
 
 ```powershell
@@ -177,15 +179,16 @@ Planner agents may:
 - read the brief and repository documentation
 - create Linear issues
 - suggest labels, risk levels, and dependencies
+- immediately groom the created campaign queue
 
 Planner agents must not:
 
 - edit source code
 - implement gameplay
-- apply `automation-ready` automatically
+- apply `automation-ready` broadly
 - move issues into implementation states
 
-Planner agents must avoid applying `automation-ready` to parent, epic, blocked, or `needs-human-approval` issues. They may recommend `automation-ready candidate` items and suggested role labels in issue bodies, but a human controls which single dependency-chain issue becomes `Todo` + `automation-ready` first.
+Planner agents must avoid applying `automation-ready` to parent, epic, blocked, `needs-human-approval`, or `human-only` issues. The required grooming pass may apply `automation-ready` only to the single first runnable issue. If architecture review is required first, that issue should be the first Architect issue, not a Coder issue.
 
 Every planned issue must be classified as one of:
 
@@ -199,9 +202,44 @@ Every planned issue must also include dependency order, blocked-by relationships
 Use these files for Level 3 planning:
 
 - `ops/prompts/planner-agent.md`
+- `ops/prompts/campaign-groomer.md`
 - `ops/policies/planner-boundaries.md`
+- `ops/policies/campaign-execution.md`
 - `ops/checklists/planner-output-checklist.md`
+- `ops/checklists/campaign-grooming-checklist.md`
 - `prompts/codex-plan-campaign.md`
+- `prompts/codex-plan-and-groom-campaign.md`
+
+### New Campaign Workflow
+
+For a new campaign:
+
+```text
+Use Linear MCP and GitHub.
+Run prompts/codex-plan-and-groom-campaign.md for this Tanchiki campaign brief.
+Create 5-7 issues, groom the campaign queue, expose only the first runnable issue, and report the final queue.
+Do not implement gameplay.
+Do not merge.
+```
+
+For normal iteration after grooming:
+
+```text
+Use Linear MCP and GitHub.
+Run the Level 4 Dispatcher for the next eligible Tanchiki issue.
+Follow repo harness protocols.
+Work one issue only.
+Do not merge.
+Do not mark Done.
+```
+
+Validation for implementation PRs remains:
+
+```powershell
+npm test
+npm run build
+npm run lint
+```
 
 ## Level 4 Role-Separated Agent Workflow
 
@@ -259,7 +297,7 @@ Role routing:
 
 The dispatcher must never route architect, test, reviewer, or release work to Coder.
 
-If no eligible issue exists, the dispatcher reports all blocked/gated candidates and the human action required to make one eligible.
+If no eligible issue exists, the dispatcher reports all blocked/gated candidates and the human action required to make one eligible. If the queue is ungroomed, the dispatcher must stop and ask for Campaign Groomer work. Ungroomed signals include missing or multiple `role:*` labels, more than one campaign issue with `automation-ready`, or `automation-ready` appearing with `blocked`, `needs-human-approval`, or `human-only`.
 
 Use these files for Level 4 work:
 

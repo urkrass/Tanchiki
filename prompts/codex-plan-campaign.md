@@ -1,8 +1,8 @@
-# Plan a Tanchiki Campaign Brief
+# Plan And Groom A Tanchiki Campaign Brief
 
 Use Linear MCP.
 
-Read the campaign brief supplied by the user and create 5-8 small Linear issues for Tanchiki. This is Level 3 planning only.
+Read the campaign brief supplied by the user, create 5-8 small Linear issues for Tanchiki, then immediately groom the campaign queue for Level 4 dispatcher execution. This is Level 3 planning plus campaign grooming only.
 
 ## Required Reading
 
@@ -14,7 +14,9 @@ Read the campaign brief supplied by the user and create 5-8 small Linear issues 
 6. `ops/checklists/planner-output-checklist.md`
 7. `ops/policies/campaign-execution.md`
 8. `ops/checklists/conflict-risk-checklist.md`
-9. the supplied campaign brief
+9. `ops/prompts/campaign-groomer.md`
+10. `ops/checklists/campaign-grooming-checklist.md`
+11. the supplied campaign brief
 
 ## Workflow
 
@@ -38,7 +40,15 @@ Read the campaign brief supplied by the user and create 5-8 small Linear issues 
 9. Mark dependency issues as `blocked` or `needs-human-approval` where appropriate.
 10. Check whether likely files overlap with the previous 1-3 merged PRs or central integration files.
 11. Create the issues in Linear.
-12. Stop after creating issues and a summary.
+12. Run the campaign grooming checklist before stopping:
+   - normalize each issue to exactly one applied `role:*` label where applicable
+   - mark human gates with `needs-human-approval`
+   - mark never-automated human work with `human-only`
+   - mark dependency-blocked work with `blocked`
+   - apply `automation-ready` only to the one issue that may run next
+13. If the campaign requires Architect review first, make only that first Architect issue `Todo` + `role:architect` + `automation-ready`.
+14. Keep Coder, Test, Reviewer, and Release issues Backlog/blocked until their dependencies are complete.
+15. Stop after reporting the final groomed queue.
 
 ## Issue Body Requirements
 
@@ -69,9 +79,10 @@ Each issue must include:
 - Do not implement gameplay code.
 - Do not edit source files.
 - Do not open a gameplay implementation PR.
-- Do not apply `automation-ready` automatically.
+- Do not apply `automation-ready` broadly. The grooming pass may apply it only to the single first runnable issue allowed by `ops/policies/campaign-execution.md`.
 - Do not move issues to `In Progress`, `In Review`, or `Done`.
-- Do not put `automation-ready` on parent, epic, blocked, or `needs-human-approval` issues.
+- Do not put `automation-ready` on parent, epic, blocked, `needs-human-approval`, or `human-only` issues.
+- Do not make a Coder issue automation-ready immediately after planning unless the user explicitly requested it.
 - Do not use `agent-ready` for new campaign planning.
 - Do not use `human-review` to mean reviewer-agent work.
 - Do not create broad vague issues like "improve AI", "polish game", or "add campaign".
@@ -90,3 +101,5 @@ Report:
 - suggested role label for each issue
 - which single issue should become `Todo` + `automation-ready` first after human approval
 - which issues need `needs-human-approval` before the Dispatcher can pick them up
+- final applied labels and statuses after grooming
+- whether the queue is safe for the Level 4 Dispatcher
