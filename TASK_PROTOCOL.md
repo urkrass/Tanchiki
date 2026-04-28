@@ -89,6 +89,9 @@ Reviewers and humans must also apply `ops/policies/pr-acceptance.md` and
 `ops/checklists/pr-acceptance-checklist.md` before adding acceptance labels or
 preparing a PR for any auto-merge path. Coder and Test agents must not approve,
 label as accepted, or merge their own PRs.
+Stop labels are hard vetoes. Agents may recommend stop-label removal in PR or
+Linear comments, but only a human operator may remove stop labels unless a
+future gate-management automation is explicitly approved.
 
 ## Merge
 

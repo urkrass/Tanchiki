@@ -144,6 +144,7 @@ test("PR acceptance policy protects do-not-merge override and reviewer independe
   const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
 
   for (const expected of [
+    "Stop labels are hard vetoes.",
     "`merge:do-not-merge` is the highest-priority stop signal.",
     "`merge:do-not-merge` and `reviewer:changes-requested` must be removed before any positive acceptance label can be acted on.",
     "Coder and Test agents must not approve, label as accepted, or merge their own PRs.",
@@ -152,6 +153,59 @@ test("PR acceptance policy protects do-not-merge override and reviewer independe
     "Must not be added by the PR author.",
     "Must not be added by the Coder or Test author of the PR.",
     "New commits after approval require approval to be rechecked or refreshed.",
+  ]) {
+    assert.match(policy, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("PR acceptance policy keeps stop-label removal human controlled", () => {
+  const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
+
+  for (const expected of [
+    "`merge:do-not-merge`",
+    "`merge:human-required`",
+    "`needs-human-approval`",
+    "`blocked`",
+    "`human-only`",
+    "`risk:human-only`",
+    "Coder agents must not remove stop labels.",
+    "Test agents must not remove stop labels.",
+    "Reviewer agents must not remove stop labels.",
+    "Release agents must not remove stop labels.",
+    "Planner and Groomer agents must not remove stop labels from active PRs.",
+    "Agents may recommend stop-label removal in a PR comment or Linear comment.",
+    "A human operator must remove stop labels manually.",
+    "The only exception is a future explicitly approved automation whose sole",
+    "That automation does not exist yet and must be",
+    "separately approved before use.",
+    "A PR may not enter an auto-merge lane if any stop label is present, regardless",
+    "of passing CI, passing PR metadata checks, reviewer-agent approval, low-risk",
+    "issue metadata, `merge:auto-eligible`, or `merge:agent-approved`.",
+  ]) {
+    assert.match(policy, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("PR acceptance policy defines reviewer language and safe low-risk lane", () => {
+  const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
+
+  for (const expected of [
+    "`APPROVED FOR MERGE`",
+    "`APPROVED FOR AUTO-MERGE AFTER HUMAN REMOVES STOP LABELS`",
+    "`CHANGES REQUESTED`",
+    "`HUMAN REVIEW REQUIRED`",
+    "`BLOCKED`",
+    "Reviewer agents must not say or imply that they removed stop labels",
+    "`type:docs` + `risk:low` + `validation:docs`",
+    "`type:harness` + `risk:low` + `validation:harness`",
+    "`type:test` + `risk:low` + `validation:test`",
+    "Even in these low-risk categories, stop labels remain hard vetoes.",
+    "Human merge or human review remains required for:",
+    "`type:ui`",
+    "`type:gameplay`",
+    "`type:progression`",
+    "`type:movement`",
+    "anything touching `src/game.js`, `src/render.js`, `src/game/movement.js`, or broad architecture files",
   ]) {
     assert.match(policy, new RegExp(escapeRegExp(expected)));
   }
@@ -170,10 +224,16 @@ test("PR acceptance checklist and template guard auto-merge gates without live G
     "Linked issue has exactly one `type:*` label.",
     "Linked issue has exactly one `risk:*` label.",
     "Linked issue has exactly one `validation:*` label.",
+    "No stop labels are present: `merge:do-not-merge`, `merge:human-required`, `needs-human-approval`, `blocked`, `human-only`, or `risk:human-only`.",
+    "Stop labels were not removed by a Coder, Test, Reviewer, Release, Planner, or Groomer agent.",
+    "If a stop label was previously present, the PR body records which human operator approved gate removal.",
     "`merge:auto-eligible` is present before auto-merge eligibility.",
     "`merge:do-not-merge` is absent.",
     "`reviewer:approved` or an approved human approval label is present.",
     "The approval actor is not the Coder or Test author of the PR.",
+    "Agents only recommended stop-label removal in PR or Linear comments; they did not remove stop labels.",
+    "The PR still satisfies role/type/risk/validation metadata after all changes.",
+    "QA evidence is present when the validation profile or risk level requires it.",
     "If actor independence cannot be proven, auto-merge remains unavailable.",
   ]) {
     assert.match(checklist, new RegExp(escapeRegExp(expected)));
