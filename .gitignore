@@ -4,5 +4,7 @@ build/
 .vite/
 .env
 .env.*
+*.pem
+reviewer-env.ps1
 *.log
 .DS_Store
