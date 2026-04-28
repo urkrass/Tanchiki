@@ -17,7 +17,7 @@ test("loads the test mission schema into level and entity runtime state", () => 
     mission.targets.map((target) => [target.id, target.type, target.team, target.gridX, target.gridY, target.hp, target.solid]),
     [
       ["dummy-1", "dummy", "enemy", 4, 3, 2, true],
-      ["dummy-2", "dummy", "enemy", 8, 3, 2, true],
+      ["dummy-2", "dummy", "enemy", 9, 5, 2, true],
       ["dummy-3", "dummy", "enemy", 10, 9, 2, true],
       ["enemy-base", "base", "enemy", 12, 9, 6, true]
     ]
@@ -26,8 +26,8 @@ test("loads the test mission schema into level and entity runtime state", () => 
     mission.pickups.map((pickup) => [pickup.id, pickup.type, pickup.gridX, pickup.gridY, pickup.amount, pickup.active]),
     [
       ["repair-1", "repair", 2, 1, 1, true],
-      ["ammo-1", "ammo", 3, 1, 3, true],
-      ["shield-1", "shield", 4, 1, 1, true]
+      ["ammo-1", "ammo", 5, 5, 3, true],
+      ["shield-1", "shield", 8, 7, 1, true]
     ]
   );
 });

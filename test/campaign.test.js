@@ -36,6 +36,35 @@ test("all campaign levels pass validation", () => {
   }
 });
 
+test("campaign pickups do not overlap spawn, walls, or solid enemies", () => {
+  for (let index = 0; index < getCampaignLevelCount(); index += 1) {
+    const mission = createCampaignMission(index);
+    const solidEnemyCells = new Set(
+      mission.targets
+        .filter((target) => target.alive && target.solid)
+        .map((target) => `${target.gridX},${target.gridY}`)
+    );
+
+    for (const pickup of mission.pickups) {
+      assert.notDeepEqual(
+        { x: pickup.gridX, y: pickup.gridY },
+        mission.level.playerSpawn,
+        `${mission.level.id} pickup ${pickup.id} overlaps player spawn`
+      );
+      assert.notEqual(
+        mission.level.tiles[pickup.gridY][pickup.gridX],
+        "#",
+        `${mission.level.id} pickup ${pickup.id} is inside a wall`
+      );
+      assert.equal(
+        solidEnemyCells.has(`${pickup.gridX},${pickup.gridY}`),
+        false,
+        `${mission.level.id} pickup ${pickup.id} overlaps a solid enemy`
+      );
+    }
+  }
+});
+
 test("victory on a non-final level waits for the pending upgrade choice", () => {
   const harness = createCampaignHarness({ levelIndex: 0 });
 

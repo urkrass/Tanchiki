@@ -30,8 +30,8 @@ export const TEST_MISSION_SCHEMA = {
       id: "dummy-2",
       type: "dummy",
       team: "enemy",
-      gridX: 8,
-      gridY: 3,
+      gridX: 9,
+      gridY: 5,
       hp: 2,
       solid: true
     },
@@ -71,15 +71,15 @@ export const TEST_MISSION_SCHEMA = {
     {
       id: "ammo-1",
       type: "ammo",
-      gridX: 3,
-      gridY: 1,
+      gridX: 5,
+      gridY: 5,
       amount: 3
     },
     {
       id: "shield-1",
       type: "shield",
-      gridX: 4,
-      gridY: 1,
+      gridX: 8,
+      gridY: 7,
       amount: 1
     }
   ]
@@ -117,7 +117,7 @@ export const CHECKPOINT_MISSION_SCHEMA = {
       id: "checkpoint-sentry-2",
       type: "dummy",
       team: "enemy",
-      gridX: 4,
+      gridX: 8,
       gridY: 7,
       hp: 2,
       solid: true,
@@ -137,8 +137,8 @@ export const CHECKPOINT_MISSION_SCHEMA = {
     {
       id: "checkpoint-repair",
       type: "repair",
-      gridX: 2,
-      gridY: 1,
+      gridX: 3,
+      gridY: 5,
       amount: 1
     },
     {
@@ -192,8 +192,8 @@ export const BASE_APPROACH_MISSION_SCHEMA = {
       id: "approach-sentry-3",
       type: "dummy",
       team: "enemy",
-      gridX: 3,
-      gridY: 9,
+      gridX: 9,
+      gridY: 7,
       hp: 2,
       solid: true
     },
@@ -211,15 +211,15 @@ export const BASE_APPROACH_MISSION_SCHEMA = {
     {
       id: "approach-ammo",
       type: "ammo",
-      gridX: 2,
-      gridY: 1,
+      gridX: 5,
+      gridY: 5,
       amount: 3
     },
     {
       id: "approach-repair",
       type: "repair",
       gridX: 4,
-      gridY: 9,
+      gridY: 7,
       amount: 1
     }
   ]
