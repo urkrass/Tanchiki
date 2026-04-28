@@ -12,7 +12,13 @@
         <div class="game-copy">
           <p class="eyebrow">Prototype</p>
           <h1 id="title">Tanchiki</h1>
-          <p>Move cell by cell through a compact test maze. Hold or tap Arrow keys/WASD; Space is reserved for shooting.</p>
+          <p>Destroy the enemy base, survive the maze, then choose one upgrade before advancing.</p>
+          <div class="demo-brief" aria-label="Demo quick start">
+            <p><strong>Move</strong> WASD or Arrow keys</p>
+            <p><strong>Fire</strong> Space</p>
+            <p><strong>Continue</strong> N or Enter</p>
+            <p><strong>Restart</strong> R</p>
+          </div>
         </div>
         <canvas id="game" width="720" height="528" aria-label="Playable Tanchiki canvas"></canvas>
         <section id="upgrade-panel" class="upgrade-panel" aria-labelledby="upgrade-title" hidden>
@@ -22,7 +28,10 @@
           </div>
           <div id="upgrade-choices" class="upgrade-choices"></div>
         </section>
-        <p id="status" class="status" aria-live="polite"></p>
+        <div class="status-bar" aria-label="Live mission status">
+          <p class="status-label">Mission status</p>
+          <p id="status" class="status" aria-live="polite"></p>
+        </div>
       </section>
     </main>
     <script type="module" src="./src/main.js"></script>
