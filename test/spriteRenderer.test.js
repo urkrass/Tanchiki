@@ -216,6 +216,65 @@ test("renderGame requests manifest sprites for pickups, enemy variants, and dest
   assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "X"));
 });
 
+test("renderGame keeps primitive fallback for pickups and destroyed targets", () => {
+  const context = createRecordingContext();
+  const spriteRequests = [];
+  const snapshot = createRenderSnapshot({
+    pickups: [
+      { active: true, type: "repair", gridX: 0, gridY: 0 },
+      { active: true, type: "ammo", gridX: 1, gridY: 0 },
+      { active: true, type: "shield", gridX: 2, gridY: 0 }
+    ],
+    targets: [
+      {
+        type: "dummy",
+        alive: false,
+        hp: 0,
+        maxHp: 3,
+        gridX: 2,
+        gridY: 1,
+        facing: "left"
+      },
+      {
+        type: "base",
+        team: "enemy",
+        alive: false,
+        hp: 0,
+        maxHp: 6,
+        gridX: 3,
+        gridY: 1
+      }
+    ],
+    projectiles: []
+  });
+
+  renderGame(context, snapshot, {
+    spriteAssets: {
+      getFrame(spriteId, animation, direction) {
+        spriteRequests.push({ spriteId, animation, direction });
+        return { status: SPRITE_STATUS.MISSING };
+      }
+    }
+  });
+
+  assert.equal(context.callsByName.drawImage.length, 0);
+  assert.deepEqual(spriteRequests.map((request) => request.spriteId), [
+    "repair_pickup",
+    "ammo_pickup",
+    "shield_pickup",
+    "destroyed_tank",
+    "destroyed_base",
+    "player_tank"
+  ]);
+  assert.ok(hasCall(context, "fillRect", [-13, -13, 26, 26]));
+  assert.ok(hasCall(context, "fillRect", [-16, -16, 32, 32]));
+  assert.ok(hasCall(context, "fillRect", [-20, -20, 40, 40]));
+  assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "+"));
+  assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "A"));
+  assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "S"));
+  assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "X"));
+});
+
 function createRenderSnapshot(overrides = {}) {
   return {
     level: {
