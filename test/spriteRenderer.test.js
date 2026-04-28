@@ -58,7 +58,7 @@ test("renderGame keeps primitive fallback when sprite frames fail", () => {
   assert.ok(hasCall(context, "fillRect", [-20, -20, 40, 40]));
   assert.ok(hasCall(context, "fillRect", [-4, -10, 8, 20]));
   assert.deepEqual(spriteRequests.map((request) => request.spriteId), [
-    "enemy_tank",
+    "sentry_tank",
     "enemy_base",
     "player_shell",
     "player_tank"
@@ -130,6 +130,92 @@ test("renderGame keeps the damage flash primitive for the player tank", () => {
   assert.deepEqual(spriteRequests, []);
 });
 
+test("renderGame requests manifest sprites for pickups, enemy variants, and destroyed targets", () => {
+  const context = createRecordingContext();
+  const spriteRequests = [];
+  const snapshot = createRenderSnapshot({
+    pickups: [
+      { active: true, type: "repair", gridX: 0, gridY: 0 },
+      { active: true, type: "ammo", gridX: 1, gridY: 0 },
+      { active: true, type: "shield", gridX: 2, gridY: 0 }
+    ],
+    targets: [
+      {
+        type: "dummy",
+        alive: true,
+        hp: 2,
+        maxHp: 3,
+        gridX: 0,
+        gridY: 1,
+        facing: "up",
+        patrolRoute: [{ x: 0, y: 1 }, { x: 1, y: 1 }]
+      },
+      {
+        type: "dummy",
+        alive: true,
+        hp: 2,
+        maxHp: 3,
+        gridX: 1,
+        gridY: 1,
+        facing: "down",
+        pursuitTarget: "player"
+      },
+      {
+        type: "dummy",
+        alive: false,
+        hp: 0,
+        maxHp: 3,
+        gridX: 2,
+        gridY: 1,
+        facing: "left"
+      },
+      {
+        type: "base",
+        team: "enemy",
+        alive: false,
+        hp: 0,
+        maxHp: 6,
+        gridX: 3,
+        gridY: 1
+      }
+    ],
+    projectiles: []
+  });
+
+  renderGame(context, snapshot, {
+    spriteAssets: {
+      getFrame(spriteId, animation, direction) {
+        spriteRequests.push({ spriteId, animation, direction });
+        return {
+          status: SPRITE_STATUS.READY,
+          imageElement: { id: "sprite" },
+          frame: {
+            x: 0,
+            y: 0,
+            width: 48,
+            height: 48
+          }
+        };
+      }
+    }
+  });
+
+  assert.deepEqual(spriteRequests.map((request) => request.spriteId), [
+    "repair_pickup",
+    "ammo_pickup",
+    "shield_pickup",
+    "patrol_tank",
+    "pursuit_tank",
+    "destroyed_tank",
+    "destroyed_base",
+    "player_tank"
+  ]);
+  assert.equal(context.callsByName.drawImage.length, 8);
+  assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "P"));
+  assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "!"));
+  assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "X"));
+});
+
 function createRenderSnapshot(overrides = {}) {
   return {
     level: {
@@ -148,7 +234,7 @@ function createRenderSnapshot(overrides = {}) {
       damageFlashSeconds: 0,
       ...overrides.player
     },
-    pickups: [],
+    pickups: overrides.pickups ?? [],
     projectiles: overrides.projectiles ?? [{
       active: true,
       team: "player",

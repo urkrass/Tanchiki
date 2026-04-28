@@ -19,7 +19,7 @@ export function renderGame(context, snapshot, renderOptions = {}) {
   drawTiles(context, level, tileSize);
   drawGrid(context, level, tileSize);
   drawAimWarnings(context, targets, player, tileSize);
-  drawPickups(context, pickups, tileSize);
+  drawPickups(context, pickups, tileSize, spriteAssets);
   drawTargets(context, targets, tileSize, spriteAssets);
   drawProjectiles(context, projectiles, tileSize, spriteAssets);
   drawImpacts(context, impacts, tileSize);
@@ -27,7 +27,7 @@ export function renderGame(context, snapshot, renderOptions = {}) {
   drawMissionSummary(context, missionSummary, createProgressionFeedback(snapshot), width, height);
 }
 
-function drawPickups(context, pickups = [], tileSize) {
+function drawPickups(context, pickups = [], tileSize, spriteAssets = null) {
   for (const pickup of pickups) {
     if (!pickup.active) {
       continue;
@@ -38,6 +38,15 @@ function drawPickups(context, pickups = [], tileSize) {
 
     context.save();
     context.translate(centerX, centerY);
+    if (drawManifestSprite(
+      context,
+      spriteAssets?.getFrame(spriteIdForPickup(pickup), "idle", "any"),
+      tileSize
+    )) {
+      context.restore();
+      continue;
+    }
+
     context.fillStyle = pickupColor(pickup.type);
     context.fillRect(-13, -13, 26, 26);
     context.strokeStyle = "#2f342d";
@@ -50,6 +59,16 @@ function drawPickups(context, pickups = [], tileSize) {
     context.fillText(pickupGlyph(pickup.type), 0, -1);
     context.restore();
   }
+}
+
+function spriteIdForPickup(pickup) {
+  if (pickup.type === "repair") {
+    return "repair_pickup";
+  }
+  if (pickup.type === "ammo") {
+    return "ammo_pickup";
+  }
+  return "shield_pickup";
 }
 
 function pickupColor(type) {
@@ -177,7 +196,7 @@ function drawTargets(context, targets, tileSize, spriteAssets = null) {
 
     context.save();
     context.translate(centerX, centerY);
-    const spriteDrawn = target.alive && drawManifestSprite(
+    const spriteDrawn = drawManifestSprite(
       context,
       spriteAssets?.getFrame(spriteIdForTarget(target), "idle", target.facing ?? "up"),
       tileSize
@@ -221,11 +240,23 @@ function drawTargets(context, targets, tileSize, spriteAssets = null) {
 }
 
 function spriteIdForTarget(target) {
+  if (!target.alive) {
+    return target.type === "base" ? "destroyed_base" : "destroyed_tank";
+  }
+
   if (target.type === "base") {
     return "enemy_base";
   }
 
-  return "enemy_tank";
+  if (target.pursuitTarget === "player") {
+    return "pursuit_tank";
+  }
+
+  if (Array.isArray(target.patrolRoute)) {
+    return "patrol_tank";
+  }
+
+  return "sentry_tank";
 }
 
 function drawTargetCue(context, target, centerX, centerY, size) {
