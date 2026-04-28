@@ -5,6 +5,7 @@ import {
   UPGRADE_CATALOG,
   UPGRADE_EFFECT_KEYS,
   calculateMissionXpReward,
+  calculateProgressionEffects,
   cloneProgressionState,
   createProgressionState,
   getUpgradeCatalog,
@@ -143,6 +144,22 @@ test("upgrade definitions are looked up by known id only", () => {
   assert.equal(getUpgradeDefinition("armor").label, "Reinforced armor");
   assert.throws(() => getUpgradeDefinition("unknown"), /Unknown upgrade id unknown/);
   assert.throws(() => getUpgradeDefinition(""), /non-empty string/);
+});
+
+test("progression effects sum applied upgrade ranks", () => {
+  assert.deepEqual(calculateProgressionEffects({
+    appliedUpgrades: {
+      armor: 1,
+      reload: 2,
+      shellRange: 2
+    }
+  }), {
+    maxHp: 1,
+    repairAmount: 0,
+    fireCooldownSeconds: -0.2,
+    projectileMaxRangeCells: 2,
+    shieldCapacity: 0
+  });
 });
 
 test("progression state rejects unknown upgrade ids and ranks above max", () => {
