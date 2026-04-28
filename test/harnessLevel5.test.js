@@ -298,6 +298,56 @@ test("PR acceptance checklist and template guard auto-merge gates without live G
   }
 });
 
+test("Reviewer App token helper documents local-only temporary GitHub App identity", () => {
+  const script = readRepoFile("scripts", "reviewer-app-token.js");
+  const readme = readRepoFile("README.md");
+  const safety = readRepoFile("SAFETY_BOUNDARIES.md");
+  const gitignore = readRepoFile(".gitignore");
+
+  for (const expected of [
+    "GITHUB_REVIEWER_APP_ID",
+    "GITHUB_REVIEWER_INSTALLATION_ID",
+    "GITHUB_REVIEWER_PRIVATE_KEY_PATH",
+    "https://api.github.com/app/installations/",
+    "access_tokens",
+    "$env:GH_TOKEN =",
+    "This token is short-lived and was not written to disk.",
+  ]) {
+    assert.match(script, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "C:\\Users\\Legion\\.config\\tanchiki-reviewer-app\\",
+    "private key stay outside the repository",
+    "tokens expire after one hour",
+    "`GH_TOKEN` is temporary for the current shell",
+    "not the normal `urkrass` user",
+    "must not push code",
+    "merge PRs",
+    "apply `merge:auto-eligible`",
+    "remove stop labels",
+  ]) {
+    assert.match(readme, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "must remain outside the repo",
+    "generated installation tokens must stay temporary in the current shell through",
+    "`GH_TOKEN`",
+    "pushing code",
+    "merging PRs",
+    "applying",
+    "`merge:auto-eligible`",
+    "removing stop labels",
+  ]) {
+    assert.match(safety, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of ["*.pem", "reviewer-env.ps1", ".env", ".env.*"]) {
+    assert.match(gitignore, new RegExp(`^${escapeRegExp(expected)}$`, "m"));
+  }
+});
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

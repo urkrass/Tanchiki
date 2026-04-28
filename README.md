@@ -127,6 +127,67 @@ npm run lint
 
 If any command fails, the commit is blocked. Do not push automatically.
 
+## Local Reviewer App Token Helper
+
+Reviewer-agent sessions can use the local Tanchiki Reviewer GitHub App identity
+for PR review work instead of the normal GitHub user identity. This is local
+harness tooling only; it must not change gameplay, deployment, CI workflows,
+branch protection, or auto-merge behavior.
+
+The local Reviewer App environment and private key stay outside the repository:
+
+```text
+C:\Users\Legion\.config\tanchiki-reviewer-app\
+```
+
+Load the local environment and generate a short-lived installation token:
+
+```powershell
+. "$env:USERPROFILE\.config\tanchiki-reviewer-app\reviewer-env.ps1"
+node scripts/reviewer-app-token.js
+```
+
+Then copy and paste the printed command into the same PowerShell session:
+
+```powershell
+$env:GH_TOKEN = '<short-lived-token>'
+```
+
+`GH_TOKEN` is temporary for the current shell. GitHub App installation access
+tokens expire after one hour, so rerun the helper for future Reviewer sessions.
+The helper reads `GITHUB_REVIEWER_APP_ID`,
+`GITHUB_REVIEWER_INSTALLATION_ID`, and
+`GITHUB_REVIEWER_PRIVATE_KEY_PATH`, verifies the private key path exists,
+exchanges a GitHub App JWT for an installation token, prints the expiry time
+when GitHub returns one, and never writes the token or private key to disk.
+
+Verify the token before Reviewer-agent GitHub operations:
+
+```powershell
+gh auth status
+gh api installation/repositories
+```
+
+`gh api user` may fail or report no user identity because an installation token
+represents the GitHub App installation, not the normal `urkrass` user account.
+
+Real acceptance test:
+
+1. Create or use a tiny open PR.
+2. Load `reviewer-env.ps1`, run `node scripts/reviewer-app-token.js`, and set
+   `GH_TOKEN` from the printed PowerShell command.
+3. Submit a PR review or comment using `gh` with that `GH_TOKEN`.
+4. Confirm GitHub shows the review or comment as the Tanchiki Reviewer GitHub
+   App identity, not the normal `urkrass` user.
+
+The Reviewer App may read PRs, inspect changed files, submit PR reviews,
+comment on PRs, and comment on Linear if routed separately. The Reviewer App
+must not push code, merge PRs, apply `merge:auto-eligible`, remove stop labels,
+change workflows, change repo settings, change branch protection, or modify
+secrets.
+It cannot remove stop labels; only a human operator may do that under the repo
+acceptance policy.
+
 ## Level 1-6 Workflow Ladder
 
 Tanchiki uses the repository itself as the operating manual for agentic development.
