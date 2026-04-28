@@ -4,6 +4,10 @@ import {
   DEFAULT_PROGRESSION_STATE,
   UPGRADE_CATALOG,
   UPGRADE_EFFECT_KEYS,
+  XP_PER_LEVEL,
+  applyProgressionUpgrade,
+  awardProgressionXp,
+  calculateLevelForXp,
   calculateMissionXpReward,
   calculateProgressionEffects,
   cloneProgressionState,
@@ -112,6 +116,85 @@ test("mission XP rewards reject losses and invalid summary data", () => {
     () => calculateMissionXpReward({ result: "victory", enemiesDestroyed: -1 }),
     /missionSummary\.enemiesDestroyed must be a non-negative integer/
   );
+});
+
+test("XP thresholds produce deterministic levels", () => {
+  assert.equal(XP_PER_LEVEL, 100);
+  assert.equal(calculateLevelForXp(0), 1);
+  assert.equal(calculateLevelForXp(99), 1);
+  assert.equal(calculateLevelForXp(100), 2);
+  assert.equal(calculateLevelForXp(250), 3);
+});
+
+test("awarding progression XP accrues level upgrade points once", () => {
+  let progression = awardProgressionXp(createProgressionState(), 120);
+
+  assert.deepEqual(progression, {
+    xp: 120,
+    level: 2,
+    availableUpgradePoints: 1,
+    appliedUpgrades: {}
+  });
+
+  progression = awardProgressionXp(progression, 30);
+  assert.deepEqual(progression, {
+    xp: 150,
+    level: 2,
+    availableUpgradePoints: 1,
+    appliedUpgrades: {}
+  });
+
+  progression = awardProgressionXp(progression, 50);
+  assert.deepEqual(progression, {
+    xp: 200,
+    level: 3,
+    availableUpgradePoints: 2,
+    appliedUpgrades: {}
+  });
+});
+
+test("applying progression upgrades spends points and enforces rank limits", () => {
+  const first = applyProgressionUpgrade({
+    xp: 100,
+    level: 2,
+    availableUpgradePoints: 1,
+    appliedUpgrades: {}
+  }, "armor");
+
+  assert.equal(first.applied, true);
+  assert.equal(first.reason, null);
+  assert.deepEqual(first.progression, {
+    xp: 100,
+    level: 2,
+    availableUpgradePoints: 0,
+    appliedUpgrades: {
+      armor: 1
+    }
+  });
+
+  const unaffordable = applyProgressionUpgrade(first.progression, "armor");
+  assert.equal(unaffordable.applied, false);
+  assert.equal(unaffordable.reason, "no-points");
+
+  const maxed = applyProgressionUpgrade({
+    xp: 300,
+    level: 4,
+    availableUpgradePoints: 1,
+    appliedUpgrades: {
+      armor: 2
+    }
+  }, "armor");
+  assert.equal(maxed.applied, false);
+  assert.equal(maxed.reason, "max-rank");
+
+  const unknown = applyProgressionUpgrade({
+    xp: 100,
+    level: 2,
+    availableUpgradePoints: 1,
+    appliedUpgrades: {}
+  }, "unknown");
+  assert.equal(unknown.applied, false);
+  assert.equal(unknown.reason, "unknown-upgrade");
 });
 
 test("player defensive stats preserve defaults without upgrades", () => {

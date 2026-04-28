@@ -305,7 +305,50 @@ test("campaign victory awards deterministic XP once", () => {
   harness.advanceStep();
   snapshot = harness.game.snapshot();
   assert.equal(snapshot.progression.xp, 120);
+  assert.equal(snapshot.progression.level, 2);
+  assert.equal(snapshot.progression.availableUpgradePoints, 1);
   assert.equal(snapshot.lastMissionReward.xp, 120);
+});
+
+test("campaign applies chosen upgrades before advancing to the next level", () => {
+  const harness = createCampaignHarness({ levelIndex: 0 });
+
+  destroyEnemyBase(harness.game);
+  harness.advanceStep();
+
+  const upgradeResult = harness.game.applyUpgrade("armor");
+  assert.equal(upgradeResult.applied, true);
+  assert.equal(upgradeResult.reason, null);
+  assert.deepEqual(upgradeResult.progression.appliedUpgrades, {
+    armor: 1
+  });
+  assert.equal(upgradeResult.progression.availableUpgradePoints, 0);
+
+  assert.equal(harness.game.advanceLevel(), true);
+
+  const state = harness.game.debugState();
+  assert.equal(state.currentLevelIndex, 1);
+  assert.equal(state.player.maxHp, 4);
+  assert.equal(state.player.hp, 4);
+  assert.deepEqual(state.progression.appliedUpgrades, {
+    armor: 1
+  });
+});
+
+test("campaign upgrade choices fail deterministically when invalid", () => {
+  const harness = createCampaignHarness({ levelIndex: 0 });
+
+  assert.deepEqual(harness.game.applyUpgrade("unknown"), {
+    applied: false,
+    reason: "unknown-upgrade",
+    progression: {
+      xp: 0,
+      level: 1,
+      availableUpgradePoints: 0,
+      appliedUpgrades: {}
+    }
+  });
+  assert.equal(harness.game.applyUpgrade("armor").reason, "no-points");
 });
 
 test("campaign loss grants no XP reward", () => {

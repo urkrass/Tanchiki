@@ -1,4 +1,6 @@
 import {
+  applyProgressionUpgrade,
+  awardProgressionXp,
   calculateMissionXpReward,
   cloneProgressionState
 } from "./progression.js";
@@ -52,6 +54,28 @@ export function addCampaignState(
   return {
     ...campaignState,
     missionSummary: createMissionSummary(campaignState)
+  };
+}
+
+export function applyCampaignReward(progression, reward) {
+  if (!reward) {
+    return cloneProgressionState(progression);
+  }
+
+  Object.assign(progression, awardProgressionXp(progression, reward.xp));
+  return cloneProgressionState(progression);
+}
+
+export function applyCampaignUpgrade(progression, upgradeId) {
+  const result = applyProgressionUpgrade(progression, upgradeId);
+  if (result.applied) {
+    Object.assign(progression, result.progression);
+  }
+
+  return {
+    applied: result.applied,
+    reason: result.reason,
+    progression: cloneProgressionState(progression)
   };
 }
 
