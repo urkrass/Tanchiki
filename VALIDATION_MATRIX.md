@@ -34,6 +34,10 @@ Level 6 keeps validation machine-readable by requiring every automated Linear is
 | `risk:high` | Broad gameplay, central orchestration, campaign progression, AI, significant UI flow. | Only with strong tests and manual QA notes. | Often required. |
 | `risk:human-only` | Movement rewrites, persistence, destructive repo work, broad architecture rewrites. | No. Dispatcher must not automate. | Required. |
 
+`risk:high` and `risk:human-only` PRs are never auto-merge eligible. Use
+`ops/policies/pr-acceptance.md` for PR acceptance tiers, forbidden categories,
+reviewer independence, and merge-label gates.
+
 ## Validation Profiles
 
 | Validation profile | Required automated checks | Manual QA | Human approval |
@@ -56,3 +60,7 @@ An issue is eligible only when all are true:
 - does not have `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`
 - is not blocked by another issue
 - is not a parent, epic, campaign umbrella, or safety-critical item
+
+Dispatcher eligibility does not imply merge eligibility. PR acceptance and any
+future auto-merge path must also satisfy `ops/policies/pr-acceptance.md` and
+`ops/checklists/pr-acceptance-checklist.md`.

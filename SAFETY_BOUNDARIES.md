@@ -38,6 +38,16 @@ Use `needs-human-approval`, `human-only`, or `risk:human-only` when these gates 
 - Do not use `git reset --hard` or destructive checkout commands to discard user work.
 - Do not finish with a dirty working tree unless reporting a blocker.
 
+PR acceptance and auto-merge preparation must follow
+`ops/policies/pr-acceptance.md`. Coder and Test agents must not approve, label
+as accepted, or merge their own PRs. `merge:do-not-merge` overrides every
+positive acceptance label.
+
+Auto-merge must not be available for movement or collision work, `risk:high`,
+`risk:human-only`, deployment, dependencies, CI workflow changes, broad gameplay
+changes, save or persistence behavior, security-sensitive changes, or
+public-demo-impacting changes without explicit human control.
+
 ## Gameplay Safety
 
 - Do not implement gameplay from a harness/docs issue.
