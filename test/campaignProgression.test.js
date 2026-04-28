@@ -79,3 +79,70 @@ test("campaign state snapshots clone progression and reward data", () => {
   assert.equal(state.canAdvanceLevel, false);
   assert.equal(state.missionSummary, null);
 });
+
+test("campaign state exposes display-ready upgrade choice metadata only after victory", () => {
+  const wonState = addCampaignState(
+    {
+      missionSummary: null,
+      level: { id: "test-mission" },
+      player: { hp: 3, maxHp: 3 },
+      targets: [],
+      missionStatus: "won"
+    },
+    0,
+    3,
+    "won",
+    {
+      xp: 100,
+      level: 2,
+      availableUpgradePoints: 1,
+      appliedUpgrades: {}
+    },
+    {
+      levelIndex: 0,
+      levelId: "test-mission",
+      xp: 100,
+      enemiesDestroyed: 0
+    },
+    () => null
+  );
+
+  assert.equal(wonState.upgradeChoice.pending, true);
+  assert.deepEqual(wonState.upgradeChoice.choices[0], {
+    id: "armor",
+    label: "Reinforced armor",
+    description: "Increase max armor by 1 per rank.",
+    currentRank: 0,
+    nextRank: 1,
+    maxRank: 2,
+    rankLabel: "Current rank 0 -> 1/2",
+    effectLabel: "Next: max armor +1"
+  });
+
+  const lostState = addCampaignState(
+    {
+      missionSummary: null,
+      level: { id: "test-mission" },
+      player: { hp: 0, maxHp: 3 },
+      targets: [],
+      missionStatus: "lost"
+    },
+    0,
+    3,
+    "lost",
+    {
+      xp: 100,
+      level: 2,
+      availableUpgradePoints: 1,
+      appliedUpgrades: {}
+    },
+    null,
+    () => null
+  );
+
+  assert.deepEqual(lostState.upgradeChoice, {
+    pending: false,
+    availableUpgradePoints: 0,
+    choices: []
+  });
+});
