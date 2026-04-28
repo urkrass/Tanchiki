@@ -60,7 +60,48 @@ The repository uses these PR acceptance labels:
 - `reviewer:approved` - independent reviewer or human approval signal.
 - `reviewer:changes-requested` - blocking review findings exist; incompatible with auto-merge.
 
-Follow-up label setup may document GitHub label creation, ownership, and color choices. Label creation must not weaken branch protection or grant broad repository permissions.
+### Label Ownership
+
+| Label | Who may add it | Who may remove it | Notes |
+| --- | --- | --- | --- |
+| `merge:auto-eligible` | Human, or a future workflow explicitly approved by a human | Human, Reviewer, or approved workflow | Requires every auto-merge gate. Must not be added by the PR author. |
+| `merge:agent-approved` | Independent Reviewer agent | Human, Reviewer, or approved workflow | Records reviewer-agent acceptance only. It is not merge authority by itself. |
+| `merge:human-required` | Human, Reviewer, Coder, Test, or approved workflow | Human only, unless the same Reviewer removes it after documented resolution | Use when policy requires human judgment before merge. |
+| `merge:do-not-merge` | Human, Reviewer, Coder, Test, or approved workflow | Human only, unless the same Reviewer removes it after documented resolution | Hard stop. Overrides every positive label. |
+| `reviewer:approved` | Human or independent Reviewer agent | Human, Reviewer, or approved workflow | Must not be added by the Coder or Test author of the PR. |
+| `reviewer:changes-requested` | Human or independent Reviewer agent | Human, Reviewer, or approved workflow after changes are resolved | Blocks auto-merge and reviewer-agent acceptance. |
+
+Agents may add stop labels to protect the repository, but positive acceptance
+labels require independent review or human action. If there is any doubt about
+who authored the PR, do not add positive labels.
+
+### Label Transitions
+
+- New PRs start with no positive acceptance label.
+- Add `merge:human-required` when the PR touches a gated category or the reviewer cannot prove auto-merge eligibility.
+- Add `merge:do-not-merge` when CI fails, metadata is missing, scope is unsafe, branch protection is bypassed, or the PR should not merge in its current state.
+- Add `reviewer:changes-requested` when review findings require code, docs, tests, validation, or scope changes.
+- Add `reviewer:approved` only after independent review passes and no stop labels are present.
+- Add `merge:agent-approved` only after independent Reviewer-agent acceptance under this policy.
+- Add `merge:auto-eligible` only after every auto-merge gate passes and no exclusion applies.
+- Remove or refresh positive labels after any new commit unless the approval is explicitly rechecked.
+- `merge:do-not-merge` and `reviewer:changes-requested` must be removed before any positive acceptance label can be acted on.
+- `merge:human-required` must be removed by a human before any auto-merge path can proceed.
+
+### GitHub Label Setup
+
+If any required label does not exist in GitHub, create it manually or through a
+separate approved repository administration step. Recommended colors:
+
+- `merge:auto-eligible`: green
+- `merge:agent-approved`: blue
+- `merge:human-required`: orange
+- `merge:do-not-merge`: red
+- `reviewer:approved`: green
+- `reviewer:changes-requested`: red
+
+Label creation must not weaken branch protection, grant broad repository
+permissions, change workflows, or imply that auto-merge is implemented.
 
 ## Auto-Merge Hard Exclusions
 

@@ -29,6 +29,12 @@ Closes:
 
 -
 
+## Acceptance Labels
+
+- Merge label:
+- Reviewer label:
+- Human gate:
+
 ## Visible UI Expectation
 
 -

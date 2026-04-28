@@ -54,6 +54,9 @@ If any exclusion is true, use `merge:human-required` or `merge:do-not-merge`.
 
 ## Label Gate
 
+- [ ] Required GitHub labels exist before they are used.
+- [ ] Label ownership follows `ops/policies/pr-acceptance.md`.
+- [ ] Positive acceptance labels were not added by the PR author.
 - [ ] `merge:do-not-merge` is absent.
 - [ ] `reviewer:changes-requested` is absent.
 - [ ] `merge:human-required` is absent before auto-merge eligibility.
@@ -61,6 +64,8 @@ If any exclusion is true, use `merge:human-required` or `merge:do-not-merge`.
 - [ ] `reviewer:approved` or an approved human approval label is present.
 - [ ] Any `merge:agent-approved` label came from an independent reviewer-agent pass.
 - [ ] `merge:do-not-merge` overrides every positive label.
+- [ ] Positive labels were removed or refreshed after the latest commit.
+- [ ] Any missing label setup is documented as a manual/admin step, not hidden in implementation work.
 
 ## Independence Gate
 
