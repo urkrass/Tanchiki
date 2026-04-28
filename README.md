@@ -2,6 +2,51 @@
 
 This pack is meant to be copied into the root of the local game repository before opening it with Codex.
 
+## Public Demo
+
+Tanchiki is a playable browser prototype. The first public demo target is:
+
+```text
+https://urkrass.github.io/Tanchiki/
+```
+
+Deployment is configured through GitHub Pages, but the Pages site must be enabled for GitHub Actions in the repository settings before the URL is live. Until then, run the demo locally:
+
+```powershell
+npm run dev
+```
+
+Then open `http://localhost:5173`.
+
+### How To Play
+
+- Move with WASD or Arrow keys.
+- Fire with Space.
+- Destroy the enemy base, survive the maze, choose one upgrade, then continue to the next level with `N` or Enter.
+- Restart the current run with `R`.
+
+The demo includes three campaign levels, enemy sentries, patrol enemies, pursuit enemies, pickups, mission summaries, XP rewards, and an in-memory upgrade flow.
+
+### Public Demo Validation
+
+Before sharing a build, run:
+
+```powershell
+npm test
+npm run build
+npm run lint
+```
+
+For release checks, also open the local or deployed demo and confirm the objective, controls, canvas, mission status, and upgrade flow are visible and usable.
+
+### Known Limitations
+
+- No save or persistence; progress resets when the page reloads.
+- No final sprite atlas; the included sprite sheet is still reference art only.
+- No audio, pause menu, settings menu, or mobile touch controls.
+- No broad AI, movement, collision, or progression rewrites are part of the public-demo release.
+- GitHub Pages may require manual repository settings before the public URL works.
+
 It contains:
 
 - `CODEX_HANDOFF.md` - project brief and constraints.
