@@ -12,7 +12,9 @@ Before creating issues, read:
 - `AGENTS.md`
 - `README.md`
 - `ops/policies/planner-boundaries.md`
+- `ops/policies/campaign-execution.md`
 - `ops/checklists/planner-output-checklist.md`
+- `ops/checklists/conflict-risk-checklist.md`
 - the campaign brief supplied by the user
 
 ## Hard Boundary
@@ -37,8 +39,11 @@ Before creating issues, read:
    - `human-review required`
    - `human-only`
    - `blocked/dependency`
-8. Create issues in Linear with clear dependency notes in the issue body.
-9. Stop after creating issues and posting a summary.
+8. Identify parent/epic issues and ensure they are not recommended for `agent-ready`.
+9. For dependency chains, identify the single issue that should become `Todo` + `agent-ready` first.
+10. Flag central-file conflict risk when likely files overlap recent merged PRs or include `src/game.js` or `test/game.test.js`.
+11. Create issues in Linear with clear dependency notes in the issue body.
+12. Stop after creating issues and posting a summary.
 
 ## Required Issue Template
 
@@ -57,6 +62,11 @@ Each Linear issue must include:
 - Suggested labels
 - Planner classification
 - Dependencies or blockers
+- Dependency order
+- Blocked-by relationships where possible
+- Visible UI change expected
+- Central-file conflict risk
+- First issue that should become `Todo` + `agent-ready`
 
 ## Default Validation Commands
 
@@ -76,6 +86,10 @@ After creating the issues, report:
 - the created issue identifiers and titles
 - each issue classification
 - dependency order
+- blocked-by relationships where possible
+- whether visible UI change is expected for each issue
+- central-file conflict risk for each issue
+- which single issue should become `Todo` + `agent-ready` first
 - which issues still need human review before `agent-ready`
 
 Do not implement anything.

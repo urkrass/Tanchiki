@@ -41,6 +41,8 @@ npm run dev
 
 Run `npm run dev`, then open `http://localhost:5173`.
 
+If port `5173` is already occupied, do not treat that alone as a prototype failure. Check whether the existing server is usable at `http://localhost:5173`; if it is stale, stop that process and rerun `npm run dev`.
+
 Use Arrow keys or WASD to move. Press Space to fire a shell in the tank's current facing direction. Enemy sentries fire when they have clear row/column line of sight. Press `R` to restart.
 
 ## Git Discipline
@@ -125,6 +127,21 @@ Codex must not pick `Backlog` issues and must not move an issue to `Done` until 
 
 Use `prompts/codex-next-agent-ready.md` to start a Level 2 agent-ready run.
 
+Before creating a Level 2 branch, Codex must run:
+
+```powershell
+git fetch --prune origin
+git switch main
+git pull --ff-only origin main
+git status --short
+```
+
+Campaign chains must expose only one `Todo` + `agent-ready` implementation issue at a time. Parent or epic issues must not have `agent-ready`; blocked and `human-review` issues must not be implemented until a human explicitly makes them eligible.
+
+Before implementation, Codex should inspect recent merged PRs or git history. If the issue touches files changed by the previous one to three merged PRs, Codex must report conflict risk. Repeated changes to `src/game.js` or `test/game.test.js` should trigger a seam-extraction recommendation.
+
+If a PR conflicts with `main`, resolve conflicts on the PR branch, preserve both behaviors, rerun validation, push the PR branch, and do not merge automatically.
+
 ## Level 3 Planner Workflow
 
 Level 3 lets Codex turn a high-level campaign brief into small Linear issues without implementing gameplay.
@@ -146,12 +163,16 @@ Planner agents must not:
 - mark issues `agent-ready` automatically unless explicitly instructed
 - move issues into implementation states
 
+Planner agents must also avoid applying `agent-ready` to parent, epic, blocked, or `human-review` issues. They may recommend `agent-ready candidate` items, but a human controls which single dependency-chain issue becomes `Todo` + `agent-ready` first.
+
 Every planned issue must be classified as one of:
 
 - `agent-ready candidate`
 - `human-review required`
 - `human-only`
 - `blocked/dependency`
+
+Every planned issue must also include dependency order, blocked-by relationships where possible, whether visible UI change is expected, central-file conflict risk, and which issue should become `Todo` + `agent-ready` first.
 
 Use these files for Level 3 planning:
 

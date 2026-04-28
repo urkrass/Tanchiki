@@ -47,6 +47,10 @@ Every issue must be classified as one of:
 
 The planner may suggest labels in the issue body. The planner must not apply `agent-ready` automatically unless explicitly instructed.
 
+For dependency chains, the planner may recommend which issue should become `Todo` + `agent-ready` first, but only one implementation issue in the chain should hold that combination at a time.
+
+Parent, epic, blocked, and `human-review` issues must not receive `agent-ready`. A `human-review` issue may become implementation-ready only after a human explicitly moves it to `Todo` and applies `agent-ready`.
+
 Recommended labels include:
 
 - `gameplay`
@@ -70,6 +74,22 @@ Blocks: Follow-up level content issues.
 ```
 
 Do not hide blocked work behind an `agent-ready candidate` classification.
+
+Where possible, create or preserve blocked-by relationships in Linear. If the tool cannot express the relationship, write explicit `Depends on:` and `Blocks:` lines in the issue body.
+
+## Visibility Rules
+
+Every planned issue must say whether a visible UI change is expected.
+
+For internal-only issues such as state, XP reward calculation, catalog definitions, harness rules, or pure validation, state: `Visible UI change expected: no`.
+
+If visible UI depends on a later issue, name that later issue or describe the follow-up.
+
+## Conflict-Risk Rules
+
+Before finalizing issues, consider recent merged PRs or git history when available. Flag central-file conflict risk when likely files include `src/game.js`, `test/game.test.js`, or files modified by the previous one to three merged PRs.
+
+If several planned issues would touch the same central files, add a seam-extraction issue before continued feature work.
 
 ## Anti-Patterns
 
