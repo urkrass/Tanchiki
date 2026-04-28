@@ -1,3 +1,5 @@
+import { createProgressionFeedback } from "./game/progressionFeedback.js";
+
 export function renderGame(context, snapshot) {
   const { level, player, pickups, projectiles, impacts, targets, missionSummary, tileSize } = snapshot;
   const width = level.width * tileSize;
@@ -18,7 +20,7 @@ export function renderGame(context, snapshot) {
   drawProjectiles(context, projectiles, tileSize);
   drawImpacts(context, impacts, tileSize);
   drawTank(context, player, tileSize);
-  drawMissionSummary(context, missionSummary, width, height);
+  drawMissionSummary(context, missionSummary, createProgressionFeedback(snapshot), width, height);
 }
 
 function drawPickups(context, pickups = [], tileSize) {
@@ -207,13 +209,14 @@ function colorForTarget(target) {
   return "#8d3e34";
 }
 
-function drawMissionSummary(context, summary, width, height) {
+function drawMissionSummary(context, summary, progressionFeedback, width, height) {
   if (!summary) {
     return;
   }
 
+  const progressionRows = progressionFeedback?.rows ?? [];
   const panelWidth = Math.min(width - 72, 520);
-  const panelHeight = summary.failureReason ? 268 : 244;
+  const panelHeight = (summary.failureReason ? 268 : 244) + (progressionRows.length * 28);
   const panelX = (width - panelWidth) / 2;
   const panelY = (height - panelHeight) / 2;
 
@@ -239,6 +242,7 @@ function drawMissionSummary(context, summary, width, height) {
   if (summary.failureReason) {
     rows.push(["Reason", summary.failureReason]);
   }
+  rows.push(...progressionRows.map((row) => [row.label, row.value]));
 
   context.textAlign = "left";
   context.font = "15px system-ui, sans-serif";
