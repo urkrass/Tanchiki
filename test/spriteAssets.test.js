@@ -141,6 +141,41 @@ test("sprite loader reports ready image state when the image factory loads", asy
   assert.equal(frame.imageElement.src, "https://example.test/assets/sprites/tanks/player.png");
 });
 
+test("sprite loader reports missing image state when image construction is unavailable", async () => {
+  const store = createSpriteAssetStore({
+    manifest: directionalManifest,
+    imageFactory: () => null
+  });
+
+  await store.load();
+
+  assert.equal(store.getImageState("sprites/tanks/player.png").status, SPRITE_STATUS.MISSING);
+  assert.equal(store.getFrame("player_tank", "idle", "up").status, SPRITE_STATUS.MISSING);
+});
+
+test("sprite loader clears stale image states when a fetched manifest changes", async () => {
+  const manifests = [
+    directionalManifest,
+    { meta: { tileSize: 48 }, sheets: {} }
+  ];
+  const store = createSpriteAssetStore({
+    manifestUrl: "https://example.test/assets/sprites/manifest.json",
+    fetchFn: async () => ({
+      ok: true,
+      json: async () => manifests.shift()
+    }),
+    baseUrl: "https://example.test/assets/sprites/manifest.json",
+    imageFactory: createFakeImageFactory("load")
+  });
+
+  await store.load();
+  assert.equal(store.getImageState("sprites/tanks/player.png").status, SPRITE_STATUS.READY);
+
+  await store.load();
+  assert.equal(store.getImageState("sprites/tanks/player.png").status, SPRITE_STATUS.MISSING);
+  assert.equal(store.getFrame("player_tank", "idle", "up").status, SPRITE_STATUS.MISSING);
+});
+
 test("sprite loader converts invalid provided manifests into fallback-safe errors", async () => {
   const store = createSpriteAssetStore({
     manifest: {
