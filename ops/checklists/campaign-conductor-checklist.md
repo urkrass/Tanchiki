@@ -67,10 +67,11 @@ Use this checklist for one Campaign Conductor run.
 - [ ] Do not apply `merge:auto-eligible`.
 - [ ] Do not create a looping campaign runner.
 - [ ] For low-risk auto-merge burn-in, stop at the human merge-label gate and report: "Human must apply `merge:auto-eligible` using normal GitHub identity."
+- [ ] If a prior burn-in result was inconclusive but the campaign continues,
+      cite the explicit operator continuation record in the promotion comment.
 - [ ] Keep Coder/Test issues `In Review` while their PR is open.
 - [ ] Recommend PR-producing Coder/Test issues `Done` only after the PR is confirmed merged or the recorded outcome allows it.
 - [ ] Recommend paired Reviewer issues `Done` only after the review decision is posted and acted on.
 - [ ] Recommend final-audit Reviewer issues `Done` only after audit findings are posted and accepted or acted on.
 - [ ] Add a Linear comment for every promotion, metadata repair, or legacy `blocked` label removal with changed fields, eligibility reason, satisfied blockers, PR/check evidence, and next expected Dispatcher role.
 - [ ] Add a Linear comment for every refusal with missing labels, blockers, ambiguity, and human action required.
-
