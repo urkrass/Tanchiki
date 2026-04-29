@@ -49,6 +49,7 @@ Use this checklist for one Campaign Conductor run.
 - [ ] For Test, confirm the implementation PR is merged or the issue explicitly tests an already-merged artifact.
 - [ ] For Test, confirm the issue remains test-only and not product-changing.
 - [ ] For paired-review Reviewer, confirm the linked PR exists.
+- [ ] For paired-review Reviewer, confirm the linked PR belongs to the upstream Coder/Test issue.
 - [ ] For paired-review Reviewer, confirm the linked PR is open.
 - [ ] For paired-review Reviewer, confirm the linked PR is not Draft.
 - [ ] For paired-review Reviewer, confirm the linked PR is unmerged.
