@@ -9,7 +9,7 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const step = 1 / 60;
 
 test("first public demo page keeps objective, controls, and live status visible", () => {
-  assert.match(html, /Destroy the enemy base, survive the maze, then choose one upgrade before advancing\./);
+  assert.match(html, /Level 1 starts with a single job: reach and destroy the enemy base, then choose one upgrade before the next fight\./);
   assert.match(html, /<div class="demo-brief" aria-label="Demo quick start">/);
   assert.match(html, /<strong>Move<\/strong> WASD or Arrow keys/);
   assert.match(html, /<strong>Fire<\/strong> Space/);
@@ -45,11 +45,13 @@ test("demo campaign exposes readable mission status for the opening minute", () 
   const status = harness.game.statusText(harness.input);
 
   assert.match(status, /Level 1\/3/);
-  assert.match(status, /Mission playing/);
+  assert.match(status, /Mission playing\./);
+  assert.match(status, /Objective: destroy the enemy base/);
   assert.match(status, /HP 3\/3/);
-  assert.match(status, /Enemy tanks 3/);
-  assert.match(status, /Space: fire shell/);
+  assert.match(status, /Enemy tanks left 3/);
+  assert.match(status, /Space fires in the direction you face/);
   assert.match(status, /Enemy base HP 6\/6/);
+  assert.match(status, /Collect \+, A, and S pickups when safe/);
 });
 
 function createCampaignHarness(options = {}) {

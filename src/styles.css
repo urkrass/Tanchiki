@@ -30,6 +30,7 @@ body {
 
 .game-copy {
   max-width: 640px;
+  min-width: 0;
 }
 
 .demo-brief {
@@ -91,6 +92,7 @@ canvas {
   display: grid;
   max-width: 720px;
   gap: 4px;
+  min-width: 0;
 }
 
 .status-label {
@@ -108,6 +110,7 @@ canvas {
   color: #3d4537;
   font-size: 0.95rem;
   line-height: 1.45;
+  overflow-wrap: break-word;
 }
 
 .upgrade-panel {

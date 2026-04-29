@@ -285,7 +285,7 @@ test("status text calls out sentry warning and player invulnerability", () => {
   assert.match(harness.statusText(), /Sentry warning/);
 
   harness.advance(1);
-  assert.match(harness.statusText(), /Invulnerable/);
+  assert.match(harness.statusText(), /Armor recovery/);
 });
 
 test("debug state exposes combat fairness tuning", () => {
