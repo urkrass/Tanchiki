@@ -357,30 +357,35 @@ export function createGame(options = {}) {
 
     statusText(input) {
       const cooldownMs = Math.ceil(projectiles.cooldownRemaining * 1000);
-      const shotText = lastShotAccepted
-        ? "Shell fired."
-        : `Space: fire shell (${Math.round(projectiles.cooldownSeconds * 1000)}ms cooldown).`;
-      const cooldownText = cooldownMs > 0 ? ` Cooldown ${cooldownMs}ms.` : "";
       const base = targets.find((target) => target.type === "base" && target.team === "enemy");
       const liveEnemyTanks = targets.filter((target) => (
         target.type === "dummy"
         && target.team === "enemy"
         && target.alive
       )).length;
-      const baseText = base ? ` Enemy base HP ${base.hp}/${ENEMY_BASE_HP}.` : "";
       const aimingEnemy = targets.find((target) => (
         target.alive
         && target.aimDirection
         && (target.aimRemainingSeconds ?? 0) > 0
       ));
       const aimText = aimingEnemy
-        ? ` Sentry warning ${Math.ceil(aimingEnemy.aimRemainingSeconds * 1000)}ms.`
+        ? ` Sentry warning: move out of the line in ${Math.ceil(aimingEnemy.aimRemainingSeconds * 1000)}ms.`
         : "";
       const invulnerabilityText = playerState.invulnerabilityRemaining > 0
-        ? ` Invulnerable ${Math.ceil(playerState.invulnerabilityRemaining * 1000)}ms.`
+        ? ` Armor recovery ${Math.ceil(playerState.invulnerabilityRemaining * 1000)}ms.`
         : "";
-      const pickupText = ` Ammo reserve ${playerState.ammoReserve}. Shield ${playerState.shieldCharges}.`;
-      return `Mission ${missionStatus} - HP ${playerState.hp}/${playerState.maxHp} - Cell ${player.gridX}, ${player.gridY} - Facing ${player.facing} - Enemy tanks ${liveEnemyTanks}. ${shotText}${cooldownText}${baseText}${aimText}${invulnerabilityText}${pickupText}`;
+      const baseText = base
+        ? `Enemy base ${base.destroyed ? "destroyed" : `HP ${base.hp}/${ENEMY_BASE_HP}`}.`
+        : "Enemy base not found.";
+      const shotText = lastShotAccepted
+        ? "Shell fired."
+        : cooldownMs > 0
+        ? `Cannon reloading ${cooldownMs}ms.`
+        : "Space fires in the direction you face.";
+      const pickupText = playerState.shieldCharges > 0
+        ? `Shield ready (${playerState.shieldCharges}).`
+        : "Collect +, A, and S pickups when safe.";
+      return `Mission ${missionStatus}. Objective: destroy the enemy base. HP ${playerState.hp}/${playerState.maxHp}. Enemy tanks left ${liveEnemyTanks}. ${baseText} ${shotText}${aimText}${invulnerabilityText} ${pickupText}`;
     },
 
     debugState() {
