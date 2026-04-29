@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -1077,6 +1077,77 @@ test("context economy planning and routing prompts preserve pack boundaries", ()
     "Record a reason before broad repo scans.",
   ]) {
     assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("context manifest defines required loading and stop rules", () => {
+  const manifestPath = join(root, "ops", "context-manifest.md");
+  assert.equal(existsSync(manifestPath), true);
+
+  const manifest = readRepoFile("ops", "context-manifest.md");
+
+  for (const expected of [
+    "## Always-Load Context",
+    "## Role-Specific Context",
+    "Token saving must never skip safety-critical docs",
+    "Broad-Scan Justification Rule",
+    "Record the reason for any broad repo scan in Linear, the PR body, the review",
+    "Missing-Context Stop Rule",
+    "Stop and ask for human or operator triage when required context is missing",
+    "Stop when the issue lacks exactly one role/type/risk/validation label",
+  ]) {
+    assert.match(manifest, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("short prompts require active project and context manifest", () => {
+  const promptPaths = [
+    ["prompts", "short", "planner.md"],
+    ["prompts", "short", "conductor.md"],
+    ["prompts", "short", "dispatcher.md"],
+    ["prompts", "short", "reviewer-app-dispatcher.md"],
+    ["prompts", "short", "release.md"],
+  ];
+
+  for (const pathParts of promptPaths) {
+    const prompt = readRepoFile(...pathParts);
+    assert.match(prompt, /Active Linear project:/);
+    assert.match(prompt, /ops\/context-manifest\.md/);
+  }
+});
+
+test("short role prompts preserve conductor dispatcher and reviewer app boundaries", () => {
+  const conductor = readRepoFile("prompts", "short", "conductor.md");
+  const dispatcher = readRepoFile("prompts", "short", "dispatcher.md");
+  const reviewerApp = readRepoFile("prompts", "short", "reviewer-app-dispatcher.md");
+
+  for (const expected of [
+    "Do not run Dispatcher.",
+    "Do not implement code.",
+    "Do not review PRs.",
+    "Do not merge.",
+  ]) {
+    assert.match(conductor, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "Work one issue only.",
+    "Stop if the issue lacks exactly one `role:*`, `type:*`, `risk:*`, or `validation:*` label.",
+    "Do not merge.",
+    "Do not mark Done.",
+  ]) {
+    assert.match(dispatcher, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "Reviewer App identity",
+    "Use Reviewer App identity only for PR inspection, review comments, and review submission.",
+    "Do not merge.",
+    "Do not apply GitHub labels.",
+    "Do not apply `merge:auto-eligible`.",
+    "Do not remove stop labels.",
+  ]) {
+    assert.match(reviewerApp, new RegExp(escapeRegExp(expected)));
   }
 });
 
