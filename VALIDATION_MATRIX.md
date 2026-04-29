@@ -66,6 +66,12 @@ Dispatcher eligibility does not imply merge eligibility. PR acceptance and any
 future auto-merge path must also satisfy `ops/policies/pr-acceptance.md` and
 `ops/checklists/pr-acceptance-checklist.md`.
 
+Context-pack or `model_hint` guidance does not change Dispatcher eligibility.
+Use `ops/policies/context-economy.md` and
+`ops/checklists/context-pack-checklist.md` to shape context, but still enforce
+exactly one role, type, risk, and validation profile plus all stop-label,
+blocked-by, safety, PR metadata, and human-gate requirements.
+
 ## Campaign Conductor Eligibility
 
 The Campaign Conductor may expose only one next campaign issue per run. It uses
