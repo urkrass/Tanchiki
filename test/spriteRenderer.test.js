@@ -53,9 +53,9 @@ test("renderGame keeps primitive fallback when sprite frames fail", () => {
   });
 
   assert.equal(context.callsByName.drawImage.length, 0);
-  assert.ok(hasCall(context, "fillRect", [-15, -18, 30, 36]));
-  assert.ok(hasCall(context, "fillRect", [-16, -16, 32, 32]));
-  assert.ok(hasCall(context, "fillRect", [-20, -20, 40, 40]));
+  assert.ok(hasCall(context, "fillRect", [-14, -18, 28, 34]));
+  assert.ok(hasCall(context, "strokeRect", [-13, -13, 26, 27]));
+  assert.ok(hasCall(context, "fillRect", [-21, -16, 42, 32]));
   assert.ok(hasCall(context, "fillRect", [-4, -10, 8, 20]));
   assert.deepEqual(spriteRequests.map((request) => request.spriteId), [
     "sentry_tank",
@@ -126,7 +126,8 @@ test("renderGame keeps the damage flash primitive for the player tank", () => {
   });
 
   assert.equal(context.callsByName.drawImage.length, 0);
-  assert.ok(hasCall(context, "fillRect", [-15, -18, 30, 36]));
+  assert.ok(hasCall(context, "fillRect", [-14, -18, 28, 34]));
+  assert.ok(hasCall(context, "fillRect", [-4, -31, 8, 28]));
   assert.deepEqual(spriteRequests, []);
 });
 

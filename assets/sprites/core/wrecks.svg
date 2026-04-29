@@ -1,14 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="96" height="48" viewBox="0 0 96 48">
   <g id="tank-wreck">
-    <rect x="10" y="14" width="28" height="22" fill="#5a554c"/>
+    <rect x="8" y="13" width="32" height="24" fill="#5a554c" stroke="#39362f" stroke-width="3"/>
     <rect x="13" y="17" width="22" height="16" fill="#6a6459"/>
+    <rect x="20" y="4" width="8" height="16" fill="#777166"/>
     <path d="M15 16l18 18M33 16L15 34" stroke="#2e2f27" stroke-width="4" stroke-linecap="square"/>
     <rect x="12" y="36" width="24" height="3" fill="#39362f" opacity="0.6"/>
   </g>
   <g id="base-wreck" transform="translate(48 0)">
-    <rect x="7" y="11" width="34" height="28" fill="#5a554c"/>
+    <rect x="4" y="38" width="40" height="5" fill="#39362f" opacity="0.68"/>
+    <rect x="5" y="10" width="38" height="29" fill="#5a554c" stroke="#39362f" stroke-width="4"/>
     <rect x="11" y="15" width="26" height="20" fill="#6a6459"/>
+    <rect x="19" y="2" width="10" height="17" fill="#777166"/>
     <path d="M13 16l22 18M35 16L13 34" stroke="#2e2f27" stroke-width="4" stroke-linecap="square"/>
-    <rect x="8" y="37" width="32" height="3" fill="#39362f" opacity="0.6"/>
   </g>
 </svg>

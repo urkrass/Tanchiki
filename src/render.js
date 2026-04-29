@@ -151,17 +151,32 @@ function drawTank(context, player, tileSize, spriteAssets = null) {
   }
 
   context.rotate(rotationFor(player.facing));
-  context.fillStyle = player.damageFlashSeconds > 0 ? "#d9c56f" : "#345f3c";
-  context.fillRect(-15, -18, 30, 36);
-  context.fillStyle = "#243d2a";
-  context.fillRect(-19, -16, 7, 32);
-  context.fillRect(12, -16, 7, 32);
-  context.fillStyle = "#d9c56f";
-  context.fillRect(-5, -28, 10, 24);
-  context.fillStyle = "#263728";
-  context.fillRect(-9, -10, 18, 18);
+  drawPlayerTankPrimitive(context, player.damageFlashSeconds > 0);
 
   context.restore();
+}
+
+function drawPlayerTankPrimitive(context, isFlashing) {
+  context.fillStyle = "#243d2a";
+  context.fillRect(-20, -15, 8, 30);
+  context.fillRect(12, -15, 8, 30);
+  context.fillStyle = isFlashing ? "#d9c56f" : "#345f3c";
+  context.fillRect(-14, -18, 28, 34);
+  context.strokeStyle = "#1f2d22";
+  context.lineWidth = 3;
+  context.strokeRect(-14, -18, 28, 34);
+  context.fillStyle = isFlashing ? "#f1dfa2" : "#467c50";
+  context.fillRect(-10, -15, 20, 26);
+  context.fillStyle = "#d9c56f";
+  context.fillRect(-4, -31, 8, 28);
+  context.fillStyle = "#263728";
+  context.fillRect(-9, -10, 18, 18);
+  context.fillStyle = "#e6d184";
+  context.beginPath();
+  context.moveTo(0, -22);
+  context.lineTo(8, -14);
+  context.lineTo(-8, -14);
+  context.fill();
 }
 
 function drawAimWarnings(context, targets, player, tileSize) {
@@ -207,13 +222,7 @@ function drawTargets(context, targets, tileSize, spriteAssets = null) {
     }
 
     if (!spriteDrawn) {
-      context.fillStyle = target.alive ? colorForTarget(target) : "#5a554c";
-      context.fillRect(-size / 2, -size / 2, size, size);
-      context.strokeStyle = target.alive ? "#40221f" : "#39362f";
-      context.lineWidth = 4;
-      context.strokeRect(-size / 2, -size / 2, size, size);
-      context.fillStyle = target.alive ? "#d9c56f" : "#777166";
-      context.fillRect(-5, target.type === "base" ? -31 : -25, 10, target.type === "base" ? 20 : 16);
+      drawTargetPrimitive(context, target);
     }
 
     if (target.alive) {
@@ -257,6 +266,79 @@ function spriteIdForTarget(target) {
   }
 
   return "sentry_tank";
+}
+
+function drawTargetPrimitive(context, target) {
+  if (!target.alive) {
+    drawWreckPrimitive(context, target.type === "base");
+    return;
+  }
+
+  if (target.type === "base") {
+    drawBasePrimitive(context);
+    return;
+  }
+
+  drawEnemyTankPrimitive(context, target);
+}
+
+function drawEnemyTankPrimitive(context, target) {
+  const bodyColor = colorForTarget(target);
+
+  context.fillStyle = "#552820";
+  context.fillRect(-18, -13, 7, 26);
+  context.fillRect(11, -13, 7, 26);
+  context.fillStyle = bodyColor;
+  context.beginPath();
+  context.moveTo(0, -18);
+  context.lineTo(14, -12);
+  context.lineTo(14, 14);
+  context.lineTo(-14, 14);
+  context.lineTo(-14, -12);
+  context.fill();
+  context.strokeStyle = "#40221f";
+  context.lineWidth = 3;
+  context.strokeRect(-13, -13, 26, 27);
+  context.fillStyle = "#b55347";
+  context.fillRect(-9, -10, 18, 20);
+  context.fillStyle = "#d9c56f";
+  context.fillRect(-3, -26, 6, 22);
+  context.fillStyle = "#40221f";
+  context.fillRect(-8, -6, 16, 12);
+  context.fillStyle = "#e0b64d";
+  context.fillRect(-6, -17, 12, 3);
+}
+
+function drawBasePrimitive(context) {
+  context.fillStyle = "#39201c";
+  context.fillRect(-22, 15, 44, 5);
+  context.fillStyle = "#6f2f2b";
+  context.fillRect(-21, -16, 42, 32);
+  context.strokeStyle = "#40221f";
+  context.lineWidth = 4;
+  context.strokeRect(-21, -16, 42, 32);
+  context.fillStyle = "#823832";
+  context.fillRect(-16, -11, 32, 22);
+  context.fillStyle = "#512520";
+  context.fillRect(-13, -6, 26, 7);
+  context.fillRect(-13, 5, 26, 5);
+  context.fillStyle = "#d9c56f";
+  context.fillRect(-5, -27, 10, 15);
+  context.fillStyle = "#e0b64d";
+  context.strokeStyle = "#d9c56f";
+  context.lineWidth = 2;
+  context.strokeRect(-10, -21, 20, 9);
+}
+
+function drawWreckPrimitive(context, isBase) {
+  const size = isBase ? 40 : 32;
+  context.fillStyle = "#5a554c";
+  context.fillRect(-size / 2, -size / 2, size, size);
+  context.strokeStyle = "#39362f";
+  context.lineWidth = 4;
+  context.strokeRect(-size / 2, -size / 2, size, size);
+  context.fillStyle = "#777166";
+  context.fillRect(-5, isBase ? -27 : -21, 10, isBase ? 16 : 12);
 }
 
 function drawTargetCue(context, target, centerX, centerY, size) {
