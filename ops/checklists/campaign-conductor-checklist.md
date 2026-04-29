@@ -4,6 +4,13 @@ Use this checklist for one Campaign Conductor run.
 
 - [ ] Read the active campaign issues in Linear.
 - [ ] Read dependency order, blocked-by relations, current statuses, labels, and issue bodies.
+- [ ] Use the campaign context pack and issue context packs when present, but
+      verify labels, state, blockers, cadence, stop labels, and PR readiness
+      directly.
+- [ ] Do not infer missing Level 5 metadata from context packs unless the exact
+      label appears in the issue body.
+- [ ] Record the reason for any broad repo scan in the promotion or refusal
+      comment.
 - [ ] Inspect linked GitHub PRs when PR readiness affects promotion.
 - [ ] Identify review cadence before any promotion by inspecting campaign notes, issue descriptions, grooming notes, and Architect comments.
 - [ ] Confirm the cadence is exactly one of `review_cadence: paired-review`, `review_cadence: final-audit`, or `review_cadence: let-architect-decide`.

@@ -18,6 +18,9 @@ Use this checklist before adding an acceptance label, recommending merge, or all
 - [ ] PR metadata check is passing.
 - [ ] CI is passing.
 - [ ] Branch protection requirements are satisfied and not bypassed.
+- [ ] Reviewer started from PR diff, linked issue, context pack when present,
+      validation evidence, and PR metadata.
+- [ ] Any broad repo scan has a recorded reason.
 
 ## Linear Gate
 
@@ -38,6 +41,8 @@ Use this checklist before adding an acceptance label, recommending merge, or all
 - [ ] Docs and harness PRs do not change gameplay behavior.
 - [ ] Test-only PRs do not change gameplay behavior unless explicitly justified.
 - [ ] Protected movement files are not touched unless explicitly authorized by a human-gated movement issue.
+- [ ] Token saving or context-pack guidance was not used to reduce changed-file
+      scrutiny, protected-file checks, gameplay safety checks, or scope review.
 
 ## Auto-Merge Exclusion Gate
 
@@ -130,6 +135,9 @@ completion inconclusive."
 - [ ] PR metadata checks passed after the latest commit.
 - [ ] QA evidence is present when the validation profile or risk level requires it.
 - [ ] Harness or checklist wording changes were read as clarifications only, not policy or authority expansions.
+- [ ] `model_hint` did not override role/type/risk/validation metadata, safety
+      docs, validation commands, PR readiness, stop labels, or reviewer
+      independence.
 
 ## Final Decision
 
