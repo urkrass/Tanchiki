@@ -40,6 +40,9 @@ rendering, progression, UI behavior, or central-file conflict risk matters.
 Load `ops/policies/pr-acceptance.md` and
 `ops/checklists/pr-acceptance-checklist.md` for PR review, acceptance, labels,
 auto-merge eligibility, Reviewer App identity, or stop-label questions.
+For PR-producing roles, load `.github/PULL_REQUEST_TEMPLATE.md` as the exact
+PR body heading source of truth. Agents must preserve exact heading spelling
+and capitalization.
 
 ## Active-Project Context
 
@@ -110,9 +113,11 @@ or has `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
 
 ### Coder
 
-Load the selected issue, issue context pack, direct blockers, campaign context
-pack, listed files, required safety docs, relevant role prompts or policies,
-validation profile, and PR metadata requirements.
+Load the selected issue body, issue context pack, direct blockers, campaign
+context pack when present, listed files, `VALIDATION_MATRIX.md`,
+`.github/PULL_REQUEST_TEMPLATE.md`, `ops/checklists/pr-acceptance-checklist.md`,
+required safety docs, relevant role prompts or policies, validation profile,
+and PR metadata requirements.
 
 Coder reads narrowly first and broadens only with a recorded reason. Harness
 or docs issues must not change gameplay, movement, rendering, progression,
@@ -122,8 +127,10 @@ work and the required human gates are satisfied.
 
 ### Test Agent
 
-Load the selected issue, issue context pack, targeted test surface, campaign
-context pack, safety docs, and validation profile.
+Load the selected issue body, issue context pack, targeted test surface,
+campaign context pack when present, `VALIDATION_MATRIX.md`,
+`.github/PULL_REQUEST_TEMPLATE.md`, `ops/checklists/pr-acceptance-checklist.md`,
+safety docs, validation profile, and relevant files.
 
 Test work must remain test-only unless the issue explicitly scopes behavior
 changes. Do not change production behavior to satisfy static tests.

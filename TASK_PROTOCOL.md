@@ -215,7 +215,11 @@ an explicitly scoped auto-merge candidate, auto-merge burn-in PR, or
 `review_cadence: paired-review` producer PR with passing validation, mark it
 ready for review before the Coder or Test session stops. Paired-review PRs must
 be open, non-draft, unmerged, and passing required checks before the paired
-Reviewer issue may run. Fill the PR template with:
+Reviewer issue may run.
+
+`.github/PULL_REQUEST_TEMPLATE.md` is the canonical source of required PR body
+headings. Preserve exact heading spelling and capitalization. Do not rename,
+shorten, or replace headings with older variants. Fill the PR template with:
 
 - linked Linear issue
 - active Linear project
@@ -224,6 +228,7 @@ Reviewer issue may run. Fill the PR template with:
 - files changed
 - tests run
 - manual QA
+- broad scan reason
 - conflict risk
 - visible UI expectation
 - known limitations

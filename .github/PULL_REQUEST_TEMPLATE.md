@@ -1,3 +1,10 @@
+<!--
+Canonical PR body heading source of truth.
+Preserve the exact heading spelling and capitalization in this template. Do
+not rename headings, shorten headings, or replace them with older variants.
+Keep Broad Scan Reason even when the answer is "No broad scan was used."
+-->
+
 ## Linked Linear Issue
 
 Closes:
@@ -24,6 +31,10 @@ Active Linear project:
 -
 
 ## Manual QA
+
+-
+
+## Broad Scan Reason
 
 -
 

@@ -707,6 +707,88 @@ test("PR acceptance checklist and template guard auto-merge gates without live G
   }
 });
 
+test("PR template is canonical source for exact body headings", () => {
+  const template = readRepoFile(".github", "PULL_REQUEST_TEMPLATE.md");
+
+  for (const expected of [
+    "Canonical PR body heading source of truth.",
+    "Preserve the exact heading spelling and capitalization in this template.",
+  ]) {
+    assert.match(template, new RegExp(escapeRegExp(expected)));
+  }
+  assert.match(
+    template,
+    /Do\s+not rename headings,\s+shorten headings,\s+or replace them with older variants\./,
+  );
+
+  for (const heading of [
+    "Linked Linear Issue",
+    "Role / Type / Risk / Validation",
+    "Summary",
+    "Files Changed",
+    "Tests Run",
+    "Manual QA",
+    "Broad Scan Reason",
+    "Conflict Risk",
+    "Visible UI Expectation",
+    "Known Limitations",
+    "Acceptance Labels",
+    "PR Readiness",
+  ]) {
+    assert.match(template, new RegExp(`^## ${escapeRegExp(heading)}$`, "m"));
+  }
+
+  for (const oldHeading of [
+    "Linear",
+    "Files changed",
+    "Validation",
+    "Broad scans",
+  ]) {
+    assert.doesNotMatch(template, new RegExp(`^## ${escapeRegExp(oldHeading)}$`, "m"));
+  }
+});
+
+test("short dispatcher and PR-producing role context preserve exact PR headings", () => {
+  const shortDispatcher = readRepoFile("prompts", "short", "dispatcher.md");
+  const defaultDispatcher = readRepoFile("prompts", "codex-next.md");
+  const manifest = readRepoFile("ops", "context-manifest.md");
+  const coderPrompt = readRepoFile("ops", "prompts", "coder-agent.md");
+  const testPrompt = readRepoFile("ops", "prompts", "test-agent.md");
+  const combinedRolePrompts = `${coderPrompt}\n${testPrompt}`.replaceAll("\r\n", "\n");
+
+  for (const prompt of [shortDispatcher, defaultDispatcher]) {
+    assert.match(prompt, /\.github\/PULL_REQUEST_TEMPLATE\.md/);
+    assert.match(prompt, /required section source of truth/);
+    assert.match(
+      prompt,
+      /Do not rename headings,\s+shorten\s+headings,\s+or\s+replace them with older variants\./,
+    );
+  }
+
+  for (const expected of [
+    "For PR-producing roles, load `.github/PULL_REQUEST_TEMPLATE.md` as the exact",
+    "PR body heading source of truth. Agents must preserve exact heading spelling",
+    "Load the selected issue body",
+    "campaign context pack when present",
+    "`VALIDATION_MATRIX.md`",
+    "`.github/PULL_REQUEST_TEMPLATE.md`",
+    "`ops/checklists/pr-acceptance-checklist.md`",
+    "and relevant files.",
+  ]) {
+    assert.match(manifest, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "Use `.github/PULL_REQUEST_TEMPLATE.md` as the required section source of truth.",
+    "Do not rename headings, shorten headings, or replace them with older variants.",
+    "Do not collapse `## Tests Run` into `## Validation`.",
+    "Do not use\n`## Files changed` when the template says `## Files Changed`.",
+    "Include\n`## Broad Scan Reason`, even when the answer is \"No broad scan was used.\"",
+  ]) {
+    assert.match(combinedRolePrompts, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 test("Reviewer App token helper documents local-only temporary GitHub App identity", () => {
   const script = readRepoFile("scripts", "reviewer-app-token.js");
   const readme = readRepoFile("README.md");

@@ -6,7 +6,7 @@ Use this checklist when changing the automation harness.
 - [ ] `AGENTS.md` is concise and points to the source-of-truth docs.
 - [ ] README explains the Level 1-6 ladder and normal prompts.
 - [ ] GitHub issue templates require role, type, risk, validation, scope, do-not-touch list, acceptance criteria, tests, manual QA, visible UI expectation, and conflict risk.
-- [ ] PR template requires linked issue, role/type/risk/validation, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+- [ ] PR template requires linked issue, role/type/risk/validation, summary, files changed, tests run, manual QA, broad scan reason, conflict risk, visible UI expectation, and known limitations.
 - [ ] CI runs `npm test`, `npm run build`, and `npm run lint`.
 - [ ] PR metadata checking is implemented or documented as future work.
 - [ ] Level 6 smoke-test PRs confirm the PR metadata check result before merge.
