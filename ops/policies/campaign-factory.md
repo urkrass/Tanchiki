@@ -14,6 +14,7 @@ A valid request should provide:
 - requested campaign shape
 - constraints and do-not-touch list
 - primary request category
+- review cadence
 - human approval gates
 - validation expectations
 - visible UI expectation
@@ -33,6 +34,41 @@ Classify the request before creating Linear issues:
 Mixed requests must be split so unsafe or ambiguous decisions become human gate
 issues. Downstream implementation stays in Backlog with blocked-by relations
 until the gate is resolved.
+
+## Review Cadence Modes
+
+Campaign creation must choose or defer a review cadence explicitly. Downstream
+agents must not infer what a Reviewer issue means from title shape alone.
+
+Allowed modes:
+
+- `final-audit`: A campaign-level Reviewer issue audits the complete campaign
+  near the end. Expected inputs are merged or explicitly abandoned campaign PRs.
+  Merged PRs are normal and not a blocker. Reviewer does not approve merge
+  retroactively. Allowed audit decisions are `AUDIT PASSED`,
+  `AUDIT PASSED WITH NOTES`, `HUMAN FOLLOW-UP REQUIRED`, and
+  `BLOCKING FINDING`.
+- `paired-review`: Each PR-producing Coder/Test issue is followed by its own
+  Reviewer issue. Reviewer inspects an open PR before merge. The PR must be
+  open, non-draft, unmerged, and have required checks/metadata according to
+  policy. Allowed pre-merge decisions are `APPROVED FOR AUTO-MERGE AFTER HUMAN
+  APPLIES merge:auto-eligible`, `APPROVED FOR MERGE`, `CHANGES REQUESTED`,
+  `HUMAN REVIEW REQUIRED`, and `BLOCKED`.
+- `let-architect-decide`: Planner may use this when the campaign request is
+  unclear. Architect must choose `final-audit` or `paired-review` and record the decision in Linear with the reason before implementation issues are promoted. Architect must adjust downstream issues before implementation issues are promoted.
+
+Require or strongly recommend `paired-review` for PR acceptance / auto-merge
+policy, Reviewer App / identity / token workflow, GitHub permissions, secrets
+or credentials handling, CI/workflows, deployment, dependencies,
+security-sensitive or trust-boundary work, movement/collision, `risk:medium` or
+higher unless Architect justifies `final-audit`, anything touching
+`src/game.js`, anything touching `src/render.js`, anything touching
+`src/game/movement.js`, and broad architecture changes.
+
+`final-audit` is acceptable for low-risk docs campaigns, low-risk harness
+docs/checklist campaigns, low-risk test-only campaigns, routine release notes,
+campaigns where individual PRs are manually reviewed and merged normally, and
+retrospective campaign summaries.
 
 ## Planning Rules
 
@@ -55,11 +91,18 @@ Every issue must include:
 - Type label
 - Risk label
 - Validation profile
+- Review cadence
 - Dependency order
 - Visible UI expectation
 - Central-file conflict risk
 
 Issues must stay small enough for one Level 4 role pass. Do not create vague tasks such as "improve gameplay", "add campaign", or "polish systems".
+
+Planner must recommend a review cadence for every campaign and include it in
+the campaign summary, relevant issue descriptions, dependency order, and
+grooming notes. Reviewer issue titles must make the cadence clear. Use titles
+like `Reviewer: paired-review PR for <issue id/title>` for a pre-merge review
+and `Reviewer: final audit for <campaign name>` for a campaign-level audit.
 
 ## Level 5 Metadata
 
@@ -97,6 +140,20 @@ The groomed queue must satisfy:
 
 Campaign requests must never directly promote Coder work to `automation-ready`.
 
+Grooming must shape dependencies according to review cadence:
+
+- For `paired-review`, each PR-producing Coder/Test issue blocks its paired
+  Reviewer issue, each paired Reviewer issue blocks the next Coder/Test issue,
+  and Release waits until all paired reviewers and PR-producing issues are
+  Done.
+- For `final-audit`, Coder/Test issues may proceed sequentially after their PRs
+  are merged, a single final-audit Reviewer issue runs after implementation/test
+  PRs are merged or explicitly abandoned, and Release waits for the final-audit
+  Reviewer.
+- For `let-architect-decide`, implementation issues must remain blocked until
+  Architect records `final-audit` or `paired-review` in Linear and the queue is
+  updated.
+
 ## Human Gates
 
 Human approval is required before automation for:
@@ -133,6 +190,7 @@ After creating and grooming a campaign, report:
 
 - issue identifiers and titles
 - role/type/risk/validation for each issue
+- selected or deferred review cadence
 - dependency order
 - first eligible issue
 - blocked-by dependencies

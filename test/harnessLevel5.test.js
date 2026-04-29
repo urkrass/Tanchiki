@@ -649,6 +649,150 @@ test("reviewer app routine statically guards forbidden merge and secret handling
   }
 });
 
+test("campaign request template exposes review cadence choices", () => {
+  const template = readRepoFile(".github", "ISSUE_TEMPLATE", "campaign-request.yml");
+
+  for (const expected of [
+    "Review cadence",
+    "final-audit",
+    "paired-review",
+    "let-architect-decide",
+    "default: 2",
+    "Default is let-architect-decide.",
+    "Choose paired-review for trust-boundary or high-risk work",
+    "choose final-audit for low-risk documentation/test/harness campaigns",
+    "choose let-architect-decide if unsure",
+  ]) {
+    assert.match(template, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("campaign review cadence modes define final-audit and paired-review semantics", () => {
+  const factory = readRepoFile("ops", "policies", "campaign-factory.md");
+  const execution = readRepoFile("ops", "policies", "campaign-execution.md");
+  const readme = readRepoFile("README.md");
+  const reviewerPrompt = readRepoFile("ops", "prompts", "reviewer-agent.md");
+  const combined = `${factory}\n${execution}\n${readme}\n${reviewerPrompt}`;
+
+  for (const expected of [
+    "`final-audit`:",
+    "Expected inputs are merged or explicitly abandoned campaign PRs.",
+    "Merged PRs are normal and not a blocker.",
+    "The Reviewer does not approve merge retroactively",
+    "`paired-review`:",
+    "The Reviewer inspects an open PR before merge.",
+    "The PR must be open, non-draft, unmerged",
+    "`let-architect-decide`:",
+    "Architect must choose `final-audit` or `paired-review`",
+    "record the decision in Linear",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("planner and groomer require cadence recommendation and dependency shaping", () => {
+  const requestPrompt = readRepoFile("prompts", "codex-plan-campaign-request.md");
+  const planAndGroom = readRepoFile("prompts", "codex-plan-and-groom-campaign.md");
+  const planner = readRepoFile("ops", "prompts", "planner-agent.md");
+  const groomer = readRepoFile("ops", "prompts", "campaign-groomer.md");
+  const plannerChecklist = readRepoFile("ops", "checklists", "planner-output-checklist.md");
+  const groomingChecklist = readRepoFile("ops", "checklists", "campaign-grooming-checklist.md");
+  const combined = `${requestPrompt}\n${planAndGroom}\n${planner}\n${groomer}\n${plannerChecklist}\n${groomingChecklist}`;
+
+  for (const expected of [
+    "Planner must recommend a review cadence for every campaign.",
+    "Include review cadence in the campaign summary",
+    "Reviewer: paired-review PR for <issue id/title>",
+    "Reviewer: final audit for <campaign name>",
+    "If review cadence is `let-architect-decide`, an Architect issue must choose `final-audit` or `paired-review` before implementation issues are promoted.",
+    "For `paired-review`, each PR-producing Coder/Test issue blocks its paired Reviewer issue",
+    "For `final-audit`, a single final-audit Reviewer runs after implementation/test PRs are merged or explicitly abandoned.",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("paired-review is recommended for trust-boundary work while final-audit remains low-risk", () => {
+  const factory = readRepoFile("ops", "policies", "campaign-factory.md");
+  const execution = readRepoFile("ops", "policies", "campaign-execution.md");
+  const prAcceptance = readRepoFile("ops", "policies", "pr-acceptance.md");
+  const readme = readRepoFile("README.md");
+  const combined = `${factory}\n${execution}\n${prAcceptance}\n${readme}`;
+
+  for (const expected of [
+    "security-sensitive or trust-boundary work",
+    "Reviewer App / identity / token workflow",
+    "GitHub permissions",
+    "secrets or credentials handling",
+    "CI/workflows",
+    "deployment",
+    "dependencies",
+    "`risk:medium` or higher unless Architect justifies `final-audit`",
+    "`src/game.js`",
+    "`src/render.js`",
+    "`src/game/movement.js`",
+    "low-risk docs campaigns",
+    "low-risk harness docs/checklist campaigns",
+    "low-risk test-only campaigns",
+    "routine release notes",
+    "retrospective campaign summaries",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("conductor separates paired-review open PR rules from final-audit inputs", () => {
+  const conductorPrompt = readRepoFile("ops", "prompts", "campaign-conductor.md");
+  const conductorPolicy = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const conductorChecklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+  const combined = `${conductorPrompt}\n${conductorPolicy}\n${conductorChecklist}\n${protocol}\n${validation}`;
+
+  for (const expected of [
+    "If review cadence is missing or ambiguous, stop",
+    "paired-review",
+    "linked PR is open, non-draft, unmerged",
+    "final-audit",
+    "do not require open PRs",
+    "Treat merged PRs as expected audit inputs",
+    "implementation/test PRs are merged or explicitly abandoned",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+
+  assert.match(
+    combined,
+    /do not promote the next Coder\/Test issue until the previous\s+PR-producing issue and its paired Reviewer issue are Done/i,
+  );
+  assert.match(combined, /Do not apply paired-review\s+open-PR rules to final-audit issues/);
+});
+
+test("reviewer decision vocabulary differs by review cadence", () => {
+  const reviewerPrompt = readRepoFile("ops", "prompts", "reviewer-agent.md");
+  const prAcceptance = readRepoFile("ops", "policies", "pr-acceptance.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+  const combined = `${reviewerPrompt}\n${prAcceptance}\n${validation}`;
+
+  for (const expected of [
+    "Allowed pre-merge paired-review decisions:",
+    "`APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES merge:auto-eligible`",
+    "`APPROVED FOR MERGE`",
+    "`CHANGES REQUESTED`",
+    "`HUMAN REVIEW REQUIRED`",
+    "`BLOCKED`",
+    "Allowed final-audit decisions:",
+    "`AUDIT PASSED`",
+    "`AUDIT PASSED WITH NOTES`",
+    "`HUMAN FOLLOW-UP REQUIRED`",
+    "`BLOCKING FINDING`",
+    "Do not use paired-review open-PR requirements to block a final-audit Reviewer issue.",
+    "Do not use final-audit language to approve an open PR before merge.",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

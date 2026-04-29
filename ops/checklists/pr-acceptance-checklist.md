@@ -4,6 +4,7 @@ Use this checklist before adding an acceptance label, recommending merge, or all
 
 ## Basic PR Gate
 
+- [ ] This is a `paired-review` pre-merge PR acceptance review, not a `final-audit` campaign audit.
 - [ ] PR targets `main`.
 - [ ] PR is not draft before any auto-merge path is considered.
 - [ ] Draft PRs are hard vetoes for auto-merge approval.
@@ -52,6 +53,7 @@ Auto-merge is unavailable if any item below is true:
 - [ ] PR changes save or persistence behavior.
 - [ ] PR touches security-sensitive behavior, secrets, credentials, permissions, tokens, or repository settings.
 - [ ] PR has ambiguous metadata, missing validation evidence, failing CI, pending CI, or stale approval after new commits.
+- [ ] Campaign work should have used `paired-review` because it involves PR acceptance / auto-merge policy, Reviewer App / identity / token workflow, GitHub permissions, secrets or credentials, CI/workflows, deployment, dependencies, security-sensitive or trust-boundary work, movement/collision, `risk:medium` or higher without Architect justification, `src/game.js`, `src/render.js`, `src/game/movement.js`, or broad architecture changes.
 
 If any exclusion is true, use `merge:human-required` or `merge:do-not-merge`.
 
@@ -134,3 +136,4 @@ completion inconclusive."
 - [ ] Human required: human must decide before merge.
 - [ ] Auto-merge eligible: all gates passed, no stop label is present, any previous stop-label removal was approved by a human operator, and the repository policy/workflow explicitly allows it.
 - [ ] Do not merge: blocking issue exists.
+- [ ] Final-audit outcomes are not PR acceptance decisions; use `AUDIT PASSED`, `AUDIT PASSED WITH NOTES`, `HUMAN FOLLOW-UP REQUIRED`, or `BLOCKING FINDING` only for campaign final audits over merged or explicitly abandoned PRs.

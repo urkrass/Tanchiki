@@ -63,6 +63,24 @@ Gate labels:
 - `human-only`
 - `risk:human-only`
 
+Review cadence modes:
+
+- `final-audit`: a campaign-level Reviewer issue audits the complete campaign
+  near the end. Expected inputs are merged or explicitly abandoned campaign PRs.
+  Merged PRs are normal and not a blocker. The Reviewer does not approve merge
+  retroactively and uses `AUDIT PASSED`, `AUDIT PASSED WITH NOTES`,
+  `HUMAN FOLLOW-UP REQUIRED`, or `BLOCKING FINDING`.
+- `paired-review`: each PR-producing Coder/Test issue is followed by its own
+  Reviewer issue. The Reviewer inspects an open PR before merge. The PR must be
+  open, non-draft, unmerged, and have required checks/metadata according to
+  policy. The Reviewer uses `APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES
+  merge:auto-eligible`, `APPROVED FOR MERGE`, `CHANGES REQUESTED`,
+  `HUMAN REVIEW REQUIRED`, or `BLOCKED`.
+- `let-architect-decide`: Planner may use this when the campaign request is
+  unclear. Architect must choose `final-audit` or `paired-review`, record the
+  decision in Linear with the reason, and adjust downstream issues before
+  implementation issues are promoted.
+
 Dependency source of truth:
 
 - Use Linear blocked-by / blocks relations for ordinary campaign sequencing.
@@ -76,6 +94,8 @@ Deprecated ambiguous usage:
 - Do not use `blocked` for ordinary campaign dependency sequencing; treat it as a legacy label only.
 - Use `needs-human-approval` for human gates.
 - Use `role:reviewer` for reviewer-agent work.
+- Do not create ambiguous Reviewer issues. Titles and issue bodies must state
+  whether the Reviewer is `paired-review` or `final-audit`.
 
 ## Campaign Grooming
 
@@ -92,6 +112,8 @@ After a planner creates campaign issues, the Planner must run the Campaign Groom
 - ensure no issue with `risk:human-only` has `automation-ready`
 - ensure parent and umbrella issues remain unready for automation
 - add a grooming comment with queue order and human actions
+- include review cadence in the campaign summary, relevant issue descriptions,
+  dependency order, and grooming notes
 
 If the campaign needs architecture review first, the groomer may make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready` after assigning exactly one type, risk, and validation label. Coder issues must stay Backlog with blocked-by relations immediately after planning unless the user explicitly requested a Coder issue to run first.
 
@@ -101,6 +123,46 @@ Downstream defaults:
 - Test issues stay Backlog with blocked-by relations until implementation PRs are merged or ready.
 - Reviewer issues stay Backlog with blocked-by relations until implementation/test PRs exist.
 - Release issues stay Backlog with blocked-by relations until review is done.
+
+Review cadence dependency defaults:
+
+- `paired-review`: Coder/Test issue blocks its paired Reviewer issue; paired
+  Reviewer issue blocks the next Coder/Test issue; Release waits until all
+  paired reviewers and PR-producing issues are Done. Example order: Architect,
+  Human gate, Coder A, Reviewer A, Coder B, Reviewer B, Test, Reviewer Test,
+  Release.
+- `final-audit`: Coder/Test issues may proceed sequentially after their PRs are
+  merged; one final-audit Reviewer issue runs after implementation/test PRs are
+  merged or explicitly abandoned; Release waits for final-audit Reviewer.
+  Example order: Architect, Human gate, Coder A, Coder B, Test, Final-audit
+  Reviewer, Release.
+- `let-architect-decide`: implementation issues stay blocked until Architect
+  chooses `final-audit` or `paired-review`, records the decision in Linear, and
+  downstream dependencies are adjusted.
+
+Use `paired-review` for PR acceptance / auto-merge policy, Reviewer App /
+identity / token workflow, GitHub permissions, secrets or credentials handling,
+CI/workflows, deployment, dependencies, security-sensitive or trust-boundary
+work, movement/collision, `risk:medium` or higher unless Architect justifies
+`final-audit`, anything touching `src/game.js`, anything touching
+`src/render.js`, anything touching `src/game/movement.js`, and broad
+architecture changes.
+
+Use `final-audit` for low-risk docs campaigns, low-risk harness docs/checklist
+campaigns, low-risk test-only campaigns, routine release notes, campaigns where
+individual PRs are manually reviewed and merged normally, and retrospective
+campaign summaries.
+
+## Issue Completion Rules
+
+- PR-producing issues stay `In Review` while their PR is open.
+- PR-producing issues become `Done` only after PR merge or recorded
+  abandonment.
+- Paired Reviewer issues become `Done` after the review decision is posted and
+  acted on.
+- Final-audit Reviewer issues become `Done` after audit findings are posted and
+  accepted or acted on.
+- Release issues run only after the appropriate review cadence is complete.
 
 ## Branch Freshness
 

@@ -283,11 +283,14 @@ the issue body. Ordinary campaign dependencies use Linear blocked-by / blocks
 relations, not the `blocked` label. For legacy issues only, the Conductor may
 remove a Linear issue `blocked` label under the strict conditions in
 `ops/policies/campaign-conductor.md`; it must comment with the blocker evidence.
-Reviewer promotion requires an open, non-draft linked PR with required checks
-passing when policy requires them; Draft PRs remain blockers. For low-risk
-auto-merge burn-in campaigns, the Conductor must stop at the human merge-label
-gate and report: "Human must apply `merge:auto-eligible` using normal GitHub
-identity."
+Reviewer promotion depends on review cadence. `paired-review` requires an open,
+non-draft, unmerged linked PR with required checks passing when policy requires
+them; Draft PRs remain blockers. `final-audit` expects merged or explicitly
+abandoned campaign PRs and must not require open PRs. If review cadence is
+missing or ambiguous, the Conductor stops and asks for cadence triage. For
+low-risk auto-merge burn-in campaigns, the Conductor must stop at the human
+merge-label gate and report: "Human must apply `merge:auto-eligible` using
+normal GitHub identity."
 
 Use human review when a task has movement, persistence, destructive repository operations, broad architecture rewrites, broad AI rewrites, or any unclear product decision. Use Level 5 gates for every automated issue. Use Level 6 docs when deciding where logic belongs, which validation profile applies, and whether an issue is safe for automation.
 
@@ -372,6 +375,47 @@ Deprecated ambiguous usage:
 - Do not use `blocked` for ordinary campaign dependency sequencing; treat it as a legacy label only.
 - Use `needs-human-approval` for human gates.
 - Use `role:reviewer` for reviewer-agent work.
+
+## Campaign Review Cadence
+
+Every campaign must declare one review cadence so Planner, Auto-Groomer,
+Conductor, and Reviewer agents know what a Reviewer issue means:
+
+- `final-audit`: a campaign-level Reviewer issue audits the complete campaign
+  near the end. Expected inputs are merged or explicitly abandoned campaign PRs.
+  Merged PRs are normal and not a blocker. The Reviewer does not approve merge
+  retroactively and uses `AUDIT PASSED`, `AUDIT PASSED WITH NOTES`,
+  `HUMAN FOLLOW-UP REQUIRED`, or `BLOCKING FINDING`.
+- `paired-review`: each PR-producing Coder/Test issue is followed by its own
+  Reviewer issue. The Reviewer inspects an open PR before merge. The PR must be
+  open, non-draft, unmerged, and have required checks/metadata according to
+  policy. The Reviewer uses `APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES
+  merge:auto-eligible`, `APPROVED FOR MERGE`, `CHANGES REQUESTED`,
+  `HUMAN REVIEW REQUIRED`, or `BLOCKED`.
+- `let-architect-decide`: Planner may use this when the campaign request is
+  unclear. Architect must choose `final-audit` or `paired-review`, record the
+  decision in Linear with the reason, and adjust downstream issues before
+  implementation issues are promoted.
+
+Use `paired-review` for PR acceptance / auto-merge policy, Reviewer App /
+identity / token workflow, GitHub permissions, secrets or credentials handling,
+CI/workflows, deployment, dependencies, security-sensitive or trust-boundary
+work, movement/collision, `risk:medium` or higher unless Architect justifies
+`final-audit`, anything touching `src/game.js`, `src/render.js`, or
+`src/game/movement.js`, and broad architecture changes.
+
+Use `final-audit` for low-risk docs campaigns, low-risk harness docs/checklist
+campaigns, low-risk test-only campaigns, routine release notes, campaigns where
+individual PRs are manually reviewed and merged normally, and retrospective
+campaign summaries.
+
+Planner must recommend a review cadence for every campaign and carry it through
+the campaign summary, relevant issue descriptions, dependency order, and
+grooming notes. Auto-Groomer shapes dependencies by cadence: `paired-review`
+alternates PR-producing work with paired Reviewer issues, while `final-audit`
+runs one final-audit Reviewer after implementation/test PRs are merged or
+explicitly abandoned. Reviewer issue titles must say `Reviewer: paired-review
+PR for <issue id/title>` or `Reviewer: final audit for <campaign name>`.
 
 ## Level 2 Command Center Workflow
 
