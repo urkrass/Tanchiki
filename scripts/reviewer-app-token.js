@@ -1,9 +1,10 @@
 import { createSign } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 
 const appId = process.env.GITHUB_REVIEWER_APP_ID;
 const installationId = process.env.GITHUB_REVIEWER_INSTALLATION_ID;
 const privateKeyPath = process.env.GITHUB_REVIEWER_PRIVATE_KEY_PATH;
+const currentGhToken = process.env.GH_TOKEN;
 
 main().catch((error) => {
   console.error(`Reviewer App token helper failed: ${error.message}`);
@@ -20,8 +21,20 @@ async function main() {
       "GITHUB_REVIEWER_PRIVATE_KEY_PATH does not point to an existing file.",
     );
   }
+  if (!statSync(privateKeyPath).isFile()) {
+    throw new Error("GITHUB_REVIEWER_PRIVATE_KEY_PATH must point to a file.");
+  }
   console.log("Reviewer App environment check passed.");
   console.log("Private key path exists; private key contents will not be printed.");
+  if (currentGhToken) {
+    console.log("");
+    console.log(
+      "Existing GH_TOKEN detected. It will not be read, replaced on disk, or cleared automatically.",
+    );
+    console.log(
+      "Confirm this shell is a Reviewer session before overwriting GH_TOKEN with the app token.",
+    );
+  }
 
   const privateKey = readFileSync(privateKeyPath, "utf8");
   const jwt = createGitHubAppJwt(appId, privateKey);
@@ -38,8 +51,11 @@ async function main() {
 }
 
 function printReviewerSafetyInstructions() {
-  console.log("Verify repository installation access before reviewer work:");
-  console.log("gh api installation/repositories");
+  console.log("Verify Reviewer App installation access before reviewer work:");
+  console.log("gh api installation/repositories --jq '.repositories[].full_name'");
+  console.log("Expected repository access includes: urkrass/Tanchiki");
+  console.log("");
+  console.log("Record the verified Reviewer App identity/access in review notes.");
   console.log("");
   console.log(
     "Identity warning: this GH_TOKEN is a GitHub App installation token, not a normal user token.",
@@ -47,16 +63,25 @@ function printReviewerSafetyInstructions() {
   console.log(
     "Use it only for Reviewer-agent PR inspection, comments, and reviews as Tanchiki Reviewer.",
   );
+  console.log(
+    "Do not use this Reviewer App GH_TOKEN in Coder sessions or human merge-label sessions.",
+  );
+  console.log(
+    "Coder sessions and human merge-label sessions must use the normal GitHub identity after GH_TOKEN is cleared.",
+  );
   console.log("");
   console.log("Forbidden with this Reviewer App token:");
   console.log("- pushing code or updating PR branches");
   console.log("- merging PRs");
   console.log("- applying merge:auto-eligible");
   console.log("- removing stop labels");
+  console.log("- enabling auto-merge");
   console.log("- changing workflows, repo settings, branch protection, or secrets");
   console.log("");
   console.log("Clear the token after reviewer work:");
   console.log("Remove-Item Env:\\GH_TOKEN -ErrorAction SilentlyContinue");
+  console.log("Then verify the normal identity before coding or human label work:");
+  console.log("gh auth status");
   console.log("");
   console.log("This token is short-lived and was not written to disk.");
 }
