@@ -9,6 +9,7 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Confirm the current state is described.
 - [ ] Confirm constraints and do-not-touch areas are listed.
 - [ ] Confirm requested campaign shape or issue count is provided.
+- [ ] Confirm review cadence is stated as `final-audit`, `paired-review`, or `let-architect-decide`.
 - [ ] Confirm human gates are listed or explicitly absent.
 - [ ] Confirm validation expectations are listed.
 - [ ] Confirm visible UI expectation is stated.
@@ -18,6 +19,10 @@ Use this checklist when converting a self-service campaign request into a groome
 ## Classification
 
 - [ ] Classify the request as `safe planning request`, `needs-human-approval`, or `human-only`.
+- [ ] Recommend a review cadence for every campaign.
+- [ ] Use `paired-review` for trust-boundary or high-risk work, including PR acceptance / auto-merge policy, Reviewer App / identity / token workflow, GitHub permissions, secrets or credentials, CI/workflows, deployment, dependencies, security-sensitive work, movement/collision, `risk:medium` or higher unless Architect justifies `final-audit`, `src/game.js`, `src/render.js`, `src/game/movement.js`, or broad architecture changes.
+- [ ] Use `final-audit` only for acceptable low-risk docs, harness docs/checklist, test-only, routine release note, manual-review, or retrospective campaigns.
+- [ ] If review cadence is `let-architect-decide`, create an Architect issue that must choose `final-audit` or `paired-review` and record the reason in Linear before implementation is promoted.
 - [ ] Split mixed requests so unsafe decisions become separate human gate issues.
 - [ ] Gate gameplay behavior, progression, level tuning, dependency additions, broad architecture, public-demo release decisions, and screenshot pass/fail CI decisions when needed.
 - [ ] Mark movement, collision, spawning, control feel, persistence, credentials, destructive repository work, and broad rewrites as human-only unless a human explicitly approves automation.
@@ -44,9 +49,11 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Include Type label.
 - [ ] Include Risk label.
 - [ ] Include Validation profile.
+- [ ] Include Review cadence.
 - [ ] Include Dependency order.
 - [ ] Include Visible UI expectation.
 - [ ] Include Central-file conflict risk.
+- [ ] Make Reviewer issue titles cadence-specific, such as `Reviewer: paired-review PR for <issue id/title>` or `Reviewer: final audit for <campaign name>`.
 
 ## Label Normalization
 
@@ -64,6 +71,7 @@ Use this checklist when converting a self-service campaign request into a groome
 ## Grooming
 
 - [ ] Run the Campaign Groomer before stopping.
+- [ ] Confirm the grooming comment includes review cadence.
 - [ ] Confirm only one issue in the dependency chain is `Todo` + `automation-ready`.
 - [ ] Confirm the exposed issue is the first safe Architect issue unless a human explicitly approved another safe first issue.
 - [ ] Confirm no Coder issue became automation-ready directly from request intake.
@@ -75,12 +83,15 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Confirm Test issues remain Backlog with blocked-by relations until implementation PRs are merged or ready.
 - [ ] Confirm Reviewer issues remain Backlog with blocked-by relations until implementation or test PRs exist.
 - [ ] Confirm Release issues remain Backlog with blocked-by relations until review is complete.
+- [ ] For `paired-review`, confirm each Coder/Test issue blocks its paired Reviewer issue and each paired Reviewer blocks the next Coder/Test issue.
+- [ ] For `final-audit`, confirm the final-audit Reviewer runs only after implementation/test PRs are merged or explicitly abandoned.
 - [ ] Add a grooming comment with queue order and human gates.
 
 ## Final Report
 
 - [ ] Report issue identifiers and titles.
 - [ ] Report role/type/risk/validation for each issue.
+- [ ] Report selected or deferred review cadence.
 - [ ] Report dependency order.
 - [ ] Report the first eligible issue.
 - [ ] Report blocked-by dependencies.

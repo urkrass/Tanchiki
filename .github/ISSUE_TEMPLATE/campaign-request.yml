@@ -81,6 +81,18 @@ body:
         - Persistence, credentials, destructive repo work, or broad architecture
     validations:
       required: true
+  - type: dropdown
+    id: review-cadence
+    attributes:
+      label: Review cadence
+      description: Default is let-architect-decide. Choose paired-review for trust-boundary or high-risk work; choose final-audit for low-risk documentation/test/harness campaigns; choose let-architect-decide if unsure.
+      options:
+        - final-audit
+        - paired-review
+        - let-architect-decide
+      default: 2
+    validations:
+      required: true
   - type: textarea
     id: human-gates
     attributes:
@@ -138,8 +150,8 @@ body:
       label: Expected Planner + Auto-Groomer output
       description: Confirm the requested campaign output.
       value: |
-        The Planner should create 6-8 small Linear issues when appropriate. Every issue should include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, role/type/risk/validation labels, dependency order, visible UI expectation, and central-file conflict risk.
+        The Planner should create 6-8 small Linear issues when appropriate. Every issue should include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, role/type/risk/validation labels, review cadence, dependency order, visible UI expectation, and central-file conflict risk.
 
-        Auto-Groomer should normalize labels, keep blocked/gated work out of automation, mark human gates with needs-human-approval or human-only, and expose only the first safe Architect issue as Todo + automation-ready.
+        Auto-Groomer should normalize labels, shape blocked-by dependencies according to the review cadence, keep blocked/gated work out of automation, mark human gates with needs-human-approval or human-only, and expose only the first safe Architect issue as Todo + automation-ready.
     validations:
       required: true

@@ -29,9 +29,23 @@ Turn the supplied campaign brief into 5-7 small Linear issues, then groom the ca
 - Keep issues small enough for one Level 4 role pass.
 - Include dependency order, blocked-by relationships, visible UI expectation, central-file conflict risk, suggested role labels, and the first issue that should run.
 - Include suggested type, risk, and validation labels for every issue.
+- Recommend a review cadence for every campaign: `final-audit`, `paired-review`, or `let-architect-decide`.
+- Include review cadence in the campaign summary, every relevant issue description, dependency order, and grooming notes.
+- If using `let-architect-decide`, create an Architect issue that must choose `final-audit` or `paired-review`, record the reason in Linear, and adjust downstream issues before implementation is promoted.
+- Do not create ambiguous Reviewer issues. Use titles such as `Reviewer: paired-review PR for <issue id/title>` or `Reviewer: final audit for <campaign name>`.
 - Do not implement gameplay.
 - Do not edit source files.
 - Do not open a gameplay PR.
+
+## Review Cadence Modes
+
+- `final-audit`: a campaign-level Reviewer issue audits the complete campaign near the end. Expected inputs are merged or explicitly abandoned campaign PRs. Merged PRs are normal and not a blocker. Reviewer does not approve merge retroactively and uses `AUDIT PASSED`, `AUDIT PASSED WITH NOTES`, `HUMAN FOLLOW-UP REQUIRED`, or `BLOCKING FINDING`.
+- `paired-review`: each PR-producing Coder/Test issue is followed by its own Reviewer issue. Reviewer inspects an open PR before merge. The PR must be open, non-draft, unmerged, and have required checks/metadata according to policy. Reviewer uses `APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES merge:auto-eligible`, `APPROVED FOR MERGE`, `CHANGES REQUESTED`, `HUMAN REVIEW REQUIRED`, or `BLOCKED`.
+- `let-architect-decide`: Planner may use this when the campaign request is unclear. Architect must choose `final-audit` or `paired-review` before implementation issues are promoted.
+
+Use `paired-review` for PR acceptance / auto-merge policy, Reviewer App / identity / token workflow, GitHub permissions, secrets or credentials handling, CI/workflows, deployment, dependencies, security-sensitive or trust-boundary work, movement/collision, `risk:medium` or higher unless Architect justifies `final-audit`, anything touching `src/game.js`, `src/render.js`, or `src/game/movement.js`, and broad architecture changes.
+
+Use `final-audit` for low-risk docs campaigns, low-risk harness docs/checklist campaigns, low-risk test-only campaigns, routine release notes, campaigns where individual PRs are manually reviewed and merged normally, and retrospective campaign summaries.
 
 ## Auto-Grooming Work
 
@@ -80,7 +94,10 @@ Immediately after issue creation, groom the same campaign queue:
 - Leave Test issues Backlog with blocked-by relations until implementation PRs are merged or ready.
 - Leave Reviewer issues Backlog with blocked-by relations until implementation/test PRs exist.
 - Leave Release issues Backlog with blocked-by relations until review is done.
-- Add a grooming comment summarizing queue order and required human actions.
+- Shape dependencies according to review cadence.
+- For `paired-review`, each Coder/Test issue blocks its paired Reviewer issue, each paired Reviewer blocks the next Coder/Test issue, and Release waits until all paired reviewers and PR-producing issues are Done.
+- For `final-audit`, Coder/Test issues may proceed sequentially after their PRs are merged, a single final-audit Reviewer runs after implementation/test PRs are merged or explicitly abandoned, and Release waits for the final-audit Reviewer.
+- Add a grooming comment summarizing review cadence, queue order, blocked-by dependencies, and required human actions.
 
 ## Final Report
 
@@ -89,6 +106,7 @@ Report:
 - created issue identifiers and titles
 - final status and applied labels for each issue
 - recommended sequence
+- selected or deferred review cadence
 - the only dispatcher-eligible issue
 - blocked-by dependencies and blockers
 - human-only or `needs-human-approval` issues

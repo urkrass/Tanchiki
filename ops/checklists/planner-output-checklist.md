@@ -17,6 +17,8 @@ Use this checklist before creating, grooming, or reporting Level 3 planner issue
 - Dependencies are preserved and named.
 - Dependency order is explicit.
 - Blocked-by relationships are added or written in the issue body.
+- Review cadence is recommended for every campaign.
+- Review cadence appears in the campaign summary, relevant issue descriptions, dependency order, and grooming notes.
 - Risk level is stated.
 - Suggested labels are included.
 - Suggested role, type, risk, and validation labels are included.
@@ -45,6 +47,7 @@ Each issue includes:
 - Suggested type label
 - Suggested risk label
 - Suggested validation label
+- Review cadence
 - Planner classification
 - Dependencies or blockers
 - Dependency order
@@ -58,6 +61,7 @@ Each issue includes:
 - No gameplay code was edited.
 - No branch or implementation PR was created for gameplay work.
 - No issue was marked `automation-ready` except the single first runnable issue exposed by the required grooming pass.
+- If review cadence is `let-architect-decide`, an Architect issue must choose `final-audit` or `paired-review` before implementation issues are promoted.
 - No parent, epic, unresolved dependency, or `needs-human-approval` issue was marked `automation-ready`.
 - For dependency chains, only one issue is recommended as the first `Todo` + `automation-ready` candidate.
 - No issue was moved into implementation status.
@@ -71,6 +75,9 @@ Each issue includes:
 - Human gates use `needs-human-approval`.
 - Human-only issues use `human-only`.
 - Dependency-blocked issues use blocked-by / blocks relations.
+- Dependencies are shaped for the selected review cadence.
+- For `paired-review`, each PR-producing Coder/Test issue blocks its paired Reviewer issue, and the paired Reviewer blocks the next Coder/Test issue.
+- For `final-audit`, a single final-audit Reviewer runs after implementation/test PRs are merged or explicitly abandoned.
 - Classification mismatches are corrected before automation starts.
 - Only the first runnable issue has `automation-ready`.
 - If architecture review is required first, only the first Architect issue is `Todo` + `role:architect` + `automation-ready`.
@@ -86,6 +93,7 @@ The final planner response includes:
 - created issue identifiers and titles
 - classification for each issue
 - recommended implementation order
+- selected or deferred review cadence
 - dependency notes
 - blocked-by relationships
 - visible UI expectation for each issue

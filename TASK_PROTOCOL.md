@@ -44,9 +44,26 @@ under the strict legacy-label rules in `ops/policies/campaign-conductor.md`;
 it must never remove `needs-human-approval`, `human-only`, `risk:human-only`,
 or PR stop labels.
 
-Reviewer issues require a linked PR that is open, non-draft, and has passing
-required checks when Reviewer policy requires passing checks. Draft PRs block
-Reviewer promotion.
+Campaigns must declare a review cadence before Reviewer promotion:
+
+- `paired-review`: each PR-producing Coder/Test issue is followed by a
+  Reviewer issue that inspects an open PR before merge. Reviewer issues require
+  a linked PR that is open, non-draft, unmerged, and has passing required checks
+  when Reviewer policy requires passing checks. Draft PRs block Reviewer
+  promotion.
+- `final-audit`: a campaign-level Reviewer issue audits merged or explicitly
+  abandoned campaign PRs near the end. Merged PRs are normal audit inputs, not
+  blockers. The Reviewer does not approve merge retroactively.
+- `let-architect-decide`: Architect must choose `final-audit` or
+  `paired-review`, record the reason in Linear, and adjust downstream issues
+  before implementation issues are promoted.
+
+If review cadence is missing or ambiguous, the Conductor stops and comments
+asking for cadence triage. For `paired-review`, the Conductor must not promote
+the next Coder/Test issue until the previous PR-producing issue and its paired
+Reviewer issue are Done. For `final-audit`, the Conductor must not require open
+PRs and must promote the final-audit Reviewer only after implementation/test
+PRs are merged or explicitly abandoned.
 
 For low-risk auto-merge burn-in campaigns, the Conductor may promote Coder,
 Test, and Reviewer issues one at a time, but must stop at the human merge-label
@@ -164,16 +181,23 @@ Move an implementation issue to `In Review` after its PR is open and the
 required draft or ready-for-review posture is set. Do not mark it `Done` until
 the PR is merged or a human explicitly approves closure.
 
-Coder and Test issues should remain `In Review` while their PR is open. They
-may be marked `Done` only after the linked PR is merged or explicitly abandoned
-with a recorded outcome.
+PR-producing issues stay `In Review` while their PR is open. Coder and Test
+issues should remain `In Review` while their PR is open. They may be marked
+`Done` only after the linked PR is merged or explicitly abandoned with a
+recorded outcome.
 
-Reviewer issues may move to `In Review` after their notes are posted, but may
-be marked `Done` only after they post an allowed decision and the downstream
-action is recorded.
+Paired Reviewer issues may move to `In Review` after their notes are posted,
+but may be marked `Done` only after they post an allowed pre-merge decision and
+the downstream action is recorded.
+
+Final-audit Reviewer issues may move to `In Review` after audit findings are
+posted, but may be marked `Done` only after audit findings are accepted or acted
+on. Final-audit Reviewer decisions are `AUDIT PASSED`, `AUDIT PASSED WITH
+NOTES`, `HUMAN FOLLOW-UP REQUIRED`, and `BLOCKING FINDING`.
 
 Release issues may be marked `Done` only after their summary is posted and
-accepted by a human or operator.
+accepted by a human or operator. Release issues run only after the appropriate
+review cadence is complete.
 
 Human gate issues are `Done` only after the human decision or action is
 recorded.

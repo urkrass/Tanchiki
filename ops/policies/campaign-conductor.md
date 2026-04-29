@@ -65,6 +65,23 @@ The Conductor inspects blocked-by relations directly:
 - unresolved blockers stop promotion;
 - ambiguous dependency state stops promotion.
 
+## Review Cadence
+
+The Conductor must inspect review cadence before promoting Reviewer issues.
+Allowed modes are `paired-review`, `final-audit`, and `let-architect-decide`.
+
+- `paired-review`: Each PR-producing Coder/Test issue is followed by its own
+  Reviewer issue. The Reviewer inspects an open PR before merge.
+- `final-audit`: A campaign-level Reviewer issue audits the complete campaign
+  near the end. Expected inputs are merged or explicitly abandoned campaign PRs.
+  Merged PRs are normal and not a blocker.
+- `let-architect-decide`: Architect must choose `final-audit` or
+  `paired-review`, record the decision in Linear with the reason, and adjust
+  downstream issues before implementation issues are promoted.
+
+If review cadence is missing or ambiguous, the Conductor must stop and add a
+Linear comment asking for cadence triage.
+
 ## Legacy `blocked` Label Handling
 
 The `blocked` label is deprecated for ordinary campaign dependencies. For old
@@ -134,11 +151,12 @@ must remain test-only and must not change product behavior.
 
 ### Reviewer
 
-A Reviewer issue may be promoted only when the corresponding PR exists and is
-ready for review:
+For `paired-review`, a Reviewer issue may be promoted only when the
+corresponding PR exists and is ready for pre-merge review:
 
 - PR is open
 - PR is not Draft
+- PR is unmerged
 - PR metadata check and CI have passed when Reviewer policy requires passing checks
 - pending checks block promotion when the Reviewer policy requires passing checks
 
@@ -146,22 +164,38 @@ The issue's blocked-by relation to the authoring Coder or Test issue may be
 treated as satisfied only when the linked PR is open, non-draft, and checks are
 passing or accepted by policy. If the PR is Draft, do not promote; comment that
 the Coder or human must mark it ready first.
+Draft PRs block Reviewer promotion.
+
+For `paired-review`, do not promote the next Coder/Test issue until the previous
+PR-producing issue and its paired Reviewer issue are Done.
+
+For `final-audit`, do not require open PRs. Promote the final-audit Reviewer
+issue only after campaign implementation/test PRs are merged or explicitly
+abandoned. Treat merged PRs as expected audit inputs. Do not apply paired-review
+open-PR rules to final-audit issues and do not use pre-merge approval language.
 
 ### Release
 
-A Release issue may be promoted only after implementation, test, reviewer, and
-human gate steps are Done or the campaign has been explicitly stopped. If the
-campaign ended inconclusively, Release may summarize the inconclusive result.
+A Release issue may be promoted only after implementation, test, the
+appropriate review cadence, and human gate steps are Done or the campaign has
+been explicitly stopped. If the campaign ended inconclusively, Release may
+summarize the inconclusive result.
 
 ## Issue Completion Rules
 
+- PR-producing issues stay `In Review` while their PR is open.
 - Coder and Test issues should remain `In Review` while their PR is open.
+- PR-producing Coder and Test issues become `Done` only after PR merge or
+  recorded abandonment.
 - Coder and Test issues may be marked `Done` only after the linked PR is merged
   or explicitly abandoned with a recorded outcome.
-- Reviewer issues may be marked `Done` only after they post an allowed decision
-  and the downstream action is recorded.
+- Paired Reviewer issues become `Done` after the review decision is posted and
+  acted on.
+- Final-audit Reviewer issues become `Done` after audit findings are posted and
+  accepted or acted on.
 - Release issues may be marked `Done` only after the summary is posted and
   accepted by a human or operator.
+- Release issues run only after the appropriate review cadence is complete.
 - Human gate issues are `Done` only after the human decision or action is
   recorded.
 

@@ -132,7 +132,11 @@ issue metadata, `merge:auto-eligible`, or `merge:agent-approved`.
 
 ### Reviewer-Agent Language
 
-Reviewer agents may use these decision phrases:
+PR acceptance review is `paired-review`: the Reviewer inspects an open,
+non-draft, unmerged PR before merge. Do not use final-audit language to approve
+an open PR before merge.
+
+Reviewer agents may use these paired-review decision phrases:
 
 - `APPROVED FOR MERGE`
 - `APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES merge:auto-eligible`
@@ -155,6 +159,15 @@ Reviewer agents must return `HUMAN REVIEW REQUIRED` when:
 Reviewer comments for acceptance or auto-merge shakedown review must state the
 independence basis: authoring session or source if known, reviewer session or
 source, whether they are independent, and whether independence is unknown.
+
+Final-audit Reviewer issues are not PR acceptance reviews. They audit merged or
+explicitly abandoned campaign PRs near the end, treat merged PRs as expected
+inputs, do not approve merge retroactively, and use only these audit decisions:
+
+- `AUDIT PASSED`
+- `AUDIT PASSED WITH NOTES`
+- `HUMAN FOLLOW-UP REQUIRED`
+- `BLOCKING FINDING`
 
 ### GitHub Label Setup
 
@@ -219,6 +232,16 @@ Human merge or human review remains required for:
 - CI or workflow changes
 - `risk:medium` or higher unless explicitly approved by a human
 - anything touching `src/game.js`, `src/render.js`, `src/game/movement.js`, or broad architecture files
+
+Campaigns involving PR acceptance / auto-merge policy, Reviewer App / identity
+/ token workflow, GitHub permissions, secrets or credentials handling,
+CI/workflows, deployment, dependencies, security-sensitive or trust-boundary
+work, movement/collision, `risk:medium` or higher unless Architect justifies
+`final-audit`, anything touching `src/game.js`, anything touching
+`src/render.js`, anything touching `src/game/movement.js`, or broad
+architecture changes require or strongly recommend `paired-review`.
+Use `paired-review` for `risk:medium` or higher unless Architect justifies `final-audit`.
+Final-audit acceptable examples include low-risk harness docs/checklist campaigns.
 
 ## Auto-Merge Shakedown Sequence
 

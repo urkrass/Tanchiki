@@ -32,6 +32,10 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
   - `validation:progression`
   - `validation:movement`
 - [ ] Fix classification mismatches before automation starts, for example human review gates mislabeled as Coder work.
+- [ ] Confirm the campaign has review cadence: `final-audit`, `paired-review`, or `let-architect-decide`.
+- [ ] Confirm Planner recommended a cadence in the campaign summary, relevant issue descriptions, dependency order, and grooming notes.
+- [ ] If review cadence is `let-architect-decide`, confirm Architect must choose `final-audit` or `paired-review` and record the reason in Linear before implementation issues are promoted.
+- [ ] If review cadence is missing or ambiguous, comment asking for cadence triage and stop.
 - [ ] Confirm no issue uses `human-review` to mean reviewer work.
 - [ ] Confirm no new issue depends on broad `agent-ready` routing.
 - [ ] Confirm human gates use `needs-human-approval`.
@@ -47,6 +51,12 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
 - [ ] If architecture review is required first, confirm only the first Architect issue is `Todo` + `role:architect` + `automation-ready`.
 - [ ] Confirm no Coder issue is automation-ready immediately after planning unless the user explicitly requested it.
 - [ ] Confirm all later dependency issues remain Backlog with blocked-by relations, or gated with `needs-human-approval`.
+- [ ] For `paired-review`, confirm each Coder/Test issue blocks its paired Reviewer issue.
+- [ ] For `paired-review`, confirm each paired Reviewer issue blocks the next Coder/Test issue.
+- [ ] For `paired-review`, confirm Release waits until all paired reviewers and PR-producing issues are Done.
+- [ ] For `final-audit`, confirm Coder/Test issues proceed only after their PRs are merged or explicitly abandoned as policy allows.
+- [ ] For `final-audit`, confirm one final-audit Reviewer runs after implementation/test PRs are merged or explicitly abandoned.
+- [ ] For `final-audit`, confirm Release waits for the final-audit Reviewer.
 - [ ] Confirm Coder issues stay Backlog with blocked-by relations until Architect and human gates are done.
 - [ ] Confirm Test issues stay Backlog with blocked-by relations until implementation PRs are merged or ready.
 - [ ] Confirm Reviewer issues stay Backlog with blocked-by relations until implementation/test PRs exist.

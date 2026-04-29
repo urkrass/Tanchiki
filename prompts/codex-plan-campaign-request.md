@@ -57,6 +57,51 @@ First classify the request:
 
 If any part is unsafe or ambiguous, split the campaign so the unsafe decision is a human gate issue and downstream implementation stays blocked by Linear blocked-by relations.
 
+## Review Cadence
+
+Planner must recommend a review cadence for every campaign. Use the request's
+`Review cadence` field when it is present, and choose a safer cadence when the
+request underspecifies risk.
+
+Allowed modes:
+
+- `final-audit`: A campaign-level Reviewer issue audits the complete campaign
+  near the end. Expected inputs are merged or explicitly abandoned campaign PRs.
+  Merged PRs are normal and not a blocker. The Reviewer does not approve merge
+  retroactively and uses final-audit language: `AUDIT PASSED`,
+  `AUDIT PASSED WITH NOTES`, `HUMAN FOLLOW-UP REQUIRED`, or
+  `BLOCKING FINDING`.
+- `paired-review`: Each PR-producing Coder/Test issue is followed by its own
+  Reviewer issue. The Reviewer inspects an open PR before merge. The PR must be
+  open, non-draft, unmerged, and have required checks/metadata according to
+  policy. The Reviewer uses pre-merge language: `APPROVED FOR AUTO-MERGE AFTER
+  HUMAN APPLIES merge:auto-eligible`, `APPROVED FOR MERGE`,
+  `CHANGES REQUESTED`, `HUMAN REVIEW REQUIRED`, or `BLOCKED`.
+- `let-architect-decide`: Planner may use this only when the campaign request is
+  unclear. Architect must choose `final-audit` or `paired-review`, record the
+  decision in Linear with the reason, and adjust downstream issues before any
+  implementation issue is promoted.
+
+Include review cadence in the campaign summary, every issue description where
+relevant, dependency order, and grooming notes. Do not create ambiguous Reviewer
+issues. Reviewer issue titles should make the cadence clear, for example:
+
+- `Reviewer: paired-review PR for <issue id/title>`
+- `Reviewer: final audit for <campaign name>`
+
+Require or strongly recommend `paired-review` for PR acceptance / auto-merge
+policy, Reviewer App / identity / token workflow, GitHub permissions, secrets
+or credentials handling, CI/workflows, deployment, dependencies,
+security-sensitive or trust-boundary work, movement/collision, `risk:medium` or
+higher unless Architect justifies `final-audit`, anything touching
+`src/game.js`, anything touching `src/render.js`, anything touching
+`src/game/movement.js`, and broad architecture changes.
+
+`final-audit` is acceptable for low-risk docs campaigns, low-risk harness
+docs/checklist campaigns, low-risk test-only campaigns, routine release notes,
+campaigns where individual PRs are manually reviewed and merged normally, and
+retrospective campaign summaries.
+
 ## Planner Work
 
 Create 6-8 small Linear issues when appropriate. Every issue must include:
@@ -76,6 +121,7 @@ Create 6-8 small Linear issues when appropriate. Every issue must include:
 - Type label
 - Risk label
 - Validation profile
+- Review cadence
 - Dependency order
 - Visible UI expectation
 - Central-file conflict risk
@@ -105,7 +151,10 @@ After issue creation, groom the same Linear campaign:
 10. Ensure no issue has `automation-ready` with `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
 11. Make only the first safe Architect issue `Todo` + `automation-ready`.
 12. Keep all Coder/Test/Reviewer/Release issues Backlog with blocked-by relations until Architect and human gates are complete.
-13. Add a grooming comment with queue order, blocked-by dependencies, and human gates.
+13. Shape dependencies according to review cadence:
+   - For `paired-review`: Coder/Test issue blocks its paired Reviewer issue; paired Reviewer issue blocks the next Coder/Test issue; Release waits until all paired reviewers and PR-producing issues are Done. Example: Architect, Human gate, Coder A, Reviewer A, Coder B, Reviewer B, Test, Reviewer Test, Release.
+   - For `final-audit`: Coder/Test issues may proceed sequentially after their PRs are merged; a single final-audit Reviewer issue runs after implementation/test PRs are merged or explicitly abandoned; Release waits for final-audit Reviewer. Example: Architect, Human gate, Coder A, Coder B, Test, Final-audit Reviewer, Release.
+14. Add a grooming comment with review cadence, queue order, blocked-by dependencies, and human gates.
 
 ## Validation Expectations
 

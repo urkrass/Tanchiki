@@ -5,6 +5,9 @@ Use this checklist for one Campaign Conductor run.
 - [ ] Read the active campaign issues in Linear.
 - [ ] Read dependency order, blocked-by relations, current statuses, labels, and issue bodies.
 - [ ] Inspect linked GitHub PRs when PR readiness affects promotion.
+- [ ] Identify review cadence before promoting Reviewer issues: `paired-review`, `final-audit`, or `let-architect-decide`.
+- [ ] If review cadence is missing or ambiguous, stop and add a Linear comment asking for cadence triage.
+- [ ] If review cadence is `let-architect-decide`, promote only Architect cadence-decision work until Architect chooses `final-audit` or `paired-review` and records the reason in Linear.
 - [ ] Confirm campaign order is unambiguous.
 - [ ] Confirm exactly one next candidate exists.
 - [ ] Confirm the candidate has exactly one `role:*` label or an explicitly repairable omission.
@@ -29,12 +32,18 @@ Use this checklist for one Campaign Conductor run.
 - [ ] For Coder, confirm unresolved prior work does not still block promotion.
 - [ ] For Test, confirm the implementation PR is merged or the issue explicitly tests an already-merged artifact.
 - [ ] For Test, confirm the issue remains test-only and not product-changing.
-- [ ] For Reviewer, confirm the linked PR exists.
-- [ ] For Reviewer, confirm the linked PR is open.
-- [ ] For Reviewer, confirm the linked PR is not Draft.
-- [ ] For Reviewer, confirm required PR metadata checks and CI are passing before promotion.
+- [ ] For paired-review Reviewer, confirm the linked PR exists.
+- [ ] For paired-review Reviewer, confirm the linked PR is open.
+- [ ] For paired-review Reviewer, confirm the linked PR is not Draft.
+- [ ] For paired-review Reviewer, confirm the linked PR is unmerged.
+- [ ] For paired-review Reviewer, confirm required PR metadata checks and CI are passing before promotion.
+- [ ] For paired-review sequencing, do not promote the next Coder/Test issue until the previous PR-producing issue and paired Reviewer issue are Done.
+- [ ] For final-audit Reviewer, do not require open PRs.
+- [ ] For final-audit Reviewer, confirm implementation/test PRs are merged or explicitly abandoned before promotion.
+- [ ] For final-audit Reviewer, treat merged PRs as expected audit inputs.
+- [ ] For final-audit Reviewer, do not use paired-review pre-merge approval language.
 - [ ] If the linked PR is Draft, do not promote and comment that Coder or human must mark it ready first.
-- [ ] For Release, confirm implementation, test, reviewer, and human gate steps are Done or explicitly stopped.
+- [ ] For Release, confirm implementation, test, the appropriate review cadence, and human gate steps are Done or explicitly stopped.
 - [ ] Promote at most one issue.
 - [ ] Do not run Dispatcher.
 - [ ] Do not implement code.
@@ -44,7 +53,9 @@ Use this checklist for one Campaign Conductor run.
 - [ ] Do not create a looping campaign runner.
 - [ ] For low-risk auto-merge burn-in, stop at the human merge-label gate and report: "Human must apply `merge:auto-eligible` using normal GitHub identity."
 - [ ] Keep Coder/Test issues `In Review` while their PR is open.
-- [ ] Recommend Coder/Test and Reviewer `Done` only after the PR is confirmed merged or the recorded outcome allows it.
+- [ ] Recommend PR-producing Coder/Test issues `Done` only after the PR is confirmed merged or the recorded outcome allows it.
+- [ ] Recommend paired Reviewer issues `Done` only after the review decision is posted and acted on.
+- [ ] Recommend final-audit Reviewer issues `Done` only after audit findings are posted and accepted or acted on.
 - [ ] Add a Linear comment for every promotion, metadata repair, or legacy `blocked` label removal with changed fields, eligibility reason, satisfied blockers, PR/check evidence, and next expected Dispatcher role.
 - [ ] Add a Linear comment for every refusal with missing labels, blockers, ambiguity, and human action required.
 

@@ -92,10 +92,27 @@ Role readiness summary:
 - `role:coder`: requires required Architect and human gates to be Done.
 - `role:test`: requires the preceding implementation PR to be merged or an
   explicit already-merged test target.
-- `role:reviewer`: requires an open, non-draft linked PR with required checks
-  passing when policy requires them.
+- `role:reviewer` with `paired-review`: requires an open, non-draft, unmerged
+  linked PR with required checks passing when policy requires them.
+- `role:reviewer` with `final-audit`: requires campaign implementation/test
+  PRs to be merged or explicitly abandoned; merged PRs are expected audit
+  inputs and are not blockers.
 - `role:release`: requires implementation, test, reviewer, and human gates to
   be Done or the campaign to be explicitly stopped.
 
-Draft PRs block Reviewer promotion. Stop labels are hard vetoes and must not be
-removed by agents.
+Draft PRs block paired-review Reviewer promotion. Stop labels are hard vetoes
+and must not be removed by agents.
+
+Campaign review cadence must be explicit:
+
+- `final-audit`: a campaign-level Reviewer audits merged or explicitly
+  abandoned campaign PRs near the end and uses `AUDIT PASSED`,
+  `AUDIT PASSED WITH NOTES`, `HUMAN FOLLOW-UP REQUIRED`, or `BLOCKING FINDING`.
+- `paired-review`: each PR-producing Coder/Test issue is followed by a Reviewer
+  issue that inspects an open PR before merge and uses `APPROVED FOR
+  AUTO-MERGE AFTER HUMAN APPLIES merge:auto-eligible`,
+  `APPROVED FOR MERGE`, `CHANGES REQUESTED`, `HUMAN REVIEW REQUIRED`, or
+  `BLOCKED`.
+- `let-architect-decide`: Architect must choose `final-audit` or
+  `paired-review` and record the reason in Linear before implementation issues
+  are promoted.

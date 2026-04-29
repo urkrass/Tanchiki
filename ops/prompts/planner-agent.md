@@ -42,23 +42,39 @@ Before creating issues, read:
    - `needs-human-approval`
    - `human-only`
    - `dependency via blocked-by relation`
-8. Assign suggested role labels in the issue body: `role:architect`, `role:coder`, `role:test`, `role:reviewer`, or `role:release`.
-9. Assign suggested type, risk, and validation labels in the issue body.
-10. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
-11. For dependency chains, identify the single issue that should become `Todo` + `automation-ready` first after human approval.
-12. Flag central-file conflict risk when likely files overlap recent merged PRs or include `src/game.js` or `test/game.test.js`.
-13. Create issues in Linear with clear dependency notes in the issue body.
-14. Run `ops/checklists/campaign-grooming-checklist.md` before stopping.
-15. Normalize each created issue using the new label taxonomy:
+8. Recommend a review cadence for every campaign.
+9. Include review cadence in the campaign summary, every relevant issue description, dependency order, and grooming notes.
+10. Assign suggested role labels in the issue body: `role:architect`, `role:coder`, `role:test`, `role:reviewer`, or `role:release`.
+11. Assign suggested type, risk, and validation labels in the issue body.
+12. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
+13. For dependency chains, identify the single issue that should become `Todo` + `automation-ready` first after human approval.
+14. Flag central-file conflict risk when likely files overlap recent merged PRs or include `src/game.js` or `test/game.test.js`.
+15. Create issues in Linear with clear dependency notes in the issue body.
+16. Run `ops/checklists/campaign-grooming-checklist.md` before stopping.
+17. Normalize each created issue using the new label taxonomy:
    - exactly one applied `role:*` label where applicable
    - exactly one applied `type:*`, `risk:*`, and `validation:*` label where applicable
    - `automation-ready` only on the one issue that may run next
    - `needs-human-approval` for human gates
    - blocked-by / blocks relations for dependency-blocked issues
    - `human-only` for work that must never be automated
-16. If the campaign requires Architect review first, make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready`.
-17. Keep Coder issues Backlog with blocked-by relations until Architect and human gates are done unless the user explicitly asked for Coder to run first.
-18. Stop after posting the final groomed queue summary.
+18. If the campaign requires Architect review first, make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready`.
+19. Keep Coder issues Backlog with blocked-by relations until Architect and human gates are done unless the user explicitly asked for Coder to run first.
+20. Stop after posting the final groomed queue summary.
+
+## Review Cadence Modes
+
+Use one of these modes:
+
+- `final-audit`: A campaign-level Reviewer issue audits the complete campaign near the end. Expected inputs are merged or explicitly abandoned campaign PRs. Merged PRs are normal and not a blocker. Reviewer does not approve merge retroactively and uses final-audit language: `AUDIT PASSED`, `AUDIT PASSED WITH NOTES`, `HUMAN FOLLOW-UP REQUIRED`, or `BLOCKING FINDING`.
+- `paired-review`: Each PR-producing Coder/Test issue is followed by its own Reviewer issue. Reviewer inspects an open PR before merge. The PR must be open, non-draft, unmerged, and have required checks/metadata according to policy. Reviewer uses pre-merge language: `APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES merge:auto-eligible`, `APPROVED FOR MERGE`, `CHANGES REQUESTED`, `HUMAN REVIEW REQUIRED`, or `BLOCKED`.
+- `let-architect-decide`: Planner may use this when the campaign request is unclear. Architect must choose `final-audit` or `paired-review`, record the decision in Linear with the reason, and adjust downstream issues before implementation issues are promoted.
+
+Require or strongly recommend `paired-review` for PR acceptance / auto-merge policy, Reviewer App / identity / token workflow, GitHub permissions, secrets or credentials handling, CI/workflows, deployment, dependencies, security-sensitive or trust-boundary work, movement/collision, `risk:medium` or higher unless Architect justifies `final-audit`, anything touching `src/game.js`, `src/render.js`, or `src/game/movement.js`, and broad architecture changes.
+
+Use `final-audit` for low-risk docs campaigns, low-risk harness docs/checklist campaigns, low-risk test-only campaigns, routine release notes, campaigns where individual PRs are manually reviewed and merged normally, and retrospective campaign summaries.
+
+Reviewer issue titles must make the cadence clear. Use `Reviewer: paired-review PR for <issue id/title>` for a pre-merge paired review and `Reviewer: final audit for <campaign name>` for a campaign-level final audit.
 
 ## Required Issue Template
 
@@ -79,6 +95,7 @@ Each Linear issue must include:
 - Suggested type label
 - Suggested risk label
 - Suggested validation label
+- Review cadence
 - Planner classification
 - Dependencies or blockers
 - Dependency order
@@ -106,6 +123,7 @@ After creating the issues, report:
 - each issue classification
 - dependency order
 - blocked-by relationships
+- selected or deferred review cadence
 - whether visible UI change is expected for each issue
 - central-file conflict risk for each issue
 - suggested role label for each issue
