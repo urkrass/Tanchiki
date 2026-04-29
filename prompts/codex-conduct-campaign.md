@@ -11,6 +11,9 @@ Inspect campaign state.
 Inspect the campaign review cadence before any promotion by checking campaign notes, issue descriptions, grooming notes, and Architect comments for `review_cadence: final-audit`, `review_cadence: paired-review`, or `review_cadence: let-architect-decide`.
 Use the campaign context pack and issue context packs when present, but do not use them to skip campaign order, blockers, PR readiness, safety docs, or Level 5 metadata checks.
 Stop if the current model is below the required `model_hint` and no human downgrade approval is recorded.
+If Architect selected `review_cadence: paired-review` after `review_cadence: let-architect-decide`, verify the paired-review queue is materialized before promoting any Coder/Test issue.
+If a PR-producing issue lacks a linked paired Reviewer issue, stop and comment: "Paired-review cadence is selected, but the paired Reviewer issue for <issue> does not exist or is not linked. Run a Planner/Groomer queue repair before promotion."
+Do not create missing paired Reviewer issues; request Planner/Groomer queue repair.
 Stop if the active project is missing or ambiguous.
 Stop if multiple Tanchiki projects contain eligible `automation-ready` issues and the active project is not declared.
 Record a reason before broad repo scans.

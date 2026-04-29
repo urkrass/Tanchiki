@@ -110,6 +110,14 @@ campaign notes, issue descriptions, grooming notes, and Architect comments for
   `paired-review`, record the reason in Linear, and adjust downstream issues
   before implementation issues are promoted.
 
+If the campaign starts with `review_cadence: let-architect-decide` and the
+Architect later chooses `review_cadence: paired-review`, paired Reviewer issues
+must be created, activated, or confirmed before any PR-producing Coder/Test
+issue is promoted. The campaign must not proceed to implementation until the
+paired-review queue is structurally complete. The Conductor must stop, rather
+than repair the queue itself, when a paired Reviewer issue is missing or
+unlinked.
+
 If review cadence is missing or ambiguous, the Conductor stops and comments
 asking for cadence triage. For `paired-review`, the Conductor must not promote
 the next Coder/Test issue until the previous PR-producing issue and its paired

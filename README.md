@@ -476,6 +476,22 @@ runs one final-audit Reviewer after implementation/test PRs are merged or
 explicitly abandoned. Reviewer issue titles must say `Reviewer: paired-review
 PR for <issue id/title>` or `Reviewer: final audit for <campaign name>`.
 
+If a campaign starts with `review_cadence: let-architect-decide` and Architect
+later chooses `review_cadence: paired-review`, the paired-review queue must be
+materialized before implementation promotion. Planner/Auto-Groomer should
+prefer placeholder paired Reviewer issues in Backlog when medium-risk
+UI/gameplay/trust-boundary Coder/Test work might need paired review. Otherwise,
+after the Architect decision, run `prompts/codex-repair-paired-review-queue.md`
+to create missing paired Reviewer issues and wire:
+
+```text
+Producer Coder/Test issue -> paired Reviewer issue -> next Producer Coder/Test issue
+```
+
+The Conductor stops if paired-review is selected but a PR-producing issue lacks
+a linked paired Reviewer issue. It must request Planner/Groomer queue repair
+and must not create the missing issue itself.
+
 ## Linear Campaign Projects
 
 Tanchiki supports two Linear project modes:

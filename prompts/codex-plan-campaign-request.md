@@ -91,6 +91,24 @@ Allowed modes:
   decision in Linear with the reason, and adjust downstream issues before any
   implementation issue is promoted.
 
+If a campaign starts with `review_cadence: let-architect-decide` and may
+contain medium-risk UI/gameplay/trust-boundary PR-producing Coder/Test issues,
+prefer creating placeholder paired Reviewer issues in Backlog during initial
+planning. Keep placeholders non-automation-ready until Architect confirms
+`review_cadence: paired-review`. If Architect later chooses final-audit, mark
+or comment on placeholders as skipped/not-needed through a human or Architect
+comment.
+
+If placeholders do not exist and Architect later chooses paired-review, require
+a Planner/Groomer queue repair before implementation promotion. The repair must
+create missing paired Reviewer issues and wire dependencies:
+
+```text
+Coder/Test issue A
+-> paired Reviewer issue A
+-> next Coder/Test issue B
+```
+
 Include review cadence in the campaign summary, every issue description where
 relevant, dependency order, and grooming notes. Do not create ambiguous Reviewer
 issues. Reviewer issue titles should make the cadence clear, for example:
@@ -176,11 +194,12 @@ After issue creation, groom the same Linear campaign:
 18. Shape dependencies according to review cadence:
    - For `paired-review`: Coder/Test issue blocks its paired Reviewer issue; paired Reviewer issue blocks the next Coder/Test issue; Release waits until all paired reviewers and PR-producing issues are Done. Example: Architect, Human gate, Coder A, Reviewer A, Coder B, Reviewer B, Test, Reviewer Test, Release.
    - For `final-audit`: Coder/Test issues may proceed sequentially after their PRs are merged; a single final-audit Reviewer issue runs after implementation/test PRs are merged or explicitly abandoned; Release waits for final-audit Reviewer. Example: Architect, Human gate, Coder A, Coder B, Test, Final-audit Reviewer, Release.
-19. Add a grooming comment with active Linear project, review cadence, queue order, blocked-by dependencies, and human gates.
-20. Attach or clearly reference the campaign context pack in the grooming comment or first Architect issue.
-21. Confirm every issue includes a minimal issue context pack and advisory `model_hint`.
-22. Confirm release summary expectations include active Linear project, campaign name, issue list, PR list, project moves, and remaining active automation-ready issues.
-23. Confirm required safety docs remain visible and broad repo scans require a recorded reason.
+19. If `let-architect-decide` was converted to `paired-review`, confirm paired Reviewer issues exist or require `prompts/codex-repair-paired-review-queue.md` before any implementation promotion.
+20. Add a grooming comment with active Linear project, review cadence, queue order, blocked-by dependencies, and human gates.
+21. Attach or clearly reference the campaign context pack in the grooming comment or first Architect issue.
+22. Confirm every issue includes a minimal issue context pack and advisory `model_hint`.
+23. Confirm release summary expectations include active Linear project, campaign name, issue list, PR list, project moves, and remaining active automation-ready issues.
+24. Confirm required safety docs remain visible and broad repo scans require a recorded reason.
 
 ## Validation Expectations
 

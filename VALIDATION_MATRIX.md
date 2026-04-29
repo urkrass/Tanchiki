@@ -158,3 +158,11 @@ Campaign review cadence must be explicit:
 - `let-architect-decide`: Architect must choose `final-audit` or
   `paired-review` and record the reason in Linear before implementation issues
   are promoted.
+
+For deferred cadence decisions, Architect output must name exactly one final
+cadence: `review_cadence: final-audit` or `review_cadence: paired-review`.
+If Architect chooses paired-review, the output must identify every
+PR-producing Coder/Test issue that needs a paired Reviewer issue before any
+implementation promotion. Conductor promotion for paired-review requires the
+paired Reviewer issue to exist or be explicitly linked; missing paired Reviewer
+issues require Planner/Groomer queue repair, not Conductor-created repair.

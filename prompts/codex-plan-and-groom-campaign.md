@@ -46,6 +46,8 @@ Turn the supplied campaign brief into 5-7 small Linear issues, then groom the ca
 - Include advisory `model_hint` recommendations for the campaign and each issue. Model hints must not override role/type/risk labels, validation profiles, PR metadata, human gates, review cadence, or safety docs.
 - Require broad repo scans to include a recorded reason. Do not treat token saving as permission to skip safety-critical docs.
 - If using `let-architect-decide`, create an Architect issue that must choose `final-audit` or `paired-review`, record the reason in Linear, and adjust downstream issues before implementation is promoted.
+- If using `let-architect-decide` and the campaign contains medium-risk UI/gameplay/trust-boundary PR-producing Coder/Test issues, prefer creating placeholder paired Reviewer issues in Backlog. Keep them non-automation-ready until Architect confirms `review_cadence: paired-review`.
+- If Architect later chooses paired-review and placeholder paired Reviewer issues do not exist, require a Planner/Groomer queue repair using `prompts/codex-repair-paired-review-queue.md` before any PR-producing Coder/Test issue is promoted.
 - Do not create ambiguous Reviewer issues. Use titles such as `Reviewer: paired-review PR for <issue id/title>` or `Reviewer: final audit for <campaign name>`.
 - Do not implement gameplay.
 - Do not edit source files.
@@ -115,6 +117,7 @@ Immediately after issue creation, groom the same campaign queue:
 - Leave Release issues Backlog with blocked-by relations until review is done.
 - Shape dependencies according to review cadence.
 - For `paired-review`, each Coder/Test issue blocks its paired Reviewer issue, each paired Reviewer blocks the next Coder/Test issue, and Release waits until all paired reviewers and PR-producing issues are Done.
+- For `paired-review`, the dependency chain must be `Coder/Test issue A -> paired Reviewer issue A -> next Coder/Test issue B`; do not unblock the next implementation issue merely because issue A opened a PR.
 - For `final-audit`, Coder/Test issues may proceed sequentially after their PRs are merged, a single final-audit Reviewer runs after implementation/test PRs are merged or explicitly abandoned, and Release waits for the final-audit Reviewer.
 - Add a grooming comment summarizing review cadence, queue order, blocked-by dependencies, and required human actions.
 - Attach or clearly reference the campaign context pack in the grooming comment or first Architect issue.
