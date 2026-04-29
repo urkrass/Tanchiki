@@ -70,6 +70,8 @@ Each issue includes:
 - No branch or implementation PR was created for gameplay work.
 - No issue was marked `automation-ready` except the single first runnable issue exposed by the required grooming pass.
 - If review cadence is `let-architect-decide`, an Architect issue must choose `final-audit` or `paired-review` before implementation issues are promoted.
+- If review cadence is `let-architect-decide` and the campaign contains medium-risk UI/gameplay/trust-boundary PR-producing Coder/Test issues, placeholder paired Reviewer issues are created in Backlog or a queue-repair requirement is documented.
+- If Architect later chooses `review_cadence: paired-review`, paired Reviewer issues must be created, activated, or confirmed before any PR-producing Coder/Test issue is promoted.
 - No parent, epic, unresolved dependency, or `needs-human-approval` issue was marked `automation-ready`.
 - For dependency chains, only one issue is recommended as the first `Todo` + `automation-ready` candidate.
 - No issue was moved into implementation status.
@@ -88,6 +90,7 @@ Each issue includes:
 - Dependency-blocked issues use blocked-by / blocks relations.
 - Dependencies are shaped for the selected review cadence.
 - For `paired-review`, each PR-producing Coder/Test issue blocks its paired Reviewer issue, and the paired Reviewer blocks the next Coder/Test issue.
+- For paired-review selected after deferred cadence, the queue has the materialized dependency chain `Producer issue -> paired Reviewer issue -> next Producer issue`.
 - For `final-audit`, a single final-audit Reviewer runs after implementation/test PRs are merged or explicitly abandoned.
 - Classification mismatches are corrected before automation starts.
 - Only the first runnable issue has `automation-ready`.

@@ -24,6 +24,10 @@ Use this checklist for one Campaign Conductor run.
 - [ ] If review cadence is missing or ambiguous, stop and add a Linear comment asking for cadence triage.
 - [ ] If review cadence is `let-architect-decide`, promote only Architect cadence-decision work until Architect chooses `final-audit` or `paired-review` and records the reason in Linear.
 - [ ] If Architect already recorded `review_cadence: final-audit` or `review_cadence: paired-review` in an issue body or comment, use that decision.
+- [ ] If Architect selected `review_cadence: paired-review` after deferred cadence, confirm paired-review materialization before promoting any Coder/Test issue.
+- [ ] Confirm every PR-producing Coder/Test issue has an existing or explicitly linked paired Reviewer issue before implementation promotion.
+- [ ] If a PR-producing issue lacks a paired Reviewer issue, stop and comment: "Paired-review cadence is selected, but the paired Reviewer issue for <issue> does not exist or is not linked. Run a Planner/Groomer queue repair before promotion."
+- [ ] Do not create missing paired Reviewer issues; request Planner/Groomer queue repair.
 - [ ] Confirm campaign order is unambiguous.
 - [ ] Confirm exactly one next candidate exists.
 - [ ] Confirm the candidate has exactly one `role:*` label or an explicitly repairable omission.
@@ -59,6 +63,7 @@ Use this checklist for one Campaign Conductor run.
 - [ ] For paired-review Reviewer, confirm metadata is complete and no human gate or stop label blocks review.
 - [ ] For paired-review Reviewer promotion, comment: "Promoted as paired-review Reviewer for open PR #X."
 - [ ] For paired-review sequencing, do not promote the next Coder/Test issue until the previous PR-producing issue is Done, the paired Reviewer issue is Done, and the PR was merged or explicitly abandoned with a recorded outcome.
+- [ ] For paired-review sequencing, do not unblock the next Producer merely because the previous Producer opened a PR.
 - [ ] For final-audit Reviewer, do not require open PRs.
 - [ ] For final-audit Reviewer, confirm upstream PR-producing issues are Done or explicitly abandoned before promotion.
 - [ ] For final-audit Reviewer, confirm implementation/test PRs are merged or explicitly abandoned before promotion.

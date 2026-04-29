@@ -421,6 +421,117 @@ test("campaign conductor let-architect-decide blocks downstream promotion", () =
   assert.match(combined, /use\s+that recorded decision/);
 });
 
+test("architect deferred cadence decision must materialize paired-review requirements", () => {
+  const architectPrompt = readRepoFile("ops", "prompts", "architect-agent.md");
+  const architectChecklist = readRepoFile("ops", "checklists", "architect-review-checklist.md");
+  const factory = readRepoFile("ops", "policies", "campaign-factory.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+  const combined = `${architectPrompt}\n${architectChecklist}\n${factory}\n${validation}`;
+
+  for (const expected of [
+    "review_cadence: final-audit",
+    "review_cadence: paired-review",
+    "exactly one final cadence",
+    "every PR-producing Coder/Test issue that needs a paired Reviewer issue",
+    "paired Reviewer issue title",
+    "which Coder/Test issue it reviews",
+    "expected role/type/risk/validation",
+    "whether Reviewer App identity is required",
+    "whether the issue already exists or must be created",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("planner and groomer support placeholder or repair materialization paths", () => {
+  const requestPrompt = readRepoFile("prompts", "codex-plan-campaign-request.md");
+  const planAndGroom = readRepoFile("prompts", "codex-plan-and-groom-campaign.md");
+  const planner = readRepoFile("ops", "prompts", "planner-agent.md");
+  const groomer = readRepoFile("ops", "prompts", "campaign-groomer.md");
+  const factory = readRepoFile("ops", "policies", "campaign-factory.md");
+  const execution = readRepoFile("ops", "policies", "campaign-execution.md");
+  const plannerChecklist = readRepoFile("ops", "checklists", "planner-output-checklist.md");
+  const groomingChecklist = readRepoFile("ops", "checklists", "campaign-grooming-checklist.md");
+  const factoryChecklist = readRepoFile("ops", "checklists", "campaign-factory-checklist.md");
+  const repairPrompt = readRepoFile("prompts", "codex-repair-paired-review-queue.md");
+  const combined = [
+    requestPrompt,
+    planAndGroom,
+    planner,
+    groomer,
+    factory,
+    execution,
+    plannerChecklist,
+    groomingChecklist,
+    factoryChecklist,
+    repairPrompt,
+  ].join("\n");
+
+  for (const expected of [
+    "Option A - create placeholder paired Reviewer issues during initial planning.",
+    "Keep them non-automation-ready until Architect confirms paired-review.",
+    "Option B - require queue expansion after Architect decision.",
+    "A Planner/Groomer repair pass must create the missing paired Reviewer issues before implementation proceeds.",
+    "Prefer Option A when feasible",
+    "prompts/codex-repair-paired-review-queue.md",
+    "Do not edit repo files.",
+    "Do not open PRs.",
+    "Do not add `automation-ready` to new Reviewer issues.",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("paired-review materialization blocks implementation promotion when missing", () => {
+  const conductPrompt = readRepoFile("prompts", "codex-conduct-campaign.md");
+  const conductorPrompt = readRepoFile("ops", "prompts", "campaign-conductor.md");
+  const conductorPolicy = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const conductorChecklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+  const combined = `${conductPrompt}\n${conductorPrompt}\n${conductorPolicy}\n${conductorChecklist}\n${protocol}\n${validation}`;
+
+  for (const expected of [
+    "verify paired-review materialization before promoting any Coder/Test issue",
+    "paired Reviewer issue before implementation promotion",
+    "Paired-review cadence is selected, but the paired Reviewer issue for <issue> does not exist or is not linked. Run a Planner/Groomer queue repair before promotion.",
+    "Do not create missing paired Reviewer issues; request Planner/Groomer queue repair.",
+    "paired Reviewer issue to exist or be explicitly linked",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+
+  assert.match(
+    combined,
+    /must not proceed to implementation until the\s+paired-review queue is structurally complete/i,
+  );
+});
+
+test("paired-review repair defines reviewer issue requirements and dependency chain", () => {
+  const factory = readRepoFile("ops", "policies", "campaign-factory.md");
+  const execution = readRepoFile("ops", "policies", "campaign-execution.md");
+  const repairPrompt = readRepoFile("prompts", "codex-repair-paired-review-queue.md");
+  const readme = readRepoFile("README.md");
+  const combined = `${factory}\n${execution}\n${repairPrompt}\n${readme}`;
+
+  for (const expected of [
+    "Producer issue\n-> paired Reviewer issue\n-> next implementation issue",
+    "Producer Coder/Test issue -> paired Reviewer issue -> next Producer Coder/Test issue",
+    "expected PR state: open, non-draft, unmerged, checks passing",
+    "`APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES merge:auto-eligible`",
+    "`APPROVED FOR MERGE`",
+    "`CHANGES REQUESTED`",
+    "`HUMAN REVIEW REQUIRED`",
+    "`BLOCKED`",
+    "role/type/risk/validation labels",
+    "`model_hint`",
+    "Reviewer App identity requirement if applicable",
+    "must not be unblocked merely because issue A opened a PR",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 test("campaign dependencies use blocked-by relations with legacy blocked label cleanup", () => {
   const planner = readRepoFile("prompts", "codex-plan-and-groom-campaign.md");
   const groomer = readRepoFile("ops", "prompts", "campaign-groomer.md");

@@ -48,28 +48,35 @@ promotion safe.
    Architect already recorded `review_cadence: final-audit` or
    `review_cadence: paired-review` in an issue body or Linear comment, use
    that recorded decision.
-9. Identify the single next candidate in the active project. If zero or more than one candidate could
+9. If Architect selected `review_cadence: paired-review` after a deferred
+   cadence, verify paired-review materialization before promoting any Coder/Test issue. Every PR-producing Coder/Test issue must have an existing
+   or linked paired Reviewer issue.
+10. If a PR-producing issue lacks a paired Reviewer issue, stop and comment:
+   "Paired-review cadence is selected, but the paired Reviewer issue for
+   <issue> does not exist or is not linked. Run a Planner/Groomer queue repair
+   before promotion." Do not create the missing issue.
+11. Identify the single next candidate in the active project. If zero or more than one candidate could
    be next, stop and comment with the ambiguity.
-10. Confirm the candidate has exactly one `role:*`, one `type:*`, one `risk:*`,
+12. Confirm the candidate has exactly one `role:*`, one `type:*`, one `risk:*`,
    and one `validation:*` label.
-11. Repair a missing Level 5 label only when the exact label value is explicitly
+13. Repair a missing Level 5 label only when the exact label value is explicitly
    stated in the issue body, for example a `## Risk label` section containing
    `risk:low`. Do not infer from title, project, surrounding issues, or habit.
-12. Refuse any candidate with `needs-human-approval`, `human-only`,
+14. Refuse any candidate with `needs-human-approval`, `human-only`,
    `risk:human-only`, unresolved relevant blockers, or any non-removable stop
    label.
-13. For old campaign issues only, remove a legacy `blocked` label only when the
+15. For old campaign issues only, remove a legacy `blocked` label only when the
    policy's strict legacy-label conditions are met, then comment with the
    blocker evidence and why only one next issue is exposed.
-14. Apply role-specific readiness rules from the policy.
-15. Record a reason in the promotion or refusal comment before using broad repo
+16. Apply role-specific readiness rules from the policy.
+17. Record a reason in the promotion or refusal comment before using broad repo
     scans. Valid reasons include missing/stale context packs, ambiguous
     blockers, unexpected PR files, or safety-critical docs changing.
-16. Promote at most one safe issue in the active project by setting the intended ready state and labels
+18. Promote at most one safe issue in the active project by setting the intended ready state and labels
    used by the Dispatcher, normally `Todo` + `automation-ready` after blockers
    are satisfied.
-17. Add a Linear comment explaining the active project, decision, and evidence.
-18. Stop. Do not continue to another issue.
+19. Add a Linear comment explaining the active project, decision, and evidence.
+20. Stop. Do not continue to another issue.
 
 ## Review Cadence Readiness
 

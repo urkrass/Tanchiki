@@ -46,6 +46,9 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
 - [ ] Confirm broad repo scans require a recorded reason.
 - [ ] Confirm token saving is not used to skip safety-critical docs, validation, PR metadata, changed-file scrutiny, review cadence, or human gates.
 - [ ] If review cadence is `let-architect-decide`, confirm Architect must choose `final-audit` or `paired-review` and record the reason in Linear before implementation issues are promoted.
+- [ ] If the campaign contains medium-risk UI/gameplay/trust-boundary PR-producing Coder/Test issues while cadence is deferred, confirm placeholder paired Reviewer issues exist in Backlog or a queue-repair requirement is documented.
+- [ ] If Architect selected `review_cadence: paired-review` after a deferred cadence, confirm paired Reviewer issues are created, activated, or explicitly linked for every PR-producing Coder/Test issue before implementation promotion.
+- [ ] If paired Reviewer issues are missing after Architect selected paired-review, run `prompts/codex-repair-paired-review-queue.md` or stop and request that Planner/Groomer repair pass.
 - [ ] If review cadence is missing or ambiguous, comment asking for cadence triage and stop.
 - [ ] Confirm no issue uses `human-review` to mean reviewer work.
 - [ ] Confirm no new issue depends on broad `agent-ready` routing.
@@ -67,6 +70,7 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
 - [ ] Confirm all later dependency issues remain Backlog with blocked-by relations, or gated with `needs-human-approval`.
 - [ ] For `paired-review`, confirm each Coder/Test issue blocks its paired Reviewer issue.
 - [ ] For `paired-review`, confirm each paired Reviewer issue blocks the next Coder/Test issue.
+- [ ] For paired-review selected after deferred cadence, confirm the dependency chain is `Producer issue -> paired Reviewer issue -> next Producer issue`.
 - [ ] For `paired-review`, confirm Release waits until all paired reviewers and PR-producing issues are Done.
 - [ ] For `final-audit`, confirm Coder/Test issues proceed only after their PRs are merged or explicitly abandoned as policy allows.
 - [ ] For `final-audit`, confirm one final-audit Reviewer runs after implementation/test PRs are merged or explicitly abandoned.

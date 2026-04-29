@@ -121,6 +121,20 @@ Architect records `review_cadence: final-audit` or
 `review_cadence: paired-review` in an issue body or Linear comment. Once that
 decision exists, the Conductor may use it as the campaign cadence.
 
+If Architect selected `review_cadence: paired-review` after a deferred cadence,
+the Conductor must verify paired-review materialization before promoting any
+Coder/Test issue. Every PR-producing Coder/Test issue in the campaign sequence
+must have an existing or explicitly linked paired Reviewer issue before
+implementation promotion. If a PR-producing issue lacks that paired Reviewer
+issue, the Conductor must stop and comment:
+
+"Paired-review cadence is selected, but the paired Reviewer issue for <issue>
+does not exist or is not linked. Run a Planner/Groomer queue repair before
+promotion."
+
+The Conductor must not create the missing issue itself unless a future approved
+policy explicitly permits queue repair.
+
 ## Legacy `blocked` Label Handling
 
 The `blocked` label is deprecated for ordinary campaign dependencies. For old
@@ -216,6 +230,11 @@ For `paired-review`, do not promote the next Coder/Test issue until the previous
 PR-producing issue is Done, its paired Reviewer issue is Done, and the PR was
 merged or explicitly abandoned with a recorded outcome.
 
+The next Coder/Test issue must not be unblocked merely because the previous
+issue opened a PR. Promotion requires an existing paired Reviewer issue, the
+paired Reviewer to have run, the producer PR to be merged or explicitly
+abandoned, and the producer issue to be Done.
+
 For `final-audit`, do not require open PRs. Promote the final-audit Reviewer
 issue only after all are true:
 
@@ -296,4 +315,3 @@ Whenever the Conductor refuses to promote, it must comment with:
 - unresolved blockers
 - ambiguous candidates
 - human action required
-

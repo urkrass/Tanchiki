@@ -110,6 +110,12 @@ Review cadence modes:
   decision in Linear with the reason, and adjust downstream issues before
   implementation issues are promoted.
 
+If a campaign starts with `review_cadence: let-architect-decide` and Architect
+later records `review_cadence: paired-review`, the paired-review queue must be
+materialized before implementation promotion. Paired Reviewer issues must be
+created, activated, or confirmed for every PR-producing Coder/Test issue before
+any PR-producing Coder/Test issue is promoted.
+
 Dependency source of truth:
 
 - Use Linear blocked-by / blocks relations for ordinary campaign sequencing.
@@ -178,6 +184,27 @@ Review cadence dependency defaults:
 - `let-architect-decide`: implementation issues stay blocked until Architect
   chooses `final-audit` or `paired-review`, records the decision in Linear, and
   downstream dependencies are adjusted.
+
+When Architect converts `let-architect-decide` to `paired-review`, Auto-Groomer
+must confirm one of these safe states before exposing implementation work:
+
+- placeholder paired Reviewer issues already exist in Backlog and are linked to
+  every PR-producing Coder/Test issue; or
+- a Planner/Groomer queue repair has created the missing paired Reviewer
+  issues.
+
+The paired-review dependency chain is:
+
+```text
+Coder/Test issue A
+-> paired Reviewer issue A
+-> next Coder/Test issue B
+```
+
+The next implementation issue waits until issue A's PR exists, the paired
+Reviewer issue exists, the paired Reviewer has run, the PR is merged or
+explicitly abandoned, and the producer issue is Done.
+The next implementation issue must not be unblocked merely because issue A opened a PR.
 
 Use `paired-review` for PR acceptance / auto-merge policy, Reviewer App /
 identity / token workflow, GitHub permissions, secrets or credentials handling,

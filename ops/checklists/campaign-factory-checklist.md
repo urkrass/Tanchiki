@@ -25,6 +25,8 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Use `paired-review` for trust-boundary or high-risk work, including PR acceptance / auto-merge policy, Reviewer App / identity / token workflow, GitHub permissions, secrets or credentials, CI/workflows, deployment, dependencies, security-sensitive work, movement/collision, `risk:medium` or higher unless Architect justifies `final-audit`, `src/game.js`, `src/render.js`, `src/game/movement.js`, or broad architecture changes.
 - [ ] Use `final-audit` only for acceptable low-risk docs, harness docs/checklist, test-only, routine release note, manual-review, or retrospective campaigns.
 - [ ] If review cadence is `let-architect-decide`, create an Architect issue that must choose `final-audit` or `paired-review` and record the reason in Linear before implementation is promoted.
+- [ ] If review cadence is `let-architect-decide` and medium-risk UI/gameplay/trust-boundary PR-producing Coder/Test work may need paired review, prefer placeholder paired Reviewer issues in Backlog without `automation-ready`.
+- [ ] If Architect later chooses `review_cadence: paired-review`, paired Reviewer issues must be created, activated, or confirmed before any PR-producing Coder/Test issue is promoted.
 - [ ] Split mixed requests so unsafe decisions become separate human gate issues.
 - [ ] Gate gameplay behavior, progression, level tuning, dependency additions, broad architecture, public-demo release decisions, and screenshot pass/fail CI decisions when needed.
 - [ ] Mark movement, collision, spawning, control feel, persistence, credentials, destructive repository work, and broad rewrites as human-only unless a human explicitly approves automation.
@@ -98,6 +100,7 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Confirm Reviewer issues remain Backlog with blocked-by relations until implementation or test PRs exist.
 - [ ] Confirm Release issues remain Backlog with blocked-by relations until review is complete.
 - [ ] For `paired-review`, confirm each Coder/Test issue blocks its paired Reviewer issue and each paired Reviewer blocks the next Coder/Test issue.
+- [ ] For paired-review selected after deferred cadence, confirm the materialized chain is `Producer issue -> paired Reviewer issue -> next Producer issue`.
 - [ ] For `final-audit`, confirm the final-audit Reviewer runs only after implementation/test PRs are merged or explicitly abandoned.
 - [ ] Add a grooming comment with queue order and human gates.
 

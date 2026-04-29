@@ -11,6 +11,8 @@ Use this checklist before a Coder agent starts implementation.
 - Has recent merged PR history been checked for conflict risk?
 - Are dependencies and blockers explicit?
 - Is only one issue in the dependency chain eligible for `Todo` + `automation-ready`?
+- If campaign cadence is `review_cadence: let-architect-decide`, did Architect choose exactly one of `review_cadence: final-audit` or `review_cadence: paired-review`?
+- If Architect chose `review_cadence: paired-review`, are all PR-producing Coder/Test issues mapped to paired Reviewer issue titles, role/type/risk/validation, Reviewer App identity requirements, dependency order, and existing-or-create status?
 - Are acceptance criteria testable?
 - Are required tests named?
 - Is visible UI impact stated?

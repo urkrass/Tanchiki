@@ -108,6 +108,47 @@ Allowed modes:
 - `let-architect-decide`: Planner may use this when the campaign request is
   unclear. Architect must choose `final-audit` or `paired-review` and record the decision in Linear with the reason before implementation issues are promoted. Architect must adjust downstream issues before implementation issues are promoted.
 
+## Cadence Materialization
+
+If a campaign starts with `review_cadence: let-architect-decide` and the
+Architect later chooses `review_cadence: paired-review`, paired Reviewer issues
+must be created, activated, or confirmed before any PR-producing Coder/Test
+issue is promoted. The campaign must not proceed to implementation until the
+paired-review queue is structurally complete.
+
+Architect output for a deferred cadence must include exactly one final decision:
+
+- `review_cadence: final-audit`
+- `review_cadence: paired-review`
+
+If Architect chooses `review_cadence: paired-review`, the Architect must list
+every PR-producing Coder/Test issue that needs a paired Reviewer issue and
+state:
+
+- paired Reviewer issue title;
+- which Coder/Test issue it reviews;
+- expected role/type/risk/validation;
+- whether Reviewer App identity is required;
+- dependency order;
+- whether the issue already exists or must be created.
+
+Planner and Auto-Groomer must handle conditional paired-review issues in one of
+two safe ways:
+
+- Option A - create placeholder paired Reviewer issues during initial planning.
+  If cadence is `let-architect-decide` and the campaign contains medium-risk
+  UI/gameplay/trust-boundary Coder/Test issues, create placeholder paired
+  Reviewer issues in Backlog. Keep them non-automation-ready until Architect
+  confirms paired-review. If Architect later chooses final-audit, mark or
+  comment on placeholders as skipped/not-needed through a human or Architect
+  comment.
+- Option B - require queue expansion after Architect decision. If Architect
+  chooses paired-review and paired Reviewer issues do not exist, the Conductor
+  must stop and request queue materialization. A Planner/Groomer repair pass must create the missing paired Reviewer issues before implementation proceeds.
+
+Prefer Option A when feasible because placeholder Reviewer issues avoid missing
+gates.
+
 Require or strongly recommend `paired-review` for PR acceptance / auto-merge
 policy, Reviewer App / identity / token workflow, GitHub permissions, secrets
 or credentials handling, CI/workflows, deployment, dependencies,
@@ -211,6 +252,35 @@ Grooming must shape dependencies according to review cadence:
 - For `let-architect-decide`, implementation issues must remain blocked until
   Architect records `final-audit` or `paired-review` in Linear and the queue is
   updated.
+
+When paired-review is selected after a deferred Architect decision, the updated
+queue must use this dependency chain for every PR-producing issue:
+
+```text
+Coder/Test issue A
+-> paired Reviewer issue A
+-> next Coder/Test issue B
+```
+
+The next implementation issue must not be unblocked merely because issue A
+opened a PR. It must wait until the PR exists, the paired Reviewer issue
+exists, the paired Reviewer has run, the PR is merged or explicitly abandoned,
+and the producer issue is Done.
+
+Paired Reviewer issues created by planning or repair must include:
+
+- `review_cadence: paired-review`
+- linked producer issue;
+- expected PR state: open, non-draft, unmerged, checks passing;
+- paired-review decision language:
+  - `APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES merge:auto-eligible`
+  - `APPROVED FOR MERGE`
+  - `CHANGES REQUESTED`
+  - `HUMAN REVIEW REQUIRED`
+  - `BLOCKED`
+- role/type/risk/validation labels;
+- `model_hint`;
+- Reviewer App identity requirement if applicable.
 
 ## Human Gates
 
