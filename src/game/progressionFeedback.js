@@ -16,6 +16,14 @@ export function createProgressionFeedback(snapshot) {
     value: formatUpgradePointState(snapshot)
   });
 
+  const nextStep = formatNextStep(snapshot);
+  if (nextStep) {
+    rows.push({
+      label: "Next step",
+      value: nextStep
+    });
+  }
+
   return { rows };
 }
 
@@ -39,6 +47,30 @@ function formatUpgradePointState(snapshot) {
   }
 
   return `${availableUpgradePoints} ${pointLabel} available`;
+}
+
+function formatNextStep(snapshot) {
+  if (snapshot.upgradeChoice?.pending) {
+    return `Choose one upgrade for Level ${nextLevelNumber(snapshot)}`;
+  }
+
+  if (snapshot.canAdvanceLevel) {
+    return `Continue to Level ${nextLevelNumber(snapshot)}`;
+  }
+
+  return null;
+}
+
+function nextLevelNumber(snapshot) {
+  if (Number.isFinite(snapshot.levelNumber)) {
+    return snapshot.levelNumber + 1;
+  }
+
+  if (Number.isFinite(snapshot.currentLevelIndex)) {
+    return snapshot.currentLevelIndex + 2;
+  }
+
+  return 2;
 }
 
 function isCompletedResult(result) {

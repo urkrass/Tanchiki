@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { createCampaignGame } from "../src/game.js";
 import { createInput } from "../src/input.js";
 import { damageTarget } from "../src/game/targets.js";
+import { describeUpgradePanelContext } from "../src/upgradePanel.js";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const step = 1 / 60;
@@ -17,6 +18,7 @@ test("first public demo page keeps objective, controls, and live status visible"
   assert.match(html, /<strong>Restart<\/strong> R/);
   assert.match(html, /<div class="status-bar" aria-label="Live mission status">/);
   assert.match(html, /<p id="status" class="status" aria-live="polite"><\/p>/);
+  assert.match(html, /<p id="upgrade-context" class="upgrade-panel__context"><\/p>/);
 });
 
 test("demo campaign preserves victory to upgrade to next-level flow", () => {
@@ -38,6 +40,19 @@ test("demo campaign preserves victory to upgrade to next-level flow", () => {
   assert.equal(snapshot.currentLevelIndex, 1);
   assert.equal(snapshot.missionStatus, "playing");
   assert.equal(snapshot.missionSummary, null);
+});
+
+test("upgrade panel context connects the reward to the next level", () => {
+  assert.equal(describeUpgradePanelContext({
+    levelNumber: 1,
+    lastMissionReward: {
+      xp: 100
+    },
+    upgradeChoice: {
+      pending: true,
+      availableUpgradePoints: 1
+    }
+  }), "Earned +100 XP and 1 upgrade point. Pick one upgrade now; it starts on Level 2.");
 });
 
 test("demo campaign exposes readable mission status for the opening minute", () => {

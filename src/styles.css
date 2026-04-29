@@ -128,6 +128,12 @@ canvas {
   max-width: 460px;
 }
 
+.upgrade-panel__context {
+  margin-top: 8px;
+  color: #3d4537;
+  font-size: 0.98rem;
+}
+
 .upgrade-choices {
   display: grid;
   gap: 10px;

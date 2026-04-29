@@ -357,7 +357,8 @@ test("campaign victory exposes stable progression feedback display data", () => 
   let feedback = createProgressionFeedback(harness.game.snapshot());
   assert.deepEqual(feedback.rows, [
     { label: "XP earned", value: "+100 XP" },
-    { label: "Upgrade points", value: "1 point available" }
+    { label: "Upgrade points", value: "1 point available" },
+    { label: "Next step", value: "Choose one upgrade for Level 2" }
   ]);
 
   harness.advanceStep();
@@ -366,7 +367,8 @@ test("campaign victory exposes stable progression feedback display data", () => 
   feedback = createProgressionFeedback(harness.game.snapshot());
   assert.deepEqual(feedback.rows, [
     { label: "XP earned", value: "+100 XP" },
-    { label: "Upgrade points", value: "1 point available" }
+    { label: "Upgrade points", value: "1 point available" },
+    { label: "Next step", value: "Choose one upgrade for Level 2" }
   ]);
 });
 
@@ -443,7 +445,8 @@ test("campaign advance is ungated when no eligible upgrades remain", () => {
   });
   assert.deepEqual(createProgressionFeedback(harness.game.snapshot()).rows, [
     { label: "XP earned", value: "+100 XP" },
-    { label: "Upgrade points", value: "2 points unspent - all upgrades maxed" }
+    { label: "Upgrade points", value: "2 points unspent - all upgrades maxed" },
+    { label: "Next step", value: "Continue to Level 2" }
   ]);
   assert.equal(harness.game.debugState().canAdvanceLevel, true);
   assert.equal(harness.game.advanceLevel(), true);

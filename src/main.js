@@ -10,6 +10,7 @@ import {
 const canvas = document.querySelector("#game");
 const status = document.querySelector("#status");
 const upgradePanel = document.querySelector("#upgrade-panel");
+const upgradeContext = document.querySelector("#upgrade-context");
 const upgradeChoices = document.querySelector("#upgrade-choices");
 const context = canvas.getContext("2d");
 const input = createInput(window);
@@ -100,6 +101,7 @@ function renderCurrentState() {
   renderGame(context, snapshot, { spriteAssets });
   renderUpgradePanel({
     panel: upgradePanel,
+    contextElement: upgradeContext,
     choicesContainer: upgradeChoices,
     snapshot
   });
