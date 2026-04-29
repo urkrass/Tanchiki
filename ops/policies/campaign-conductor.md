@@ -67,8 +67,16 @@ The Conductor inspects blocked-by relations directly:
 
 ## Review Cadence
 
-The Conductor must inspect review cadence before promoting Reviewer issues.
-Allowed modes are `paired-review`, `final-audit`, and `let-architect-decide`.
+The Conductor must inspect review cadence before any promotion. It must check
+the active campaign, issue descriptions, grooming notes, and Architect comments
+for one explicit cadence field:
+
+- `review_cadence: paired-review`
+- `review_cadence: final-audit`
+- `review_cadence: let-architect-decide`
+
+Allowed modes are `paired-review`, `final-audit`, and
+`let-architect-decide`.
 
 - `paired-review`: Each PR-producing Coder/Test issue is followed by its own
   Reviewer issue. The Reviewer inspects an open PR before merge.
@@ -81,6 +89,13 @@ Allowed modes are `paired-review`, `final-audit`, and `let-architect-decide`.
 
 If review cadence is missing or ambiguous, the Conductor must stop and add a
 Linear comment asking for cadence triage.
+
+If the recorded cadence is `let-architect-decide`, the Conductor may promote
+only the Architect cadence-decision issue when it is the next safe issue. It
+must not promote implementation, test, reviewer, or release issues until
+Architect records `review_cadence: final-audit` or
+`review_cadence: paired-review` in an issue body or Linear comment. Once that
+decision exists, the Conductor may use it as the campaign cadence.
 
 ## Legacy `blocked` Label Handling
 
@@ -97,6 +112,7 @@ label only when all are true:
 - exactly one `risk:*` label exists;
 - exactly one `validation:*` label exists;
 - campaign order is unambiguous;
+- cadence rules allow promotion;
 - promoting the issue would expose only one next issue.
 
 When the Conductor removes a legacy `blocked` label, it must add a Linear
@@ -167,12 +183,21 @@ the Coder or human must mark it ready first.
 Draft PRs block Reviewer promotion.
 
 For `paired-review`, do not promote the next Coder/Test issue until the previous
-PR-producing issue and its paired Reviewer issue are Done.
+PR-producing issue is Done, its paired Reviewer issue is Done, and the PR was
+merged or explicitly abandoned with a recorded outcome.
 
 For `final-audit`, do not require open PRs. Promote the final-audit Reviewer
-issue only after campaign implementation/test PRs are merged or explicitly
-abandoned. Treat merged PRs as expected audit inputs. Do not apply paired-review
-open-PR rules to final-audit issues and do not use pre-merge approval language.
+issue only after all are true:
+
+- upstream PR-producing issues are Done or explicitly abandoned;
+- campaign implementation/test PRs are merged or explicitly abandoned;
+- campaign implementation/test PRs are available for audit;
+- no human gates remain unresolved;
+- role/type/risk/validation metadata are complete;
+- exactly one next issue is eligible.
+
+Treat merged PRs as expected audit inputs. Do not apply paired-review open-PR
+rules to final-audit issues and do not use pre-merge approval language.
 
 ### Release
 
@@ -219,9 +244,16 @@ comment explaining:
 
 - what it changed
 - why the issue is now eligible
+- which review cadence was used
 - which blockers were satisfied
 - which PR/check evidence was used
 - what the next expected Dispatcher role is
+
+For final-audit Reviewer promotion, the comment must include:
+"Promoted as final-audit Reviewer. Merged PRs are expected audit inputs."
+
+For paired-review Reviewer promotion, the comment must include:
+"Promoted as paired-review Reviewer for open PR #X."
 
 For legacy `blocked` label removal, the comment must also state that the label
 was legacy dependency metadata, not a human gate or PR stop label.

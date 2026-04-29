@@ -312,6 +312,28 @@ test("campaign conductor docs require single-step promotion and no campaign loop
   assert.match(opsPrompt, /single-step campaign queue\s+promotion role only/);
 });
 
+test("campaign conductor inspects explicit review cadence before promotion", () => {
+  const prompt = readRepoFile("prompts", "codex-conduct-campaign.md");
+  const opsPrompt = readRepoFile("ops", "prompts", "campaign-conductor.md");
+  const policy = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const checklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+  const combined = `${prompt}\n${opsPrompt}\n${policy}\n${checklist}\n${protocol}\n${validation}`;
+
+  for (const expected of [
+    "before any promotion",
+    "campaign notes, issue descriptions, grooming notes, and Architect comments",
+    "`review_cadence: final-audit`",
+    "`review_cadence: paired-review`",
+    "`review_cadence: let-architect-decide`",
+    "If review cadence is missing or ambiguous",
+    "asking for cadence triage",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 test("campaign conductor metadata repair is explicit issue-body only", () => {
   const policy = readRepoFile("ops", "policies", "campaign-conductor.md");
   const checklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
@@ -350,6 +372,24 @@ test("campaign conductor reviewer and burn-in gates remain conservative", () => 
     assert.match(`${policy}\n${checklist}\n${protocol}\n${safety}\n${readme}\n${validation}`, new RegExp(escapeRegExp(expected)));
   }
   assert.match(policy, /The Conductor may promote Reviewer issues only when the linked PR is open,\s+non-draft, and checks are passing\./);
+});
+
+test("campaign conductor let-architect-decide blocks downstream promotion", () => {
+  const prompt = readRepoFile("prompts", "codex-conduct-campaign.md");
+  const opsPrompt = readRepoFile("ops", "prompts", "campaign-conductor.md");
+  const policy = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const checklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+  const combined = `${prompt}\n${opsPrompt}\n${policy}\n${checklist}\n${validation}`;
+
+  for (const expected of [
+    "promote only the Architect cadence-decision issue",
+    "must not promote implementation, test, reviewer, or release issues until",
+    "Architect already recorded `review_cadence: final-audit` or `review_cadence: paired-review`",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+  assert.match(combined, /use\s+that recorded decision/);
 });
 
 test("campaign dependencies use blocked-by relations with legacy blocked label cleanup", () => {
@@ -753,9 +793,13 @@ test("conductor separates paired-review open PR rules from final-audit inputs", 
     "If review cadence is missing or ambiguous, stop",
     "paired-review",
     "linked PR is open, non-draft, unmerged",
+    "Promoted as paired-review Reviewer for open PR #X.",
     "final-audit",
     "do not require open PRs",
     "Treat merged PRs as expected audit inputs",
+    "Promoted as final-audit Reviewer. Merged PRs are expected audit inputs.",
+    "upstream PR-producing issues are Done or explicitly abandoned",
+    "campaign implementation/test PRs are available for audit",
     "implementation/test PRs are merged or explicitly abandoned",
   ]) {
     assert.match(combined, new RegExp(escapeRegExp(expected)));
@@ -763,9 +807,9 @@ test("conductor separates paired-review open PR rules from final-audit inputs", 
 
   assert.match(
     combined,
-    /do not promote the next Coder\/Test issue until the previous\s+PR-producing issue and its paired Reviewer issue are Done/i,
+    /do not promote the next Coder\/Test issue until the previous\s+PR-producing issue is Done, its paired Reviewer issue is Done, and the PR was\s+merged or explicitly abandoned with a recorded outcome/i,
   );
-  assert.match(combined, /Do not apply paired-review\s+open-PR rules to final-audit issues/);
+  assert.match(combined, /Do not apply paired-review\s+open-PR\s+rules to final-audit issues/);
 });
 
 test("reviewer decision vocabulary differs by review cadence", () => {

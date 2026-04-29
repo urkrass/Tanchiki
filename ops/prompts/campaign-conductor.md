@@ -27,13 +27,18 @@ promotion safe.
 
 1. Inspect the active campaign issues, dependency order, blocked-by relations,
    labels, status, issue bodies, and linked GitHub PRs.
-2. Identify the campaign review cadence before promoting Reviewer issues:
-   `paired-review`, `final-audit`, or `let-architect-decide`.
+2. Identify the campaign review cadence before any promotion by inspecting
+   campaign notes, issue descriptions, grooming notes, and Architect comments
+   for `review_cadence: paired-review`, `review_cadence: final-audit`, or
+   `review_cadence: let-architect-decide`.
 3. If review cadence is missing or ambiguous, stop and add a Linear comment
    asking for cadence triage.
 4. If cadence is `let-architect-decide`, promote only Architect work that will
    choose `final-audit` or `paired-review`, record the decision in Linear, and
-   adjust downstream dependencies before implementation is promoted.
+   adjust downstream dependencies before implementation is promoted. If
+   Architect already recorded `review_cadence: final-audit` or
+   `review_cadence: paired-review` in an issue body or Linear comment, use
+   that recorded decision.
 5. Identify the single next candidate. If zero or more than one candidate could
    be next, stop and comment with the ambiguity.
 6. Confirm the candidate has exactly one `role:*`, one `type:*`, one `risk:*`,
@@ -56,8 +61,9 @@ promotion safe.
 
 ## Review Cadence Readiness
 
-- `paired-review`: do not promote the Reviewer issue unless the linked PR is open, non-draft, unmerged, and checks/metadata are ready according to policy. Do not promote the next Coder/Test issue until the previous PR-producing issue and its paired Reviewer issue are Done.
-- `final-audit`: do not require open PRs. Promote the final-audit Reviewer issue only after campaign implementation/test PRs are merged or explicitly abandoned. Treat merged PRs as expected audit inputs and do not use pre-merge approval language.
+- `paired-review`: do not promote the Reviewer issue unless the linked PR is open, non-draft, unmerged, and checks/metadata are ready according to policy. Promotion comment must include: "Promoted as paired-review Reviewer for open PR #X." Do not promote the next Coder/Test issue until the previous PR-producing issue is Done, its paired Reviewer issue is Done, and the PR was merged or explicitly abandoned with a recorded outcome.
+- `final-audit`: do not require open PRs. Promote the final-audit Reviewer issue only after upstream PR-producing issues are Done or explicitly abandoned, campaign implementation/test PRs are available for audit, no human gates remain unresolved, role/type/risk/validation metadata are complete, and exactly one next issue is eligible. Treat merged PRs as expected audit inputs and do not use pre-merge approval language. Promotion comment must include: "Promoted as final-audit Reviewer. Merged PRs are expected audit inputs."
+- `let-architect-decide`: do not promote implementation, test, reviewer, or release issues until Architect records `review_cadence: final-audit` or `review_cadence: paired-review`.
 
 ## Boundaries
 
