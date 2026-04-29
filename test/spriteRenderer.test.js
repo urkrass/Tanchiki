@@ -276,6 +276,51 @@ test("renderGame keeps primitive fallback for pickups and destroyed targets", ()
   assert.ok(context.callsByName.fillText.some((call) => call.args[0] === "X"));
 });
 
+test("renderGame adds restrained board and feedback cues without changing sprite requests", () => {
+  const context = createRecordingContext();
+  const spriteRequests = [];
+  const snapshot = createRenderSnapshot({
+    pickups: [
+      { active: true, type: "repair", gridX: 0, gridY: 0 }
+    ],
+    impacts: [
+      { active: true, ageSeconds: 0.05, durationSeconds: 0.2, x: 2.5, y: 1.5 }
+    ],
+    targets: [
+      {
+        type: "base",
+        team: "enemy",
+        alive: true,
+        hp: 3,
+        maxHp: 6,
+        gridX: 3,
+        gridY: 2
+      }
+    ]
+  });
+
+  renderGame(context, snapshot, {
+    effectSeconds: 1,
+    spriteAssets: {
+      getFrame(spriteId, animation, direction) {
+        spriteRequests.push({ spriteId, animation, direction });
+        return { status: SPRITE_STATUS.ERROR };
+      }
+    }
+  });
+
+  assert.ok(hasCall(context, "fillRect", [1, 1, 46, 46]));
+  assert.ok(hasCall(context, "lineTo", [0, 20]));
+  assert.ok(hasCall(context, "arc", [0, 0, 24, 0, Math.PI * 2]));
+  assert.ok(context.callsByName.arc.some((call) => call.args[2] > 17));
+  assert.deepEqual(spriteRequests.map((request) => request.spriteId), [
+    "repair_pickup",
+    "enemy_base",
+    "player_shell",
+    "player_tank"
+  ]);
+});
+
 function createRenderSnapshot(overrides = {}) {
   return {
     level: {
@@ -302,7 +347,7 @@ function createRenderSnapshot(overrides = {}) {
       x: 2.5,
       y: 1.5
     }],
-    impacts: [],
+    impacts: overrides.impacts ?? [],
     targets: overrides.targets ?? [
       {
         type: "dummy",
