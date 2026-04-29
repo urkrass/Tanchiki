@@ -40,6 +40,12 @@ Auto-merge eligibility is limited to narrow, low-risk work after explicit human 
 
 An eligible PR must satisfy every gate in this policy. `merge:auto-eligible` is never enough by itself; it is only one required signal among CI, metadata, branch protection, independent approval, issue state, and changed-file safety.
 
+Draft PRs are a hard veto for auto-merge approval. A normal feature PR may
+remain Draft when that is the clearest review posture for incomplete,
+exploratory, or human-gated work, but an auto-merge candidate PR or
+auto-merge burn-in PR must be marked ready for review before the Coder session
+stops.
+
 ### Do Not Merge
 
 Stop labels are hard vetoes. The presence of any stop label blocks every
@@ -198,6 +204,9 @@ apply to low-risk categories such as:
 - `type:test` + `risk:low` + `validation:test`
 
 Even in these low-risk categories, stop labels remain hard vetoes.
+Draft PRs remain hard vetoes for auto-merge approval. Normal non-auto-merge
+feature PRs may still use Draft when appropriate, but low-risk auto-merge
+candidate PRs and burn-in PRs must be ready for review before the Coder stops.
 
 Human merge or human review remains required for:
 
@@ -217,13 +226,14 @@ An auto-merge shakedown is valid only when the PR remains open and unmerged
 until the full sequence completes:
 
 1. Coder creates the PR.
-2. PR remains open and unmerged.
-3. CI passes.
-4. PR metadata check passes.
-5. Independent Reviewer-agent approves.
-6. Human operator manually applies `merge:auto-eligible`.
-7. No stop labels are present.
-8. GitHub auto-merge performs the merge.
+2. Coder marks any auto-merge candidate or burn-in PR ready for review before stopping.
+3. PR remains open, ready for review, and unmerged.
+4. CI passes.
+5. PR metadata check passes.
+6. Independent Reviewer-agent approves.
+7. Human operator manually applies `merge:auto-eligible`.
+8. No stop labels are present.
+9. GitHub auto-merge performs the merge.
 
 If a human merges before Reviewer approval or before applying
 `merge:auto-eligible`, the result is valid as a normal human merge but invalid
@@ -234,7 +244,7 @@ or inconclusive as an auto-merge shakedown.
 Any future auto-merge workflow or documented procedure must require all of these:
 
 - PR targets `main`.
-- PR is not draft.
+- PR is not draft; Draft PRs are hard vetoes for auto-merge approval.
 - PR has a linked Linear issue.
 - PR body includes role, type, risk, validation profile, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
 - PR metadata check passes.

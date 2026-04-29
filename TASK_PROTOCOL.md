@@ -58,7 +58,11 @@ git diff --check
 
 ## Pull Requests
 
-Open a draft PR against `main`. Fill the PR template with:
+Open a draft PR against `main` by default. Normal feature PRs may remain Draft
+when appropriate. If the PR is an explicitly scoped auto-merge candidate or
+auto-merge burn-in PR, mark it ready for review before the Coder session stops
+because Draft PRs are hard vetoes for auto-merge approval. Fill the PR template
+with:
 
 - linked Linear issue
 - role, type, risk, validation profile
@@ -114,7 +118,9 @@ an auto-merge shakedown.
 
 ## Done Rules
 
-Move an implementation issue to `In Review` after its draft PR is open. Do not mark it `Done` until the PR is merged or a human explicitly approves closure.
+Move an implementation issue to `In Review` after its PR is open and the
+required draft or ready-for-review posture is set. Do not mark it `Done` until
+the PR is merged or a human explicitly approves closure.
 
 Reviewer or release issues may move to `In Review` after their notes are posted, but must not be marked `Done` unless a human approves or the role protocol explicitly allows it.
 
