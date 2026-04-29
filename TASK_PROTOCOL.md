@@ -81,6 +81,7 @@ Use:
 - `prompts/codex-conduct-campaign.md`
 - `ops/prompts/campaign-conductor.md`
 - `ops/policies/campaign-conductor.md`
+- `ops/policies/model-routing.md`
 - `ops/checklists/campaign-conductor-checklist.md`
 
 ## Branch Creation
@@ -125,8 +126,9 @@ git diff --check
 
 Campaigns may use context packs to reduce repeated context rebuilding, but
 context packs do not replace the authoritative protocol docs. Use
-`ops/policies/context-economy.md` and
-`ops/checklists/context-pack-checklist.md` for campaign and issue context pack
+`ops/policies/context-economy.md`, `ops/policies/model-routing.md`,
+`ops/checklists/context-pack-checklist.md`, and
+`ops/checklists/model-routing-checklist.md` for campaign and issue context pack
 templates, role-specific context budgets, context refresh rules, and advisory
 `model_hint` guidance.
 
@@ -135,6 +137,14 @@ validation, PR metadata, review cadence, changed-file scrutiny, or human gates.
 Broad repo scans are allowed when safety or ambiguity requires them, but the
 agent must record the reason in Linear, the PR body, the review note, or the
 final summary.
+
+Allowed hints are `model_hint: frontier`, `model_hint: cheap`,
+`model_hint: local-ok`, and `model_hint: human-only`. Agents must stop if the
+current model is below the required `model_hint` unless a human explicitly
+approves a downgrade. Cheaper or local models are limited to bounded low-risk
+docs, static test, release-summary, or narrow harness lanes. Validation
+requirements, Reviewer gates, and human gates do not change when a cheaper or
+local model is used.
 
 ## Pull Requests
 

@@ -14,10 +14,12 @@ Follow:
 - `ops/policies/role-router.md`
 - `ops/policies/risk-gated-validation.md`
 - `ops/policies/context-economy.md`
+- `ops/policies/model-routing.md`
 - `ops/policies/role-boundaries.md`
 - `ops/checklists/role-routing-checklist.md`
 - `ops/checklists/risk-gate-checklist.md`
 - `ops/checklists/context-pack-checklist.md`
+- `ops/checklists/model-routing-checklist.md`
 - the selected role prompt in `ops/prompts/`
 
 Dispatcher rules:
@@ -28,6 +30,8 @@ Dispatcher rules:
 4. Read the full issue before acting.
    - Use the issue context pack and campaign context pack when present.
    - Do not use a context pack to infer or repair missing eligibility metadata.
+   - Stop if the current model is below the required `model_hint` and no human
+     downgrade approval is recorded.
    - Record a reason before broad repo scans.
 5. Route by the role label:
    - `role:architect` -> Architect

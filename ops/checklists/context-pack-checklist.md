@@ -17,7 +17,9 @@ releasing a campaign that uses context packs.
 - [ ] Validation profiles, required commands, manual QA, and PR metadata
       expectations are listed.
 - [ ] Known decisions, open questions, and follow-up work are captured.
-- [ ] `model_hint` is present and explicitly advisory.
+- [ ] `model_hint` is present, explicitly advisory, and uses one of
+      `model_hint: frontier`, `model_hint: cheap`, `model_hint: local-ok`, or
+      `model_hint: human-only`.
 - [ ] Context refresh triggers are listed.
 - [ ] Stop-and-ask conditions are listed.
 
@@ -33,7 +35,8 @@ releasing a campaign that uses context packs.
 - [ ] Review cadence and PR posture are stated for PR-producing issues.
 - [ ] Central-file conflict risk is stated.
 - [ ] Visible UI expectation is stated.
-- [ ] `model_hint` is advisory and includes escalation conditions.
+- [ ] `model_hint` is advisory, uses an allowed value, and includes escalation
+      conditions.
 
 ## Safety Gate
 
@@ -68,6 +71,9 @@ releasing a campaign that uses context packs.
       work.
 - [ ] Cheaper/local model candidates are limited to approved low-risk routine
       docs, static test, or narrow harness wording lanes.
+- [ ] Agents stop when the current model is below the required `model_hint`
+      unless a human-approved downgrade is recorded.
+- [ ] `model_hint: human-only` stops automation.
 
 ## Review Gate
 
@@ -80,4 +86,3 @@ releasing a campaign that uses context packs.
 - [ ] Conductor still verifies campaign order, blockers, cadence, issue labels,
       state, stop labels, and PR readiness.
 - [ ] Dispatcher still enforces the normal eligibility gate before routing.
-

@@ -15,10 +15,12 @@ Before creating issues, read:
 - `ops/policies/campaign-execution.md`
 - `ops/policies/risk-gated-validation.md`
 - `ops/policies/context-economy.md`
+- `ops/policies/model-routing.md`
 - `ops/prompts/campaign-groomer.md`
 - `ops/checklists/planner-output-checklist.md`
 - `ops/checklists/campaign-grooming-checklist.md`
 - `ops/checklists/context-pack-checklist.md`
+- `ops/checklists/model-routing-checklist.md`
 - `ops/checklists/conflict-risk-checklist.md`
 - the campaign brief supplied by the user
 
@@ -46,7 +48,7 @@ Before creating issues, read:
    - `dependency via blocked-by relation`
 8. Recommend a review cadence for every campaign.
 9. Include review cadence in the campaign summary, every relevant issue description, dependency order, and grooming notes.
-10. Create a campaign context pack that records goal, non-goals, cadence, queue order, gates, paired-review points, required safety context, relevant files, forbidden files, validation profiles, known decisions, PR/issue sequence, broad-scan rules, refresh triggers, stop conditions, and advisory `model_hint` recommendations.
+10. Create a campaign context pack that records goal, non-goals, cadence, queue order, gates, paired-review points, required safety context, relevant files, forbidden files, validation profiles, known decisions, PR/issue sequence, broad-scan rules, refresh triggers, stop conditions, and advisory `model_hint` recommendations using `model_hint: frontier`, `model_hint: cheap`, `model_hint: local-ok`, or `model_hint: human-only`.
 11. Add a minimal issue context pack to each issue. It must name required safety context, likely files, forbidden files, validation profile, review cadence, known decisions, PR/issue sequence, refresh triggers, stop-and-ask conditions, and an advisory `model_hint`.
 12. Keep issue context packs concise. Reference the campaign context pack instead of repeating broad repo process text.
 13. Assign suggested role labels in the issue body: `role:architect`, `role:coder`, `role:test`, `role:reviewer`, or `role:release`.

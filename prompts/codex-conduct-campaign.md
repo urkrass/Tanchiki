@@ -6,6 +6,7 @@ Run the Tanchiki Campaign Conductor for the active campaign.
 Inspect campaign state.
 Inspect the campaign review cadence before any promotion by checking campaign notes, issue descriptions, grooming notes, and Architect comments for `review_cadence: final-audit`, `review_cadence: paired-review`, or `review_cadence: let-architect-decide`.
 Use the campaign context pack and issue context packs when present, but do not use them to skip campaign order, blockers, PR readiness, safety docs, or Level 5 metadata checks.
+Stop if the current model is below the required `model_hint` and no human downgrade approval is recorded.
 Record a reason before broad repo scans.
 Promote exactly one next safe issue if eligible.
 Repair only explicit metadata omissions from issue body.
@@ -28,9 +29,10 @@ Follow:
 - `ops/prompts/campaign-conductor.md`
 - `ops/policies/campaign-conductor.md`
 - `ops/policies/context-economy.md`
+- `ops/policies/model-routing.md`
 - `ops/checklists/campaign-conductor-checklist.md`
 - `ops/checklists/context-pack-checklist.md`
+- `ops/checklists/model-routing-checklist.md`
 - `TASK_PROTOCOL.md`
 - `VALIDATION_MATRIX.md`
 - `SAFETY_BOUNDARIES.md`
-
