@@ -419,6 +419,26 @@ test("PR acceptance policy requires independent reviewer and active shakedown se
   }
 });
 
+test("burn-in summaries require explicit auto-merge event evidence", () => {
+  const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
+  const prChecklist = readRepoFile("ops", "checklists", "pr-acceptance-checklist.md");
+  const releaseChecklist = readRepoFile("ops", "checklists", "release-summary-checklist.md");
+
+  for (const expected of [
+    "Successful auto-merge proof requires one of:",
+    "GitHub timeline evidence such as `AutoMergeEnabledEvent`",
+    "GitHub CLI/API evidence showing `autoMergeRequest` was set before merge.",
+    "Successful auto-merge proof includes GitHub timeline evidence such as",
+    "Acceptable auto-merge completion proof is either GitHub timeline evidence",
+    "count a PR as successful auto-merge only",
+    "when GitHub evidence shows auto-merge was enabled and performed.",
+  ]) {
+    assert.match(`${policy}\n${prChecklist}\n${releaseChecklist}`, new RegExp(escapeRegExp(expected)));
+  }
+  const normalized = `${policy}\n${prChecklist}\n${releaseChecklist}`.replace(/\s+/g, " ");
+  assert.match(normalized, /Reviewer approval \+ human merge succeeded; auto-merge completion inconclusive\./);
+});
+
 test("PR acceptance checklist and template guard auto-merge gates without live GitHub mutation", () => {
   const checklist = readRepoFile("ops", "checklists", "pr-acceptance-checklist.md");
   const template = readRepoFile(".github", "PULL_REQUEST_TEMPLATE.md");

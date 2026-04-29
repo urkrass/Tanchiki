@@ -235,6 +235,16 @@ until the full sequence completes:
 8. No stop labels are present.
 9. GitHub auto-merge performs the merge.
 
+Successful auto-merge proof requires one of:
+
+- GitHub timeline evidence such as `AutoMergeEnabledEvent` or AutoMergeRequest
+  evidence.
+- GitHub CLI/API evidence showing `autoMergeRequest` was set before merge.
+
+If that evidence is absent, release summaries and burn-in reports must classify
+the result as: "Reviewer approval + human merge succeeded; auto-merge
+completion inconclusive."
+
 If a human merges before Reviewer approval or before applying
 `merge:auto-eligible`, the result is valid as a normal human merge but invalid
 or inconclusive as an auto-merge shakedown.
