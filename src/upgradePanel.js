@@ -1,13 +1,37 @@
-export function renderUpgradePanel({ panel, choicesContainer, snapshot }) {
+export function renderUpgradePanel({
+  panel,
+  contextElement = null,
+  choicesContainer,
+  snapshot
+}) {
   const choices = snapshot.upgradeChoice?.choices ?? [];
   if (!snapshot.upgradeChoice?.pending || choices.length === 0) {
     panel.hidden = true;
+    if (contextElement) {
+      contextElement.textContent = "";
+    }
     choicesContainer.replaceChildren();
     return;
   }
 
   panel.hidden = false;
+  if (contextElement) {
+    contextElement.textContent = describeUpgradePanelContext(snapshot);
+  }
   choicesContainer.replaceChildren(...choices.map(createUpgradeChoiceButton));
+}
+
+export function describeUpgradePanelContext(snapshot) {
+  const rewardText = formatRewardText(snapshot);
+  const pointText = formatPointText(snapshot);
+  const levelText = `Level ${nextLevelNumber(snapshot)}`;
+  const prefix = [rewardText, pointText].filter(Boolean).join(" and ");
+
+  if (prefix) {
+    return `${prefix}. Pick one upgrade now; it starts on ${levelText}.`;
+  }
+
+  return `Pick one upgrade now; it starts on ${levelText}.`;
 }
 
 export function upgradeChoiceIndexForKey(code) {
@@ -21,6 +45,35 @@ export function upgradeChoiceIndexForKey(code) {
     return 2;
   }
   return null;
+}
+
+function formatRewardText(snapshot) {
+  const xp = snapshot.lastMissionReward?.xp;
+  return Number.isFinite(xp) ? `Earned +${xp} XP` : "";
+}
+
+function formatPointText(snapshot) {
+  const points = snapshot.upgradeChoice?.availableUpgradePoints
+    ?? snapshot.progression?.availableUpgradePoints
+    ?? 0;
+
+  if (points <= 0) {
+    return "";
+  }
+
+  return points === 1 ? "1 upgrade point" : `${points} upgrade points`;
+}
+
+function nextLevelNumber(snapshot) {
+  if (Number.isFinite(snapshot.levelNumber)) {
+    return snapshot.levelNumber + 1;
+  }
+
+  if (Number.isFinite(snapshot.currentLevelIndex)) {
+    return snapshot.currentLevelIndex + 2;
+  }
+
+  return 2;
 }
 
 function createUpgradeChoiceButton(choice, index) {

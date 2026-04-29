@@ -18,7 +18,8 @@ test("progression feedback shows deterministic XP reward and pending upgrade poi
   }), {
     rows: [
       { label: "XP earned", value: "+120 XP" },
-      { label: "Upgrade points", value: "1 point available" }
+      { label: "Upgrade points", value: "1 point available" },
+      { label: "Next step", value: "Choose one upgrade for Level 2" }
     ]
   });
 });
@@ -35,11 +36,13 @@ test("progression feedback explains no-upgrade state without gating continuation
       pending: false,
       availableUpgradePoints: 2,
       choices: []
-    }
+    },
+    canAdvanceLevel: true
   }), {
     rows: [
       { label: "XP earned", value: "+100 XP" },
-      { label: "Upgrade points", value: "2 points unspent - all upgrades maxed" }
+      { label: "Upgrade points", value: "2 points unspent - all upgrades maxed" },
+      { label: "Next step", value: "Continue to Level 2" }
     ]
   });
 });
