@@ -14,9 +14,11 @@ Before creating issues, read:
 - `ops/policies/planner-boundaries.md`
 - `ops/policies/campaign-execution.md`
 - `ops/policies/risk-gated-validation.md`
+- `ops/policies/context-economy.md`
 - `ops/prompts/campaign-groomer.md`
 - `ops/checklists/planner-output-checklist.md`
 - `ops/checklists/campaign-grooming-checklist.md`
+- `ops/checklists/context-pack-checklist.md`
 - `ops/checklists/conflict-risk-checklist.md`
 - the campaign brief supplied by the user
 
@@ -44,23 +46,28 @@ Before creating issues, read:
    - `dependency via blocked-by relation`
 8. Recommend a review cadence for every campaign.
 9. Include review cadence in the campaign summary, every relevant issue description, dependency order, and grooming notes.
-10. Assign suggested role labels in the issue body: `role:architect`, `role:coder`, `role:test`, `role:reviewer`, or `role:release`.
-11. Assign suggested type, risk, and validation labels in the issue body.
-12. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
-13. For dependency chains, identify the single issue that should become `Todo` + `automation-ready` first after human approval.
-14. Flag central-file conflict risk when likely files overlap recent merged PRs or include `src/game.js` or `test/game.test.js`.
-15. Create issues in Linear with clear dependency notes in the issue body.
-16. Run `ops/checklists/campaign-grooming-checklist.md` before stopping.
-17. Normalize each created issue using the new label taxonomy:
+10. Create a campaign context pack that records goal, non-goals, cadence, queue order, gates, paired-review points, required safety context, relevant files, forbidden files, validation profiles, known decisions, PR/issue sequence, broad-scan rules, refresh triggers, stop conditions, and advisory `model_hint` recommendations.
+11. Add a minimal issue context pack to each issue. It must name required safety context, likely files, forbidden files, validation profile, review cadence, known decisions, PR/issue sequence, refresh triggers, stop-and-ask conditions, and an advisory `model_hint`.
+12. Keep issue context packs concise. Reference the campaign context pack instead of repeating broad repo process text.
+13. Assign suggested role labels in the issue body: `role:architect`, `role:coder`, `role:test`, `role:reviewer`, or `role:release`.
+14. Assign suggested type, risk, and validation labels in the issue body.
+15. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
+16. For dependency chains, identify the single issue that should become `Todo` + `automation-ready` first after human approval.
+17. Flag central-file conflict risk when likely files overlap recent merged PRs or include `src/game.js` or `test/game.test.js`.
+18. Create issues in Linear with clear dependency notes in the issue body.
+19. Run `ops/checklists/campaign-grooming-checklist.md` before stopping.
+20. Normalize each created issue using the new label taxonomy:
    - exactly one applied `role:*` label where applicable
    - exactly one applied `type:*`, `risk:*`, and `validation:*` label where applicable
    - `automation-ready` only on the one issue that may run next
    - `needs-human-approval` for human gates
    - blocked-by / blocks relations for dependency-blocked issues
    - `human-only` for work that must never be automated
-18. If the campaign requires Architect review first, make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready`.
-19. Keep Coder issues Backlog with blocked-by relations until Architect and human gates are done unless the user explicitly asked for Coder to run first.
-20. Stop after posting the final groomed queue summary.
+21. If the campaign requires Architect review first, make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready`.
+22. Keep Coder issues Backlog with blocked-by relations until Architect and human gates are done unless the user explicitly asked for Coder to run first.
+23. Stop after posting the final groomed queue summary.
+
+`model_hint` is advisory only. It must not override role/type/risk labels, validation profiles, PR metadata, human gates, review cadence, safety docs, or the requirement to justify broad repo scans.
 
 ## Review Cadence Modes
 
@@ -103,6 +110,9 @@ Each Linear issue must include:
 - Visible UI change expected
 - Central-file conflict risk
 - First issue that should become `Todo` + `automation-ready`
+- Campaign context pack reference
+- Issue context pack
+- `model_hint`
 
 ## Default Validation Commands
 
@@ -130,6 +140,8 @@ After creating the issues, report:
 - suggested type label, risk label, and validation label for each issue
 - which single issue should become `Todo` + `automation-ready` first
 - which issues still need `needs-human-approval` before automation
+- where the campaign context pack is attached or referenced
+- `model_hint` recommendations and any required frontier-model lanes
 - final applied status and labels for each issue after grooming
 - whether the queue is safe for the Level 5 Dispatcher
 

@@ -34,6 +34,12 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
 - [ ] Fix classification mismatches before automation starts, for example human review gates mislabeled as Coder work.
 - [ ] Confirm the campaign has review cadence: `final-audit`, `paired-review`, or `let-architect-decide`.
 - [ ] Confirm Planner recommended a cadence in the campaign summary, relevant issue descriptions, dependency order, and grooming notes.
+- [ ] Confirm the campaign has a campaign context pack attached or clearly referenced.
+- [ ] Confirm every issue has a minimal issue context pack or a clear reference to one.
+- [ ] Confirm issue context packs include required safety context, relevant files, forbidden files, validation profile, review cadence, known decisions, PR/issue sequence, context refresh triggers, stop-and-ask conditions, and advisory `model_hint`.
+- [ ] Confirm `model_hint` values do not override role/type/risk labels, validation profiles, PR metadata, human gates, review cadence, or safety docs.
+- [ ] Confirm broad repo scans require a recorded reason.
+- [ ] Confirm token saving is not used to skip safety-critical docs, validation, PR metadata, changed-file scrutiny, review cadence, or human gates.
 - [ ] If review cadence is `let-architect-decide`, confirm Architect must choose `final-audit` or `paired-review` and record the reason in Linear before implementation issues are promoted.
 - [ ] If review cadence is missing or ambiguous, comment asking for cadence triage and stop.
 - [ ] Confirm no issue uses `human-review` to mean reviewer work.
@@ -63,6 +69,7 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
 - [ ] Confirm Release issues stay Backlog with blocked-by relations until review is done.
 - [ ] Confirm the recommended first automation issue is documented for human approval.
 - [ ] Add a grooming comment summarizing queue order and required human actions.
+- [ ] The grooming comment includes the campaign context pack location and `model_hint` boundaries.
 - [ ] Comment on any issue with missing or ambiguous labels asking for triage.
 - [ ] Do not edit gameplay code.
 - [ ] Do not modify `src/game/movement.js`.

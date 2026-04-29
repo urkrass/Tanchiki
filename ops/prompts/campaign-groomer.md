@@ -15,7 +15,9 @@ Review campaign issues after Planner work and prepare the queue so the Level 5 D
 - `ops/policies/campaign-execution.md`
 - `ops/policies/role-router.md`
 - `ops/policies/risk-gated-validation.md`
+- `ops/policies/context-economy.md`
 - `ops/checklists/campaign-grooming-checklist.md`
+- `ops/checklists/context-pack-checklist.md`
 - `ops/checklists/risk-gate-checklist.md`
 - the campaign issues in Linear
 
@@ -33,25 +35,29 @@ Review campaign issues after Planner work and prepare the queue so the Level 5 D
 5. Verify the campaign has a review cadence: `final-audit`, `paired-review`, or `let-architect-decide`.
 6. If the cadence is `let-architect-decide`, keep implementation issues blocked until Architect records `final-audit` or `paired-review` in Linear and downstream dependencies are adjusted.
 7. If cadence is missing or ambiguous, stop and comment asking for cadence triage.
-8. Ensure human gates use `needs-human-approval`.
-9. Ensure ordinary dependency work uses Linear blocked-by / blocks relations, not the `blocked` label.
-10. Ensure human-only work uses `human-only` and `risk:human-only` when automation must never run it.
-11. Fix classification mismatches before automation starts. Example: an issue titled like "Human review: approve difficulty targets" is not Coder work; mark it `needs-human-approval` or `human-only` and do not apply `automation-ready`.
-12. Ensure exactly one issue has `automation-ready`, and only when it may run next.
-13. If the campaign requires architecture review first, make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready`.
-14. Do not make a Coder issue automation-ready immediately after planning unless the user explicitly requested it.
-15. Keep downstream work safe:
+8. Ensure the campaign has a campaign context pack attached or clearly referenced in the campaign notes, first Architect issue, or grooming comment.
+9. Ensure every issue has a concise issue context pack or a clear reference to one. It must include required safety context, relevant files, forbidden files, validation profile, review cadence, known decisions, PR/issue sequence, context refresh triggers, stop-and-ask conditions, and advisory `model_hint`.
+10. Ensure `model_hint` does not override risk gates, validation profiles, PR metadata, human gates, review cadence, or required safety docs.
+11. Ensure broad repo scans require a recorded reason and token saving is not used to skip safety-critical docs.
+12. Ensure human gates use `needs-human-approval`.
+13. Ensure ordinary dependency work uses Linear blocked-by / blocks relations, not the `blocked` label.
+14. Ensure human-only work uses `human-only` and `risk:human-only` when automation must never run it.
+15. Fix classification mismatches before automation starts. Example: an issue titled like "Human review: approve difficulty targets" is not Coder work; mark it `needs-human-approval` or `human-only` and do not apply `automation-ready`.
+16. Ensure exactly one issue has `automation-ready`, and only when it may run next.
+17. If the campaign requires architecture review first, make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready`.
+18. Do not make a Coder issue automation-ready immediately after planning unless the user explicitly requested it.
+19. Keep downstream work safe:
    - Coder issues stay Backlog with blocked-by relations until Architect and human gates are done.
    - Test issues stay Backlog with blocked-by relations until implementation PRs are merged or ready.
    - Reviewer issues stay Backlog with blocked-by relations until implementation/test PRs exist.
    - Release issues stay Backlog with blocked-by relations until review is done.
-16. Shape dependencies according to review cadence:
+20. Shape dependencies according to review cadence:
    - `paired-review`: Coder/Test issue blocks its paired Reviewer issue; paired Reviewer issue blocks the next Coder/Test issue; Release waits until all paired reviewers and PR-producing issues are Done. Example order: Architect, Human gate, Coder A, Reviewer A, Coder B, Reviewer B, Test, Reviewer Test, Release.
    - `final-audit`: Coder/Test issues may proceed sequentially after their PRs are merged; one final-audit Reviewer issue runs after implementation/test PRs are merged or explicitly abandoned; Release waits for final-audit Reviewer. Example order: Architect, Human gate, Coder A, Coder B, Test, Final-audit Reviewer, Release.
-17. Ensure no parent, epic, or campaign umbrella issue is automation-ready.
-18. Ensure no issue has `automation-ready` with `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
-19. Add a grooming comment summarizing review cadence, queue order, blocked-by dependencies, and human gates.
-20. Stop after reporting the grooming result.
+21. Ensure no parent, epic, or campaign umbrella issue is automation-ready.
+22. Ensure no issue has `automation-ready` with `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
+23. Add a grooming comment summarizing review cadence, queue order, blocked-by dependencies, human gates, campaign context pack location, and `model_hint` boundaries.
+24. Stop after reporting the grooming result.
 
 ## Boundaries
 
@@ -76,4 +82,7 @@ Report:
 - type, risk, and validation labels for each issue
 - blocked/gated issues and required human actions
 - missing or ambiguous labels
+- campaign context pack location
+- issue context pack gaps
+- model_hint recommendations and any unsafe hint conflicts
 - whether the queue is safe for the Level 5 Dispatcher
