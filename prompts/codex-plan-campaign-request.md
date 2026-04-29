@@ -2,6 +2,9 @@
 
 Use Linear MCP and GitHub.
 
+Active Linear project:
+<Tanchiki project name>
+
 Run the Tanchiki self-service campaign factory for the supplied campaign request. Treat the request as intake for planning and grooming only. Do not let a request directly trigger Coder work.
 
 ## Input
@@ -37,6 +40,9 @@ Before creating or grooming Linear issues, read:
 ## Factory Rules
 
 - This is planning and queue grooming only.
+- Choose Linear project mode: `main-project` or `campaign-project`.
+- Do not create a new Linear project unless the campaign is multi-issue, the user requested or accepted campaign-project mode, the name follows the Tanchiki convention, and you report the active project.
+- Operate only inside the declared active Linear project.
 - Do not edit source files.
 - Do not open a PR.
 - Do not merge anything.
@@ -109,6 +115,8 @@ retrospective campaign summaries.
 
 Create 6-8 small Linear issues when appropriate. Every issue must include:
 
+- Linear project mode
+- Active Linear project
 - Goal
 - Current state
 - Files likely involved
@@ -140,7 +148,7 @@ Use Level 5 metadata on every issue:
 
 Preserve dependencies from the request. Keep issues small enough for one role pass. Prefer an Architect review issue first unless the request is already an approved continuation with a clear safe next issue.
 
-Create a campaign context pack using `ops/policies/context-economy.md`. It must include the campaign goal, non-goals, review cadence, queue order, human gates, paired-review points, required safety context, relevant files, forbidden files, validation profiles, known decisions, PR/issue sequence, broad-scan rules, context refresh triggers, stop-and-ask conditions, and advisory `model_hint` recommendations.
+Create a campaign context pack using `ops/policies/context-economy.md`. It must include the active Linear project, campaign goal, non-goals, review cadence, queue order, human gates, paired-review points, required safety context, relevant files, forbidden files, validation profiles, known decisions, PR/issue sequence, broad-scan rules, context refresh triggers, stop-and-ask conditions, and advisory `model_hint` recommendations.
 
 Each issue context pack should be minimal and role-specific. Reference the campaign context pack instead of repeating broad repo process text.
 
@@ -148,25 +156,31 @@ Each issue context pack should be minimal and role-specific. Reference the campa
 
 After issue creation, groom the same Linear campaign:
 
-1. Normalize every issue to exactly one role label.
-2. Normalize every issue to exactly one type label.
-3. Normalize every issue to exactly one risk label.
-4. Normalize every issue to exactly one validation label.
-5. Add `needs-human-approval` to human gate issues.
-6. Add `human-only` and `risk:human-only` where automation must never run.
-7. Add blocked-by / blocks relationships for dependency-blocked issues.
-8. Do not add the `blocked` label for ordinary dependency sequencing.
-9. Ensure no parent, umbrella, unresolved dependency, human-only, or gated issue has `automation-ready`.
-10. Ensure no issue has `automation-ready` with `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
-11. Make only the first safe Architect issue `Todo` + `automation-ready`.
-12. Keep all Coder/Test/Reviewer/Release issues Backlog with blocked-by relations until Architect and human gates are complete.
-13. Shape dependencies according to review cadence:
+1. Verify all campaign issues are in the declared active Linear project.
+2. Verify only one first issue is `Todo` + `automation-ready` inside the active project.
+3. Verify no unexpected `automation-ready` issue exists in another visible Tanchiki campaign project.
+4. Avoid cross-project dependencies unless explicitly documented.
+5. If campaign issues are split across projects, stop and ask for human triage. Do not move issues across projects without explicit approval.
+6. Normalize every issue to exactly one role label.
+7. Normalize every issue to exactly one type label.
+8. Normalize every issue to exactly one risk label.
+9. Normalize every issue to exactly one validation label.
+10. Add `needs-human-approval` to human gate issues.
+11. Add `human-only` and `risk:human-only` where automation must never run.
+12. Add blocked-by / blocks relationships for dependency-blocked issues.
+13. Do not add the `blocked` label for ordinary dependency sequencing.
+14. Ensure no parent, umbrella, unresolved dependency, human-only, or gated issue has `automation-ready`.
+15. Ensure no issue has `automation-ready` with `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
+16. Make only the first safe Architect issue `Todo` + `automation-ready`.
+17. Keep all Coder/Test/Reviewer/Release issues Backlog with blocked-by relations until Architect and human gates are complete.
+18. Shape dependencies according to review cadence:
    - For `paired-review`: Coder/Test issue blocks its paired Reviewer issue; paired Reviewer issue blocks the next Coder/Test issue; Release waits until all paired reviewers and PR-producing issues are Done. Example: Architect, Human gate, Coder A, Reviewer A, Coder B, Reviewer B, Test, Reviewer Test, Release.
    - For `final-audit`: Coder/Test issues may proceed sequentially after their PRs are merged; a single final-audit Reviewer issue runs after implementation/test PRs are merged or explicitly abandoned; Release waits for final-audit Reviewer. Example: Architect, Human gate, Coder A, Coder B, Test, Final-audit Reviewer, Release.
-14. Add a grooming comment with review cadence, queue order, blocked-by dependencies, and human gates.
-15. Attach or clearly reference the campaign context pack in the grooming comment or first Architect issue.
-16. Confirm every issue includes a minimal issue context pack and advisory `model_hint`.
-17. Confirm required safety docs remain visible and broad repo scans require a recorded reason.
+19. Add a grooming comment with active Linear project, review cadence, queue order, blocked-by dependencies, and human gates.
+20. Attach or clearly reference the campaign context pack in the grooming comment or first Architect issue.
+21. Confirm every issue includes a minimal issue context pack and advisory `model_hint`.
+22. Confirm release summary expectations include active Linear project, campaign name, issue list, PR list, project moves, and remaining active automation-ready issues.
+23. Confirm required safety docs remain visible and broad repo scans require a recorded reason.
 
 ## Validation Expectations
 
@@ -185,10 +199,14 @@ git diff --check
 
 After creating and grooming the campaign, report:
 
+- Linear project mode: `main-project` or `campaign-project`
+- active Linear project
+- campaign name
 - issue identifiers and titles
 - role/type/risk/validation for each issue
 - dependency order
 - first eligible issue
+- whether any automation-ready issues exist outside the active project
 - blocked-by dependencies
 - human approval gates
 - central-file conflict risks

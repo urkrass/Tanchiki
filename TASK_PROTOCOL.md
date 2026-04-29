@@ -4,7 +4,20 @@ This repo uses Linear for task state, GitHub for code review, and this repositor
 
 ## Linear Issue Selection
 
-The Dispatcher scans Tanchiki `Todo` issues and selects one issue only.
+The Dispatcher scans Tanchiki `Todo` issues in the declared active Linear
+project and selects one issue only.
+
+Every Dispatcher run must provide an active project, for example:
+
+```text
+Active Linear project: Tanchiki / Harness — Token Economy
+```
+
+If active project is missing and exactly one eligible issue exists across
+visible Tanchiki projects, the Dispatcher may report that project and selected
+issue before acting. If active project is missing and multiple eligible issues
+exist across Tanchiki projects, the Dispatcher stops. It must not run issues
+from another campaign project.
 
 Eligibility requires:
 
@@ -18,6 +31,35 @@ Eligibility requires:
 
 If metadata is missing or duplicated, the Dispatcher stops and comments on the issue with the exact fields to fix.
 
+## Linear Project Strategy
+
+Tanchiki supports two Linear project modes:
+
+- `main-project`: use `Tanchiki — Playable Tank RPG Prototype` for ordinary
+  work, single issues, small fixes, and maintenance.
+- `campaign-project`: use a dedicated project for multi-issue harness,
+  product, release, or research campaigns, especially work with human gates,
+  paired reviews, and Release summaries.
+
+Dedicated campaign projects must use a Tanchiki prefix:
+
+- `Tanchiki / Harness — <Campaign Name>`
+- `Tanchiki / Game — <Campaign Name>`
+- `Tanchiki / Release — <Campaign Name>`
+- `Tanchiki / Research — <Campaign Name>`
+
+If a campaign remains inside the main project, every issue body must clearly
+state the campaign name. Planner must report Linear project mode, active Linear
+project, campaign name, issue IDs created, first eligible issue, and whether
+any automation-ready issues exist outside the active project.
+
+Planner and Auto-Groomer operate only inside the declared active project.
+Auto-Groomer must verify all campaign issues are in the same active project,
+only one first issue is `Todo` + `automation-ready`, and no unexpected
+`automation-ready` issue exists in another visible Tanchiki campaign project.
+If campaign issues are split across projects, Auto-Groomer must stop for human
+triage and must not move issues without explicit approval.
+
 ## Campaign Conductor
 
 Use the Campaign Conductor when a campaign queue needs one safe promotion after
@@ -28,6 +70,13 @@ The Conductor may promote at most one next issue per run. It must not loop,
 run Dispatcher, implement code, review PRs, merge PRs, apply
 `merge:auto-eligible`, remove stop labels, or mark issues `Done` unless this
 protocol explicitly allows it.
+
+The Conductor requires an active Linear project. It inspects only the declared
+active project, promotes issues only in that project, stops if active project is
+missing or ambiguous, and stops if multiple Tanchiki projects contain eligible
+`automation-ready` issues while the active project is not declared. It reports
+the active project in its output and must not move issues across projects unless
+explicitly instructed.
 
 Promotion requires an unambiguous campaign order, exactly one next candidate,
 exactly one `role:*`, `type:*`, `risk:*`, and `validation:*` label, no stop or
@@ -158,6 +207,7 @@ be open, non-draft, unmerged, and passing required checks before the paired
 Reviewer issue may run. Fill the PR template with:
 
 - linked Linear issue
+- active Linear project
 - role, type, risk, validation profile
 - summary
 - files changed
@@ -237,6 +287,10 @@ NOTES`, `HUMAN FOLLOW-UP REQUIRED`, and `BLOCKING FINDING`.
 Release issues may be marked `Done` only after their summary is posted and
 accepted by a human or operator. Release issues run only after the appropriate
 review cadence is complete.
+
+Release summaries must record active Linear project, campaign name, issue list,
+PR list, whether any issue moved between projects, and any remaining active
+`automation-ready` issue in the campaign project.
 
 Human gate issues are `Done` only after the human decision or action is
 recorded.

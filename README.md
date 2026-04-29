@@ -274,7 +274,11 @@ Normal dispatcher prompt:
 
 ```text
 Use Linear MCP and GitHub.
-Run the Tanchiki dispatcher for the next eligible issue.
+
+Active Linear project:
+<Tanchiki project name>
+
+Run the Tanchiki dispatcher for the next eligible issue in the declared active project.
 Choose the correct role automatically.
 Follow the repo harness protocols, including Level 5 risk-gated validation.
 Work one issue only.
@@ -286,6 +290,10 @@ Planner + Auto-Groomer prompt:
 
 ```text
 Use Linear MCP and GitHub.
+
+Active Linear project:
+<Tanchiki project name>
+
 Run prompts/codex-plan-and-groom-campaign.md for this Tanchiki campaign brief.
 Create 5-7 issues, groom the campaign queue, expose only the first runnable issue, and report the final queue.
 Do not implement gameplay.
@@ -296,16 +304,24 @@ Campaign Conductor prompt:
 
 ```text
 Use Linear MCP and GitHub.
+
+Active Linear project:
+<Tanchiki project name>
+
 Run the Tanchiki Campaign Conductor for the active campaign.
+Inspect only the declared active project.
 Inspect campaign state.
 Inspect campaign notes, issue descriptions, grooming notes, and Architect comments for review_cadence before any promotion.
 Promote exactly one next safe issue if eligible.
+Promote issues only in the declared active project.
 Repair only explicit metadata omissions from issue body.
 Stop at human gates or ambiguity.
+Do not move issues across projects unless explicitly instructed.
 Do not edit repo files.
 Do not run Dispatcher.
 Do not merge.
 Do not mark Done unless the protocol explicitly allows it.
+Report the active project.
 Report the promoted issue or the blocker.
 ```
 
@@ -460,6 +476,44 @@ runs one final-audit Reviewer after implementation/test PRs are merged or
 explicitly abandoned. Reviewer issue titles must say `Reviewer: paired-review
 PR for <issue id/title>` or `Reviewer: final audit for <campaign name>`.
 
+## Linear Campaign Projects
+
+Tanchiki supports two Linear project modes:
+
+- `main-project`: use `Tanchiki — Playable Tank RPG Prototype` for ordinary
+  work, single issues, small fixes, and maintenance.
+- `campaign-project`: use a dedicated campaign project for multi-issue harness,
+  product, release, or research campaigns, especially when the sequence includes
+  human gates, paired reviews, and a Release summary.
+
+Dedicated campaign projects must use a clear Tanchiki prefix:
+
+- `Tanchiki / Harness — <Campaign Name>`
+- `Tanchiki / Game — <Campaign Name>`
+- `Tanchiki / Release — <Campaign Name>`
+- `Tanchiki / Research — <Campaign Name>`
+
+Examples:
+
+- `Tanchiki / Harness — Token Economy`
+- `Tanchiki / Harness — Reviewer App Routine`
+- `Tanchiki / Game — Visual Identity`
+- `Tanchiki / Release — Public Demo`
+
+If a campaign is planned inside the main project, the campaign name must be
+clear in every issue body. Operators should include the active project in
+Conductor and Dispatcher prompts:
+
+```text
+Active Linear project: Tanchiki / Harness — Token Economy
+```
+
+Planner must report Linear project mode, active Linear project, campaign name,
+created issue IDs, first eligible issue, and whether any automation-ready issues
+exist outside the active project. Auto-Groomer, Conductor, Dispatcher, and
+Release agents operate only inside the declared active project and must not move
+issues across projects without explicit approval.
+
 ## Level 2 Command Center Workflow
 
 Level 2 lets Codex select the next unit of work from Linear instead of requiring a manually named issue.
@@ -570,6 +624,10 @@ For a new campaign:
 
 ```text
 Use Linear MCP and GitHub.
+
+Active Linear project:
+<Tanchiki project name>
+
 Run prompts/codex-plan-and-groom-campaign.md for this Tanchiki campaign brief.
 Create 5-7 issues, groom the campaign queue, expose only the first runnable issue, and report the final queue.
 Do not implement gameplay.
@@ -580,7 +638,11 @@ For normal iteration after grooming:
 
 ```text
 Use Linear MCP and GitHub.
-Run the Tanchiki dispatcher for the next eligible issue.
+
+Active Linear project:
+<Tanchiki project name>
+
+Run the Tanchiki dispatcher for the next eligible issue in the declared active project.
 Choose the correct role automatically.
 Follow the repo harness protocols, including Level 5 risk-gated validation.
 Work one issue only.
@@ -592,16 +654,24 @@ For a single safe promotion after blockers, human gates, or PR readiness change:
 
 ```text
 Use Linear MCP and GitHub.
+
+Active Linear project:
+<Tanchiki project name>
+
 Run the Tanchiki Campaign Conductor for the active campaign.
+Inspect only the declared active project.
 Inspect campaign state.
 Inspect campaign notes, issue descriptions, grooming notes, and Architect comments for review_cadence before any promotion.
 Promote exactly one next safe issue if eligible.
+Promote issues only in the declared active project.
 Repair only explicit metadata omissions from issue body.
 Stop at human gates or ambiguity.
+Do not move issues across projects unless explicitly instructed.
 Do not edit repo files.
 Do not run Dispatcher.
 Do not merge.
 Do not mark Done unless the protocol explicitly allows it.
+Report the active project.
 Report the promoted issue or the blocker.
 ```
 
@@ -691,7 +761,11 @@ Default prompt:
 
 ```text
 Use Linear MCP and GitHub.
-Run the Tanchiki dispatcher for the next eligible issue.
+
+Active Linear project:
+<Tanchiki project name>
+
+Run the Tanchiki dispatcher for the next eligible issue in the declared active project.
 Choose the correct role automatically.
 Follow the repo harness protocols, including Level 5 risk-gated validation.
 Work one issue only.
@@ -699,7 +773,7 @@ Do not merge.
 Do not mark Done.
 ```
 
-The dispatcher follows `ops/policies/role-router.md`, `ops/policies/risk-gated-validation.md`, `ops/checklists/role-routing-checklist.md`, and `ops/checklists/risk-gate-checklist.md`. It must scan all Todo issues, skip issues with unresolved blocked-by relations or gates, read the full selected Linear issue, and choose the role from exactly one `role:*` label.
+The dispatcher follows `ops/policies/role-router.md`, `ops/policies/risk-gated-validation.md`, `ops/checklists/role-routing-checklist.md`, and `ops/checklists/risk-gate-checklist.md`. It must scan Todo issues inside the declared active Linear project, skip issues with unresolved blocked-by relations or gates, read the full selected Linear issue, report the active project and selected issue before acting, and choose the role from exactly one `role:*` label. If active project is missing and multiple eligible issues exist across Tanchiki projects, it stops.
 
 Role routing:
 

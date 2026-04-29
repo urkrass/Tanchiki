@@ -2,9 +2,13 @@
 
 Use this checklist before starting any Level 4 role-specific work.
 
-- [ ] Queried Linear MCP for all Tanchiki `Todo` issues.
+- [ ] Confirmed the operator or prompt declares `Active Linear project: <Tanchiki project name>`, or exactly one eligible issue exists across visible Tanchiki projects.
+- [ ] Queried Linear MCP for Tanchiki `Todo` issues in the declared active Linear project.
+- [ ] Stopped if active project is missing and multiple eligible issues exist across Tanchiki projects.
 - [ ] Skipped issues labeled `blocked`, `needs-human-approval`, or `human-only`.
 - [ ] Selected one highest-priority eligible issue only.
+- [ ] Confirmed the selected issue is in the active Linear project.
+- [ ] Reported active Linear project and selected issue before acting.
 - [ ] Read the full issue, including labels, status, description, and relations.
 - [ ] Confirmed the issue has `automation-ready`.
 - [ ] Confirmed the issue has exactly one `role:*` label.

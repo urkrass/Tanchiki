@@ -3,6 +3,11 @@
 Use this checklist after a Planner creates or revises a campaign queue and before automation starts.
 
 - [ ] Read every campaign issue in Linear.
+- [ ] Confirm the campaign declares Linear project mode: `main-project` or `campaign-project`.
+- [ ] Confirm the active Linear project is named exactly.
+- [ ] Operate only inside the declared active Linear project.
+- [ ] Confirm all campaign issues are in the same active Linear project.
+- [ ] If campaign issues are split across projects, stop for human triage instead of moving them.
 - [ ] Confirm each issue has exactly one applied `role:*` label where applicable:
   - `role:architect`
   - `role:coder`
@@ -50,6 +55,9 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
 - [ ] Confirm human-only work uses `human-only`.
 - [ ] Confirm parent, epic, and campaign umbrella issues do not have `automation-ready`.
 - [ ] Confirm exactly one issue in each dependency chain is `Todo` + `automation-ready`.
+- [ ] Confirm only one first issue is `Todo` + `automation-ready` in the active Linear project.
+- [ ] Confirm no unexpected `automation-ready` issue exists in another visible Tanchiki campaign project.
+- [ ] Confirm cross-project dependencies are avoided unless explicitly documented.
 - [ ] Confirm the automation-ready issue has exactly one `role:*` label.
 - [ ] Confirm the automation-ready issue has exactly one `type:*`, `risk:*`, and `validation:*` label.
 - [ ] Confirm no issue has `automation-ready` with `blocked`, `needs-human-approval`, or `human-only`.
@@ -70,6 +78,9 @@ Use this checklist after a Planner creates or revises a campaign queue and befor
 - [ ] Confirm the recommended first automation issue is documented for human approval.
 - [ ] Add a grooming comment summarizing queue order and required human actions.
 - [ ] The grooming comment includes the campaign context pack location and `model_hint` boundaries.
+- [ ] The grooming comment includes the active Linear project.
+- [ ] The campaign context pack includes the active Linear project when present.
+- [ ] Release summary expectations include the active Linear project, campaign name, issue list, PR list, project moves, and remaining active automation-ready issues.
 - [ ] Comment on any issue with missing or ambiguous labels asking for triage.
 - [ ] Do not edit gameplay code.
 - [ ] Do not modify `src/game/movement.js`.

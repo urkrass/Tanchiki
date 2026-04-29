@@ -2,6 +2,13 @@
 
 Use this checklist for one Campaign Conductor run.
 
+- [ ] Confirm the operator or campaign context declares `Active Linear project: <Tanchiki project name>`.
+- [ ] Stop if the active Linear project is missing or ambiguous.
+- [ ] Inspect only the declared active Linear project.
+- [ ] Promote issues only in the declared active Linear project.
+- [ ] Stop if multiple Tanchiki projects contain eligible `automation-ready` issues and the active project is not declared.
+- [ ] Do not move issues across projects unless explicitly instructed.
+- [ ] Report the active Linear project in the output.
 - [ ] Read the active campaign issues in Linear.
 - [ ] Read dependency order, blocked-by relations, current statuses, labels, and issue bodies.
 - [ ] Use the campaign context pack and issue context packs when present, but
@@ -60,6 +67,7 @@ Use this checklist for one Campaign Conductor run.
 - [ ] If the linked PR is Draft, do not promote and comment: "PR #X is still Draft. In paired-review mode, the producer must mark the PR ready for review before the Reviewer issue can run."
 - [ ] For Release, confirm implementation, test, the appropriate review cadence, and human gate steps are Done or explicitly stopped.
 - [ ] Promote at most one issue.
+- [ ] Confirm the promoted issue is inside the active Linear project.
 - [ ] Do not run Dispatcher.
 - [ ] Do not implement code.
 - [ ] Do not review PRs.

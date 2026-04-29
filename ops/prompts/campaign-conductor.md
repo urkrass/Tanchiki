@@ -27,45 +27,49 @@ promotion safe.
 
 ## Workflow
 
-1. Inspect the active campaign issues, dependency order, blocked-by relations,
+1. Confirm the operator or campaign context declares `Active Linear project: <Tanchiki project name>`.
+2. Stop if the active Linear project is missing or ambiguous.
+3. Inspect only the declared active Linear project.
+4. If multiple Tanchiki projects contain eligible `automation-ready` issues and the active project is not declared, stop and ask for human triage.
+5. Inspect the active campaign issues, dependency order, blocked-by relations,
    labels, status, issue bodies, and linked GitHub PRs.
    Use the campaign context pack and issue context packs when present to avoid
    rediscovering stable campaign context. Context packs do not replace direct
    checks of labels, state, blockers, cadence, stop labels, or PR readiness.
-2. Identify the campaign review cadence before any promotion by inspecting
+6. Identify the campaign review cadence before any promotion by inspecting
    campaign notes, issue descriptions, grooming notes, and Architect comments
    for `review_cadence: paired-review`, `review_cadence: final-audit`, or
    `review_cadence: let-architect-decide`.
-3. If review cadence is missing or ambiguous, stop and add a Linear comment
+7. If review cadence is missing or ambiguous, stop and add a Linear comment
    asking for cadence triage.
-4. If cadence is `let-architect-decide`, promote only Architect work that will
+8. If cadence is `let-architect-decide`, promote only Architect work that will
    choose `final-audit` or `paired-review`, record the decision in Linear, and
    adjust downstream dependencies before implementation is promoted. If
    Architect already recorded `review_cadence: final-audit` or
    `review_cadence: paired-review` in an issue body or Linear comment, use
    that recorded decision.
-5. Identify the single next candidate. If zero or more than one candidate could
+9. Identify the single next candidate in the active project. If zero or more than one candidate could
    be next, stop and comment with the ambiguity.
-6. Confirm the candidate has exactly one `role:*`, one `type:*`, one `risk:*`,
+10. Confirm the candidate has exactly one `role:*`, one `type:*`, one `risk:*`,
    and one `validation:*` label.
-7. Repair a missing Level 5 label only when the exact label value is explicitly
+11. Repair a missing Level 5 label only when the exact label value is explicitly
    stated in the issue body, for example a `## Risk label` section containing
    `risk:low`. Do not infer from title, project, surrounding issues, or habit.
-8. Refuse any candidate with `needs-human-approval`, `human-only`,
+12. Refuse any candidate with `needs-human-approval`, `human-only`,
    `risk:human-only`, unresolved relevant blockers, or any non-removable stop
    label.
-9. For old campaign issues only, remove a legacy `blocked` label only when the
+13. For old campaign issues only, remove a legacy `blocked` label only when the
    policy's strict legacy-label conditions are met, then comment with the
    blocker evidence and why only one next issue is exposed.
-10. Apply role-specific readiness rules from the policy.
-11. Record a reason in the promotion or refusal comment before using broad repo
+14. Apply role-specific readiness rules from the policy.
+15. Record a reason in the promotion or refusal comment before using broad repo
     scans. Valid reasons include missing/stale context packs, ambiguous
     blockers, unexpected PR files, or safety-critical docs changing.
-12. Promote at most one safe issue by setting the intended ready state and labels
+16. Promote at most one safe issue in the active project by setting the intended ready state and labels
    used by the Dispatcher, normally `Todo` + `automation-ready` after blockers
    are satisfied.
-13. Add a Linear comment explaining the decision and evidence.
-14. Stop. Do not continue to another issue.
+17. Add a Linear comment explaining the active project, decision, and evidence.
+18. Stop. Do not continue to another issue.
 
 ## Review Cadence Readiness
 
@@ -76,6 +80,8 @@ promotion safe.
 ## Boundaries
 
 - Do not loop through campaign issues.
+- Do not inspect or promote issues outside the declared active project.
+- Do not move issues across projects unless explicitly instructed.
 - Do not run Dispatcher.
 - Do not implement code.
 - Do not edit repo files.
@@ -90,6 +96,7 @@ promotion safe.
 
 When refusing to promote, comment with:
 
+- active Linear project, or that it was missing or ambiguous
 - missing or ambiguous labels
 - unresolved blockers
 - ambiguous next candidates
@@ -101,6 +108,7 @@ When refusing to promote, comment with:
 
 When promoting or repairing an issue, comment with:
 
+- active Linear project
 - what changed
 - why the issue is now eligible
 - which review cadence was used
@@ -108,4 +116,3 @@ When promoting or repairing an issue, comment with:
 - which PR/check evidence was used
 - which context pack inputs were used, or why broader context was required
 - the next expected Dispatcher role
-

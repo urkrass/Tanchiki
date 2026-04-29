@@ -2,7 +2,10 @@
 
 Use Linear MCP and GitHub.
 
-Run the Tanchiki dispatcher for the next eligible issue.
+Active Linear project:
+<Tanchiki project name>
+
+Run the Tanchiki dispatcher for the next eligible issue in the declared active project.
 Choose the correct role automatically.
 Follow the repo harness protocols, including Level 5 risk-gated validation.
 Work one issue only.
@@ -24,9 +27,15 @@ Follow:
 
 Dispatcher rules:
 
-1. Query Linear for all Tanchiki issues in `Todo`.
+1. Query Linear for all Tanchiki issues in `Todo` inside the declared active project.
+   If active project is missing and there is exactly one unambiguous eligible
+   issue across visible Tanchiki projects, report that project and issue before
+   acting. If active project is missing and multiple eligible issues exist
+   across Tanchiki projects, stop.
 2. Skip issues with `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
-3. Select the highest-priority issue that has `automation-ready`, exactly one `role:*`, exactly one `type:*`, exactly one `risk:*`, and exactly one `validation:*` label.
+3. Select the highest-priority issue in the active project that has `automation-ready`, exactly one `role:*`, exactly one `type:*`, exactly one `risk:*`, and exactly one `validation:*` label.
+   Do not run issues from another campaign project.
+   Report the active project and selected issue before acting.
 4. Read the full issue before acting.
    - Use the issue context pack and campaign context pack when present.
    - Do not use a context pack to infer or repair missing eligibility metadata.

@@ -55,6 +55,9 @@ gates.
 
 An issue is eligible only when all are true:
 
+- active Linear project is declared, or there is exactly one unambiguous
+  eligible issue across visible Tanchiki projects
+- issue is inside the declared active Linear project when one was supplied
 - status is `Todo`
 - has `automation-ready`
 - has exactly one `role:*`, `type:*`, `risk:*`, and `validation:*` label
@@ -101,6 +104,11 @@ The Campaign Conductor may expose only one next campaign issue per run. It uses
 the same Level 5 metadata requirements as the Dispatcher, plus campaign-order,
 blocker, role-specific readiness, and PR-readiness checks from
 `ops/policies/campaign-conductor.md`.
+
+The Campaign Conductor requires an active Linear project, inspects only that
+project, promotes issues only in that project, and stops if multiple Tanchiki
+projects contain eligible `automation-ready` issues without a declared active
+project.
 
 The Conductor may repair a missing `role:*`, `type:*`, `risk:*`, or
 `validation:*` label only when the exact label is explicitly stated in the issue

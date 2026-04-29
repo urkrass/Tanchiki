@@ -33,7 +33,11 @@ Then use:
 
 ```text
 Use Linear MCP and GitHub.
-Run the Tanchiki dispatcher for the next eligible issue.
+
+Active Linear project:
+<Tanchiki project name>
+
+Run the Tanchiki dispatcher for the next eligible issue in the declared active project.
 Choose the correct role automatically.
 Follow the repo harness protocols, including Level 5 risk-gated validation.
 Work one issue only.
