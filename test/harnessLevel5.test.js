@@ -266,6 +266,7 @@ test("coder and test prompts require ready paired-review PRs after validation pa
   const testPrompt = readRepoFile("ops", "prompts", "test-agent.md");
   const roleBoundaries = readRepoFile("ops", "policies", "role-boundaries.md");
   const combined = `${coderPrompt}\n${testPrompt}\n${roleBoundaries}`;
+  const normalizedCombined = combined.replaceAll("\r\n", "\n");
 
   for (const expected of [
     "Identify campaign review cadence from campaign notes, issue descriptions, grooming notes, and Architect comments",
@@ -276,10 +277,10 @@ test("coder and test prompts require ready paired-review PRs after validation pa
     "Stop without reviewing, labeling, or merging the PR.",
     "Do not review the PR, do not apply labels, do not merge, and do not\nmark the issue `Done`.",
   ]) {
-    assert.match(combined, new RegExp(escapeRegExp(expected)));
+    assert.match(normalizedCombined, new RegExp(escapeRegExp(expected)));
   }
   assert.match(
-    combined,
+    normalizedCombined,
     /Paired-review PRs must be open,\s+non-draft, unmerged, and passing required checks before the paired Reviewer\s+issue may run\./,
   );
 });
