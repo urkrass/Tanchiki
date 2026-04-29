@@ -283,6 +283,93 @@ test("repo task docs require ready burn-in PRs before Linear review handoff", ()
   }
 });
 
+test("campaign conductor docs require single-step promotion and no campaign loop", () => {
+  const prompt = readRepoFile("prompts", "codex-conduct-campaign.md");
+  const opsPrompt = readRepoFile("ops", "prompts", "campaign-conductor.md");
+  const policy = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const checklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+
+  for (const expected of [
+    "Promote exactly one next safe issue if eligible.",
+    "Do not run Dispatcher.",
+    "Do not merge.",
+    "Report the promoted issue or the blocker.",
+  ]) {
+    assert.match(prompt, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "may promote at most one next issue",
+    "loop through multiple issues",
+    "run Dispatcher itself",
+    "create a looping autonomous campaign runner",
+    "Promote at most one issue.",
+    "Do not create a looping campaign runner.",
+  ]) {
+    assert.match(`${policy}\n${checklist}`, new RegExp(escapeRegExp(expected)));
+  }
+
+  assert.match(opsPrompt, /single-step campaign queue\s+promotion role only/);
+});
+
+test("campaign conductor metadata repair is explicit issue-body only", () => {
+  const policy = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const checklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+
+  for (const expected of [
+    "## Risk label",
+    "risk:low",
+    "must not guess metadata from title alone",
+    "Repair a missing Level 5 label only when the exact label appears in the issue body.",
+    "must stop for absent or ambiguous metadata",
+  ]) {
+    assert.match(`${policy}\n${checklist}\n${validation}`, new RegExp(escapeRegExp(expected)));
+  }
+  assert.match(policy, /may add missing Level 5 labels only when the exact value is\s+explicitly stated in the issue body/);
+  assert.match(policy, /must not infer labels\s+from campaign neighbors/);
+});
+
+test("campaign conductor reviewer and burn-in gates remain conservative", () => {
+  const policy = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const checklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+  const safety = readRepoFile("SAFETY_BOUNDARIES.md");
+  const readme = readRepoFile("README.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+
+  for (const expected of [
+    "PR is open",
+    "PR is not Draft",
+    "Draft PRs block Reviewer promotion.",
+    "If the PR is Draft, do not promote",
+    "The Conductor must not apply `merge:auto-eligible`.",
+    "Human must apply `merge:auto-eligible` using normal GitHub identity.",
+    "Do not remove stop labels.",
+  ]) {
+    assert.match(`${policy}\n${checklist}\n${protocol}\n${safety}\n${readme}\n${validation}`, new RegExp(escapeRegExp(expected)));
+  }
+  assert.match(policy, /The Conductor may promote Reviewer issues only when the linked PR is open,\s+non-draft, and checks are passing\./);
+});
+
+test("campaign conductor keeps human gates and open implementation issues from auto-closing", () => {
+  const policy = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const checklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+
+  for (const expected of [
+    "Human gate issues must not be auto-promoted as `automation-ready`.",
+    "For human gate work, do not promote; report the required human action.",
+    "Coder and Test issues should remain `In Review` while their PR is open.",
+    "Coder/Test issues `In Review` while their PR is open.",
+  ]) {
+    assert.match(`${policy}\n${checklist}\n${protocol}\n${validation}`, new RegExp(escapeRegExp(expected)));
+  }
+  assert.match(policy, /may be marked `Done` only after the linked PR is merged\s+or explicitly abandoned with a recorded outcome/);
+  assert.match(policy, /Human gate issues are `Done` only after the human decision or action is\s+recorded\./);
+});
+
 test("PR acceptance policy requires independent reviewer and active shakedown sequence", () => {
   const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
   const checklist = readRepoFile("ops", "checklists", "pr-acceptance-checklist.md");

@@ -230,6 +230,34 @@ Do not implement gameplay.
 Do not merge.
 ```
 
+Campaign Conductor prompt:
+
+```text
+Use Linear MCP and GitHub.
+Run the Tanchiki Campaign Conductor for the active campaign.
+Inspect campaign state.
+Promote exactly one next safe issue if eligible.
+Repair only explicit metadata omissions from issue body.
+Stop at human gates or ambiguity.
+Do not edit repo files.
+Do not run Dispatcher.
+Do not merge.
+Do not mark Done unless the protocol explicitly allows it.
+Report the promoted issue or the blocker.
+```
+
+The Campaign Conductor is a single-step queue safety layer. It may promote at
+most one next campaign issue per run after checking Level 5 labels, dependency
+state, role readiness, human gates, and linked PR state. It must not loop, run
+Dispatcher, implement code, review PRs, merge PRs, apply
+`merge:auto-eligible`, or remove stop labels. Missing Level 5 labels may be
+repaired only when the exact label is explicitly stated in the issue body.
+Reviewer promotion requires an open, non-draft linked PR with required checks
+passing when policy requires them; Draft PRs remain blockers. For low-risk
+auto-merge burn-in campaigns, the Conductor must stop at the human merge-label
+gate and report: "Human must apply `merge:auto-eligible` using normal GitHub
+identity."
+
 Use human review when a task has movement, persistence, destructive repository operations, broad architecture rewrites, broad AI rewrites, or any unclear product decision. Use Level 5 gates for every automated issue. Use Level 6 docs when deciding where logic belongs, which validation profile applies, and whether an issue is safe for automation.
 
 ## Level 1 PR Workflow
@@ -399,12 +427,16 @@ Use these files for Level 3 planning:
 
 - `ops/prompts/planner-agent.md`
 - `ops/prompts/campaign-groomer.md`
+- `ops/prompts/campaign-conductor.md`
 - `ops/policies/planner-boundaries.md`
 - `ops/policies/campaign-execution.md`
+- `ops/policies/campaign-conductor.md`
 - `ops/checklists/planner-output-checklist.md`
 - `ops/checklists/campaign-grooming-checklist.md`
+- `ops/checklists/campaign-conductor-checklist.md`
 - `prompts/codex-plan-campaign.md`
 - `prompts/codex-plan-and-groom-campaign.md`
+- `prompts/codex-conduct-campaign.md`
 
 ### New Campaign Workflow
 
@@ -428,6 +460,22 @@ Follow the repo harness protocols, including Level 5 risk-gated validation.
 Work one issue only.
 Do not merge.
 Do not mark Done.
+```
+
+For a single safe promotion after blockers, human gates, or PR readiness change:
+
+```text
+Use Linear MCP and GitHub.
+Run the Tanchiki Campaign Conductor for the active campaign.
+Inspect campaign state.
+Promote exactly one next safe issue if eligible.
+Repair only explicit metadata omissions from issue body.
+Stop at human gates or ambiguity.
+Do not edit repo files.
+Do not run Dispatcher.
+Do not merge.
+Do not mark Done unless the protocol explicitly allows it.
+Report the promoted issue or the blocker.
 ```
 
 For harness work, use `validation:harness`, run harness-only validation, and do not edit gameplay code.
