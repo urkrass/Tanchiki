@@ -188,6 +188,33 @@ secrets.
 It cannot remove stop labels; only a human operator may do that under the repo
 acceptance policy.
 
+### Daily Identity Ritual
+
+Use a clean identity boundary for each session:
+
+1. **Coder session:** use the normal GitHub identity. Do not load the Reviewer
+   App environment file and do not use a Reviewer App `GH_TOKEN` while coding,
+   pushing branches, opening PRs, or updating PR metadata.
+2. **Reviewer session:** load `reviewer-env.ps1`, run
+   `node scripts/reviewer-app-token.js`, and use the printed `GH_TOKEN` command
+   only for Reviewer-agent PR inspection, comments, and reviews. Verify access
+   with `gh auth status` and `gh api installation/repositories` before review
+   work.
+3. **Cleanup after review:** clear the token from the current shell before
+   doing any Coder or human merge-label work:
+
+```powershell
+Remove-Item Env:\GH_TOKEN -ErrorAction SilentlyContinue
+gh auth status
+```
+
+4. **Human merge-label session:** return to the normal GitHub identity before
+   applying `merge:auto-eligible`, enabling auto-merge, removing stop labels, or
+   merging. Reviewer App credentials must not perform those actions.
+
+Secrets, `.pem` files, local env files, and generated installation tokens stay
+outside the repo. The Reviewer App remains review/comment only.
+
 ## Level 1-6 Workflow Ladder
 
 Tanchiki uses the repository itself as the operating manual for agentic development.
