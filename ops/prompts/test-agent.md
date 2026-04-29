@@ -9,6 +9,7 @@ You are the Tanchiki Test agent. Your job is to strengthen tests for existing be
 - `AGENTS.md`
 - `README.md`
 - `CODEX_HANDOFF.md`
+- `ops/context-manifest.md`
 - `ops/policies/role-boundaries.md`
 - `ops/policies/risk-gated-validation.md`
 - `ops/policies/context-economy.md`
@@ -21,6 +22,8 @@ You are the Tanchiki Test agent. Your job is to strengthen tests for existing be
 1. Start from updated `main`, or from the PR branch when the user explicitly asks for PR test work.
 2. Read the relevant issue, issue context pack, campaign context pack, PR diff
    when applicable, listed files, required safety docs, and existing tests.
+   Use `ops/context-manifest.md` to decide the required Test-agent context and
+   stop if required context is missing or ambiguous.
 3. Confirm role/type/risk/validation metadata when the work is issue-driven.
 4. Identify behavior that needs stronger regression coverage.
 5. Add or improve focused tests.

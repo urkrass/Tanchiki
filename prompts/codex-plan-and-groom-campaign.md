@@ -16,17 +16,18 @@ Turn the supplied campaign brief into 5-7 small Linear issues, then groom the ca
 1. `CODEX_HANDOFF.md`
 2. `AGENTS.md`
 3. `README.md`
-4. `ops/prompts/planner-agent.md`
-5. `ops/prompts/campaign-groomer.md`
-6. `ops/policies/planner-boundaries.md`
-7. `ops/policies/campaign-execution.md`
-8. `ops/policies/role-router.md`
-9. `ops/policies/context-economy.md`
-10. `ops/checklists/planner-output-checklist.md`
-11. `ops/checklists/campaign-grooming-checklist.md`
-12. `ops/checklists/context-pack-checklist.md`
-13. `ops/checklists/conflict-risk-checklist.md`
-14. the supplied campaign brief
+4. `ops/context-manifest.md`
+5. `ops/prompts/planner-agent.md`
+6. `ops/prompts/campaign-groomer.md`
+7. `ops/policies/planner-boundaries.md`
+8. `ops/policies/campaign-execution.md`
+9. `ops/policies/role-router.md`
+10. `ops/policies/context-economy.md`
+11. `ops/checklists/planner-output-checklist.md`
+12. `ops/checklists/campaign-grooming-checklist.md`
+13. `ops/checklists/context-pack-checklist.md`
+14. `ops/checklists/conflict-risk-checklist.md`
+15. the supplied campaign brief
 
 ## Planner Work
 
@@ -44,7 +45,8 @@ Turn the supplied campaign brief into 5-7 small Linear issues, then groom the ca
 - Add the active Linear project to the campaign grooming comment and release summary expectations.
 - Include issue context pack fields in every issue: required safety context, relevant files, forbidden files, validation profile, review cadence, known decisions, PR/issue sequence, context refresh triggers, and stop-and-ask conditions.
 - Include advisory `model_hint` recommendations for the campaign and each issue. Model hints must not override role/type/risk labels, validation profiles, PR metadata, human gates, review cadence, or safety docs.
-- Require broad repo scans to include a recorded reason. Do not treat token saving as permission to skip safety-critical docs.
+- Follow `ops/context-manifest.md` when creating campaign and issue context packs.
+- Require broad repo scans to include a recorded reason. Do not treat token saving as permission to skip safety-critical docs. Missing, stale, ambiguous, or contradictory required context is a stop condition.
 - If using `let-architect-decide`, create an Architect issue that must choose `final-audit` or `paired-review`, record the reason in Linear, and adjust downstream issues before implementation is promoted.
 - If using `let-architect-decide` and the campaign contains medium-risk UI/gameplay/trust-boundary PR-producing Coder/Test issues, prefer creating placeholder paired Reviewer issues in Backlog. Keep them non-automation-ready until Architect confirms `review_cadence: paired-review`.
 - If Architect later chooses paired-review and placeholder paired Reviewer issues do not exist, require a Planner/Groomer queue repair using `prompts/codex-repair-paired-review-queue.md` before any PR-producing Coder/Test issue is promoted.

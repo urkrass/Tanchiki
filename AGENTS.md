@@ -6,6 +6,7 @@ This repository is a Level 6 repo-as-orchestration system for Tanchiki. Keep thi
 
 Read these files before acting:
 
+- `ops/context-manifest.md` - short-prompt context-loading contract and role-specific context rules.
 - `ARCHITECTURE.md` - current game architecture, ownership, central files, and extension points.
 - `TASK_PROTOCOL.md` - Linear selection, branching, PRs, CI, review, merge, Done rules, and campaign closure.
 - `VALIDATION_MATRIX.md` - role/type/risk/validation mappings and required checks.

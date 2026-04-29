@@ -14,6 +14,7 @@ Do not mark Done.
 
 Follow:
 
+- `ops/context-manifest.md`
 - `ops/policies/role-router.md`
 - `ops/policies/risk-gated-validation.md`
 - `ops/policies/context-economy.md`
@@ -37,6 +38,8 @@ Dispatcher rules:
    Do not run issues from another campaign project.
    Report the active project and selected issue before acting.
 4. Read the full issue before acting.
+   - Start from `ops/context-manifest.md` and load the role-specific context it
+     requires for the selected issue.
    - Use the issue context pack and campaign context pack when present.
    - Do not use a context pack to infer or repair missing eligibility metadata.
    - Stop if the current model is below the required `model_hint` and no human

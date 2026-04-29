@@ -65,6 +65,7 @@ It contains:
 - `TASK_PROTOCOL.md` - Linear, branch, PR, CI, review, merge, and Done rules.
 - `VALIDATION_MATRIX.md` - role/type/risk/validation requirements.
 - `SAFETY_BOUNDARIES.md` - protected files, human gates, and repository safety rules.
+- `ops/context-manifest.md` - repo-owned context-loading contract for short prompts and role context.
 - `ops/policies/context-economy.md` - campaign and issue context-pack policy.
 - `ops/policies/model-routing.md` - `model_hint` values and model-routing safety rules.
 - `ops/checklists/context-pack-checklist.md` - context-pack safety checklist.
@@ -255,15 +256,20 @@ Level 6 source-of-truth docs:
 
 Context economy source-of-truth docs:
 
+- `ops/context-manifest.md`
 - `ops/policies/context-economy.md`
 - `ops/policies/model-routing.md`
 - `ops/checklists/context-pack-checklist.md`
 - `ops/checklists/model-routing-checklist.md`
 
+Short operator prompts should start from `ops/context-manifest.md`, then load
+the role-specific docs and Linear/GitHub state required for the issue.
 Context packs may summarize campaign and issue context so agents avoid repeated
-rediscovery. They are not a substitute for safety-critical docs. Token saving
-must not skip Level 5 metadata, validation, PR metadata, review cadence,
-changed-file scrutiny, or human gates. Allowed values are
+rediscovery. They are not a substitute for the manifest or safety-critical
+docs. Token saving must not skip Level 5 metadata, validation, PR metadata,
+review cadence, changed-file scrutiny, stop labels, or human gates. Broad repo
+scans require a recorded reason, and missing or contradictory required context
+is a stop condition. Allowed values are
 `model_hint: frontier`, `model_hint: cheap`, `model_hint: local-ok`, and
 `model_hint: human-only`. Agents must stop if the current model is below the
 required `model_hint` unless a human explicitly approves a downgrade.

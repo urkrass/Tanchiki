@@ -18,6 +18,7 @@ promotion safe.
 - `TASK_PROTOCOL.md`
 - `VALIDATION_MATRIX.md`
 - `SAFETY_BOUNDARIES.md`
+- `ops/context-manifest.md`
 - `ops/policies/campaign-conductor.md`
 - `ops/policies/context-economy.md`
 - `ops/checklists/campaign-conductor-checklist.md`
@@ -33,6 +34,7 @@ promotion safe.
 4. If multiple Tanchiki projects contain eligible `automation-ready` issues and the active project is not declared, stop and ask for human triage.
 5. Inspect the active campaign issues, dependency order, blocked-by relations,
    labels, status, issue bodies, and linked GitHub PRs.
+   Start from `ops/context-manifest.md` for the Conductor role context.
    Use the campaign context pack and issue context packs when present to avoid
    rediscovering stable campaign context. Context packs do not replace direct
    checks of labels, state, blockers, cadence, stop labels, or PR readiness.
