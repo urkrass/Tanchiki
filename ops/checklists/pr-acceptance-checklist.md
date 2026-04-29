@@ -14,7 +14,8 @@ Use this checklist before adding an acceptance label, recommending merge, or all
 - [ ] Draft PRs remain allowed for incomplete work, exploratory work, ordinary non-paired-review work, validation-not-passed work, and work explicitly awaiting author completion.
 - [ ] PR links exactly one Linear issue or explicit documentation task.
 - [ ] PR includes role, type, risk, and validation profile.
-- [ ] PR lists files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+- [ ] PR uses `.github/PULL_REQUEST_TEMPLATE.md` exact headings without renaming or shortening them.
+- [ ] PR lists files changed, tests run, manual QA, broad scan reason, conflict risk, visible UI expectation, and known limitations.
 - [ ] PR metadata check is passing.
 - [ ] CI is passing.
 - [ ] Branch protection requirements are satisfied and not bypassed.

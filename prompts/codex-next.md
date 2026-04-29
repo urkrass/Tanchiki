@@ -72,6 +72,9 @@ git status --short
 ```
 
 10. Open PRs only when the selected role allows PRs.
+    Before opening or updating a PR, use `.github/PULL_REQUEST_TEMPLATE.md` as
+    the required section source of truth. Do not rename headings, shorten
+    headings, or replace them with older variants.
 11. Do not bypass validation, merge PRs, or mark issues `Done` unless the selected protocol explicitly allows it.
 
 Validation for repo changes follows the issue's `validation:*` profile. Baseline validation:

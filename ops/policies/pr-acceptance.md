@@ -283,7 +283,7 @@ Any future auto-merge workflow or documented procedure must require all of these
 - PR targets `main`.
 - PR is not draft; Draft PRs are hard vetoes for auto-merge approval.
 - PR has a linked Linear issue.
-- PR body includes role, type, risk, validation profile, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+- PR body uses `.github/PULL_REQUEST_TEMPLATE.md` exact headings and includes role, type, risk, validation profile, tests run, manual QA, broad scan reason, conflict risk, visible UI expectation, and known limitations.
 - PR metadata check passes.
 - CI passes.
 - Branch protection requirements are satisfied and not bypassed.

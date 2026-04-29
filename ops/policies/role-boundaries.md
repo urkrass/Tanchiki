@@ -24,7 +24,7 @@ npm run lint
 
 - Every automated issue must satisfy Level 5 gates in `ops/policies/risk-gated-validation.md`: exactly one `role:*`, one `type:*`, one `risk:*`, and one `validation:*` label.
 - No role may automate issues labeled `risk:human-only`.
-- PRs must include linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+- PRs must use `.github/PULL_REQUEST_TEMPLATE.md` exact headings and include linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, broad scan reason, conflict risk, visible UI expectation, and known limitations.
 - No role may close parent campaign issues unless all child issues are `Done` and a release summary exists.
 - Do not push directly to `main`.
 - Do not merge automatically.

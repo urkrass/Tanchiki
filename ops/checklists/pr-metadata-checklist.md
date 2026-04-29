@@ -2,6 +2,10 @@
 
 Use this checklist before opening or reviewing a PR.
 
+Use `.github/PULL_REQUEST_TEMPLATE.md` as the required section source of
+truth. Preserve exact heading spelling and capitalization. Do not rename
+headings, shorten headings, or replace them with older variants.
+
 - [ ] Linked Linear issue is present.
 - [ ] Role is present.
 - [ ] Type is present.
@@ -11,6 +15,7 @@ Use this checklist before opening or reviewing a PR.
 - [ ] Files changed are listed.
 - [ ] Tests run are listed.
 - [ ] Manual QA is documented or marked not applicable with a reason.
+- [ ] Broad Scan Reason is documented, even when no broad scan was used.
 - [ ] Conflict risk is documented.
 - [ ] Visible UI expectation is documented.
 - [ ] Known limitations are documented.

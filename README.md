@@ -373,7 +373,7 @@ npm run lint
 
 CI uses Node.js 20. It installs dependencies with `npm ci` when `package-lock.json` exists, otherwise it uses `npm install`.
 
-Use `.github/PULL_REQUEST_TEMPLATE.md` for PR descriptions and `ops/policies/level-1-agent-boundaries.md` for agent boundaries. Do not push directly to `main`, force push, start broad refactors, or include unrelated cleanup in a Level 1 PR.
+Use `.github/PULL_REQUEST_TEMPLATE.md` for PR descriptions and `ops/policies/level-1-agent-boundaries.md` for agent boundaries. The PR template is the canonical source of required PR body headings; preserve exact heading spelling and capitalization, and do not rename, shorten, or replace headings with older variants. Do not push directly to `main`, force push, start broad refactors, or include unrelated cleanup in a Level 1 PR.
 
 Harness smoke-test PRs should use an `agent/` branch, may be opened as drafts while work is incomplete, and must have the PR template filled out before review. Normal feature PRs may also stay Draft when that is the clearest review posture for incomplete, exploratory, ordinary non-paired-review, validation-not-passed, or explicitly awaiting-author-completion work. Low-risk auto-merge candidate PRs, auto-merge burn-in PRs, and paired-review producer PRs with passing validation are different: Draft PRs are hard vetoes for auto-merge approval and paired-review approval, so those PRs must be marked ready for review before the Coder or Test session stops.
 

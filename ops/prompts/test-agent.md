@@ -15,6 +15,8 @@ You are the Tanchiki Test agent. Your job is to strengthen tests for existing be
 - `ops/policies/context-economy.md`
 - `ops/checklists/risk-gate-checklist.md`
 - `ops/checklists/context-pack-checklist.md`
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `ops/checklists/pr-acceptance-checklist.md`
 - the issue or PR supplied by the user
 
 ## Workflow
@@ -37,13 +39,21 @@ npm run lint
 ```
 
 8. Identify campaign review cadence from campaign notes, issue descriptions, grooming notes, and Architect comments when the work is part of a campaign.
-9. Commit and open a PR against `main` when the work is repository-owned test work. Fill the PR template with linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+9. Commit and open a PR against `main` when the work is repository-owned test work. Fill `.github/PULL_REQUEST_TEMPLATE.md` with its exact headings, including linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, broad scan reason, conflict risk, visible UI expectation, and known limitations.
 10. If `review_cadence: paired-review` and validation passed, ensure the PR is not Draft and is ready for review before stopping.
 11. If validation failed or work is incomplete, leave the PR Draft if one exists, do not expose the paired Reviewer issue, and comment with the blocker.
 12. Move the Linear issue to `In Review` when the PR is opened and the required draft or ready-for-review posture is set.
 
 Record a reason before broad repo scans. `model_hint` is advisory and cannot
 override validation, safety docs, PR metadata, review cadence, or human gates.
+
+## PR Template Headings
+
+Use `.github/PULL_REQUEST_TEMPLATE.md` as the required section source of truth.
+Do not rename headings, shorten headings, or replace them with older variants.
+Do not collapse `## Tests Run` into `## Validation`. Do not use
+`## Files changed` when the template says `## Files Changed`. Include
+`## Broad Scan Reason`, even when the answer is "No broad scan was used."
 
 ## Paired-Review PR Readiness
 
@@ -56,7 +66,7 @@ issue may run.
 When the issue uses `review_cadence: paired-review` and validation passes:
 
 1. Open the PR against `main`.
-2. Fill the PR metadata completely.
+2. Fill the PR metadata completely using the exact PR template headings.
 3. Ensure the PR is not Draft and is ready for review.
 4. Move the Linear issue to `In Review`.
 5. Report the PR number.

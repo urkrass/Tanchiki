@@ -35,6 +35,8 @@ If a dependency chain exposes more than one `Todo` + `automation-ready` implemen
 - `ops/policies/context-economy.md`
 - `ops/checklists/risk-gate-checklist.md`
 - `ops/checklists/context-pack-checklist.md`
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `ops/checklists/pr-acceptance-checklist.md`
 - `ops/policies/level-2-agent-boundaries.md`
 - the selected Linear issue
 
@@ -65,7 +67,7 @@ npm run lint
 11. Commit the scoped change.
 12. Push the branch.
 13. Identify campaign review cadence from campaign notes, issue descriptions, grooming notes, and Architect comments when the issue is part of a campaign.
-14. Open a PR against `main` and fill the PR template with linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+14. Open a PR against `main` and fill `.github/PULL_REQUEST_TEMPLATE.md` with its exact headings, including linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, broad scan reason, conflict risk, visible UI expectation, and known limitations.
 15. If `review_cadence: paired-review` and validation passed, ensure the PR is not Draft and is ready for review before stopping.
 16. If validation failed or work is incomplete, leave the PR Draft if one exists, do not expose the paired Reviewer issue, and comment with the blocker.
 17. Move the Linear issue to `In Review`.
@@ -74,6 +76,14 @@ npm run lint
 `model_hint` values from context packs are advisory only. They do not change
 the selected role, risk, validation profile, safety docs, PR metadata, review
 cadence, stop labels, missing-context stop rules, or human gates.
+
+## PR Template Headings
+
+Use `.github/PULL_REQUEST_TEMPLATE.md` as the required section source of truth.
+Do not rename headings, shorten headings, or replace them with older variants.
+Do not collapse `## Tests Run` into `## Validation`. Do not use
+`## Files changed` when the template says `## Files Changed`. Include
+`## Broad Scan Reason`, even when the answer is "No broad scan was used."
 
 ## Paired-Review PR Readiness
 
@@ -86,7 +96,7 @@ issue may run.
 When the issue uses `review_cadence: paired-review` and validation passes:
 
 1. Open the PR against `main`.
-2. Fill the PR metadata completely.
+2. Fill the PR metadata completely using the exact PR template headings.
 3. Ensure the PR is not Draft and is ready for review.
 4. Move the Linear issue to `In Review`.
 5. Report the PR number.
@@ -106,7 +116,7 @@ before stopping:
 
 1. Open the PR against `main`.
 2. Ensure the PR is not Draft and is ready for review.
-3. Fill the PR metadata with linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+3. Fill the PR metadata with the exact PR template headings for linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, broad scan reason, conflict risk, visible UI expectation, and known limitations.
 4. Run the required validation profile.
 5. Move the Linear issue to `In Review`.
 6. Stop without reviewing, labeling, or merging the PR.
