@@ -73,8 +73,10 @@ Review cadence modes:
 - `paired-review`: each PR-producing Coder/Test issue is followed by its own
   Reviewer issue. The Reviewer inspects an open PR before merge. The PR must be
   open, non-draft, unmerged, and have required checks/metadata according to
-  policy. The Reviewer uses `APPROVED FOR AUTO-MERGE AFTER HUMAN APPLIES
-  merge:auto-eligible`, `APPROVED FOR MERGE`, `CHANGES REQUESTED`,
+  policy. Coder/Test producers may create Draft PRs while work is incomplete,
+  but after validation passes they must mark paired-review PRs ready for review
+  before stopping. The Reviewer uses `APPROVED FOR AUTO-MERGE AFTER HUMAN
+  APPLIES merge:auto-eligible`, `APPROVED FOR MERGE`, `CHANGES REQUESTED`,
   `HUMAN REVIEW REQUIRED`, or `BLOCKED`.
 - `let-architect-decide`: Planner may use this when the campaign request is
   unclear. Architect must choose `final-audit` or `paired-review`, record the

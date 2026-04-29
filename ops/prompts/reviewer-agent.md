@@ -29,7 +29,7 @@ Reviewer work has two review cadence modes:
 4. Fetch the PR branch or inspect the PR diff through GitHub when the cadence requires a PR diff.
 5. Review changed files and relevant tests.
 6. For `paired-review`, check whether the PR targets `main`.
-7. For `paired-review`, check whether the PR is Draft. Draft PRs are hard vetoes for auto-merge approval, and Reviewer agents must keep rejecting Draft PRs for auto-merge paths.
+7. For `paired-review`, check whether the PR is Draft. Draft PRs block paired-review approval and are hard vetoes for auto-merge approval; Reviewer agents must reject Draft PRs for paired-review with `HUMAN REVIEW REQUIRED` or `BLOCKED`.
 8. Check whether the PR or campaign record includes linked issue, role, type, risk, validation profile, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
 9. Check whether validation was run for the declared profile and whether CI is passing or recorded for each audited PR.
 10. Establish reviewer independence before any approval or audit pass:
@@ -37,7 +37,7 @@ Reviewer work has two review cadence modes:
    - identify the reviewer session/source
    - state whether the reviewer is independent from the authoring session
    - state whether independence is unknown
-11. For `paired-review`, return `HUMAN REVIEW REQUIRED` if you authored the PR, are from the same Codex session/run as the author, cannot distinguish the authoring run from the review run, the PR was already merged before review, the PR is Draft for an auto-merge path, stop labels are present, or required metadata/checks are missing.
+11. For `paired-review`, return `HUMAN REVIEW REQUIRED` if you authored the PR, are from the same Codex session/run as the author, cannot distinguish the authoring run from the review run, the PR was already merged before review, the PR is Draft, stop labels are present, or required metadata/checks are missing.
 12. For `final-audit`, inspect merged PRs, explicitly abandoned PRs, and Linear history. Do not reject merely because PRs are already merged; merged PRs are expected audit inputs. The Reviewer does not approve merge retroactively.
 13. For auto-merge shakedowns, verify the PR is open until the full sequence completes and ready for review before any auto-merge approval: Coder PR, CI pass, PR metadata pass, independent Reviewer approval, human-applied `merge:auto-eligible`, no stop labels, and GitHub auto-merge.
 14. Prioritize findings by severity with file and line references where possible.
@@ -51,10 +51,10 @@ and have required checks/metadata according to policy. Use only pre-merge
 decision language.
 
 Establish reviewer independence before any approval:
-Return `HUMAN REVIEW REQUIRED` if you authored the PR, are from the same Codex
-session/run as the author, cannot distinguish the authoring run from the review
-run, the PR was already merged before review, the PR is Draft for an auto-merge
-path, stop labels are present, or required metadata/checks are missing.
+Return `HUMAN REVIEW REQUIRED` or `BLOCKED` if you authored the PR, are from the
+same Codex session/run as the author, cannot distinguish the authoring run from
+the review run, the PR was already merged before review, the PR is Draft, stop
+labels are present, or required metadata/checks are missing.
 
 Allowed paired-review decisions:
 

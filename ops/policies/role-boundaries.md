@@ -68,8 +68,16 @@ Allowed:
 - Confirm the issue has exactly one `type:*`, one `risk:*`, and one `validation:*` label before moving it to `In Progress`.
 - Move the selected issue to `In Progress` when starting.
 - Create one branch from updated `main`.
-- Open one draft PR against `main`.
-- Move the issue to `In Review` after the draft PR opens.
+- Open one PR against `main`.
+- Keep the PR Draft only while work is incomplete, exploratory, ordinary
+  non-paired-review work, validation has not passed, or the work is explicitly
+  awaiting author completion.
+- For `review_cadence: paired-review`, mark the producer PR ready for review
+  after validation passes before stopping; paired-review PRs must be open,
+  non-draft, unmerged, and passing required checks before the paired Reviewer
+  issue may run.
+- Move the issue to `In Review` after the PR opens and the required draft or
+  ready-for-review posture is set.
 
 Prohibited:
 

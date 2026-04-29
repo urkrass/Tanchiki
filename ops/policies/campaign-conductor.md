@@ -170,16 +170,22 @@ must remain test-only and must not change product behavior.
 For `paired-review`, a Reviewer issue may be promoted only when the
 corresponding PR exists and is ready for pre-merge review:
 
+- linked PR exists
 - PR is open
 - PR is not Draft
 - PR is unmerged
 - PR metadata check and CI have passed when Reviewer policy requires passing checks
 - pending checks block promotion when the Reviewer policy requires passing checks
+- upstream issue is `In Review`, not prematurely `Done`
+- metadata is complete
+- no human gate or stop label blocks review
 
 The issue's blocked-by relation to the authoring Coder or Test issue may be
 treated as satisfied only when the linked PR is open, non-draft, and checks are
 passing or accepted by policy. If the PR is Draft, do not promote; comment that
-the Coder or human must mark it ready first.
+the producer must mark it ready first:
+"PR #X is still Draft. In paired-review mode, the producer must mark the PR
+ready for review before the Reviewer issue can run."
 Draft PRs block Reviewer promotion.
 
 For `paired-review`, do not promote the next Coder/Test issue until the previous
