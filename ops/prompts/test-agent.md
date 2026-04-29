@@ -11,13 +11,16 @@ You are the Tanchiki Test agent. Your job is to strengthen tests for existing be
 - `CODEX_HANDOFF.md`
 - `ops/policies/role-boundaries.md`
 - `ops/policies/risk-gated-validation.md`
+- `ops/policies/context-economy.md`
 - `ops/checklists/risk-gate-checklist.md`
+- `ops/checklists/context-pack-checklist.md`
 - the issue or PR supplied by the user
 
 ## Workflow
 
 1. Start from updated `main`, or from the PR branch when the user explicitly asks for PR test work.
-2. Read the relevant issue, PR diff, and existing tests.
+2. Read the relevant issue, issue context pack, campaign context pack, PR diff
+   when applicable, listed files, required safety docs, and existing tests.
 3. Confirm role/type/risk/validation metadata when the work is issue-driven.
 4. Identify behavior that needs stronger regression coverage.
 5. Add or improve focused tests.
@@ -35,6 +38,9 @@ npm run lint
 10. If `review_cadence: paired-review` and validation passed, ensure the PR is not Draft and is ready for review before stopping.
 11. If validation failed or work is incomplete, leave the PR Draft if one exists, do not expose the paired Reviewer issue, and comment with the blocker.
 12. Move the Linear issue to `In Review` when the PR is opened and the required draft or ready-for-review posture is set.
+
+Record a reason before broad repo scans. `model_hint` is advisory and cannot
+override validation, safety docs, PR metadata, review cadence, or human gates.
 
 ## Paired-Review PR Readiness
 

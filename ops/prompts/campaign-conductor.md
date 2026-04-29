@@ -19,7 +19,9 @@ promotion safe.
 - `VALIDATION_MATRIX.md`
 - `SAFETY_BOUNDARIES.md`
 - `ops/policies/campaign-conductor.md`
+- `ops/policies/context-economy.md`
 - `ops/checklists/campaign-conductor-checklist.md`
+- `ops/checklists/context-pack-checklist.md`
 - the active campaign issues in Linear
 - linked GitHub PRs when Reviewer, Test, Coder, or Release readiness depends on them
 
@@ -27,6 +29,9 @@ promotion safe.
 
 1. Inspect the active campaign issues, dependency order, blocked-by relations,
    labels, status, issue bodies, and linked GitHub PRs.
+   Use the campaign context pack and issue context packs when present to avoid
+   rediscovering stable campaign context. Context packs do not replace direct
+   checks of labels, state, blockers, cadence, stop labels, or PR readiness.
 2. Identify the campaign review cadence before any promotion by inspecting
    campaign notes, issue descriptions, grooming notes, and Architect comments
    for `review_cadence: paired-review`, `review_cadence: final-audit`, or
@@ -53,11 +58,14 @@ promotion safe.
    policy's strict legacy-label conditions are met, then comment with the
    blocker evidence and why only one next issue is exposed.
 10. Apply role-specific readiness rules from the policy.
-11. Promote at most one safe issue by setting the intended ready state and labels
+11. Record a reason in the promotion or refusal comment before using broad repo
+    scans. Valid reasons include missing/stale context packs, ambiguous
+    blockers, unexpected PR files, or safety-critical docs changing.
+12. Promote at most one safe issue by setting the intended ready state and labels
    used by the Dispatcher, normally `Todo` + `automation-ready` after blockers
    are satisfied.
-12. Add a Linear comment explaining the decision and evidence.
-13. Stop. Do not continue to another issue.
+13. Add a Linear comment explaining the decision and evidence.
+14. Stop. Do not continue to another issue.
 
 ## Review Cadence Readiness
 
@@ -98,5 +106,6 @@ When promoting or repairing an issue, comment with:
 - which review cadence was used
 - which blockers were satisfied
 - which PR/check evidence was used
+- which context pack inputs were used, or why broader context was required
 - the next expected Dispatcher role
 

@@ -31,7 +31,9 @@ If a dependency chain exposes more than one `Todo` + `automation-ready` implemen
 - `CODEX_HANDOFF.md`
 - `ops/policies/role-boundaries.md`
 - `ops/policies/risk-gated-validation.md`
+- `ops/policies/context-economy.md`
 - `ops/checklists/risk-gate-checklist.md`
+- `ops/checklists/context-pack-checklist.md`
 - `ops/policies/level-2-agent-boundaries.md`
 - the selected Linear issue
 
@@ -42,10 +44,15 @@ If a dependency chain exposes more than one `Todo` + `automation-ready` implemen
 3. Restate goal, constraints, acceptance criteria, dependency state, role/type/risk/validation labels, and visible UI expectation.
 4. Move the issue to `In Progress`.
 5. Start from updated `main`.
-6. Inspect recent merged PRs or git history for conflict risk.
-7. Create a branch from updated `main`.
-8. Implement only the selected issue.
-9. Run the selected `validation:*` profile. Baseline validation is:
+6. Start implementation context from the issue body, issue context pack,
+   campaign context pack, listed files, required safety docs for the issue
+   risk/type, and direct blocker or paired-review notes.
+7. Inspect recent merged PRs or git history for conflict risk when the issue,
+   context pack, or central-file risk calls for it. Record the reason before a
+   broad repo scan.
+8. Create a branch from updated `main`.
+9. Implement only the selected issue.
+10. Run the selected `validation:*` profile. Baseline validation is:
 
 ```powershell
 npm test
@@ -53,14 +60,18 @@ npm run build
 npm run lint
 ```
 
-10. Commit the scoped change.
-11. Push the branch.
-12. Identify campaign review cadence from campaign notes, issue descriptions, grooming notes, and Architect comments when the issue is part of a campaign.
-13. Open a PR against `main` and fill the PR template with linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
-14. If `review_cadence: paired-review` and validation passed, ensure the PR is not Draft and is ready for review before stopping.
-15. If validation failed or work is incomplete, leave the PR Draft if one exists, do not expose the paired Reviewer issue, and comment with the blocker.
-16. Move the Linear issue to `In Review`.
-17. Stop and report issue ID, branch, PR, validation, and risks.
+11. Commit the scoped change.
+12. Push the branch.
+13. Identify campaign review cadence from campaign notes, issue descriptions, grooming notes, and Architect comments when the issue is part of a campaign.
+14. Open a PR against `main` and fill the PR template with linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+15. If `review_cadence: paired-review` and validation passed, ensure the PR is not Draft and is ready for review before stopping.
+16. If validation failed or work is incomplete, leave the PR Draft if one exists, do not expose the paired Reviewer issue, and comment with the blocker.
+17. Move the Linear issue to `In Review`.
+18. Stop and report issue ID, branch, PR, validation, risks, and any broad-scan reason.
+
+`model_hint` values from context packs are advisory only. They do not change
+the selected role, risk, validation profile, safety docs, PR metadata, review
+cadence, or human gates.
 
 ## Paired-Review PR Readiness
 

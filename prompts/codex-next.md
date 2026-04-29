@@ -13,9 +13,11 @@ Follow:
 
 - `ops/policies/role-router.md`
 - `ops/policies/risk-gated-validation.md`
+- `ops/policies/context-economy.md`
 - `ops/policies/role-boundaries.md`
 - `ops/checklists/role-routing-checklist.md`
 - `ops/checklists/risk-gate-checklist.md`
+- `ops/checklists/context-pack-checklist.md`
 - the selected role prompt in `ops/prompts/`
 
 Dispatcher rules:
@@ -24,6 +26,9 @@ Dispatcher rules:
 2. Skip issues with `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
 3. Select the highest-priority issue that has `automation-ready`, exactly one `role:*`, exactly one `type:*`, exactly one `risk:*`, and exactly one `validation:*` label.
 4. Read the full issue before acting.
+   - Use the issue context pack and campaign context pack when present.
+   - Do not use a context pack to infer or repair missing eligibility metadata.
+   - Record a reason before broad repo scans.
 5. Route by the role label:
    - `role:architect` -> Architect
    - `role:coder` -> Coder
@@ -38,6 +43,9 @@ Dispatcher rules:
    - gate labels: remove `blocked`, `needs-human-approval`, `human-only`, and `risk:human-only` before automation
 7. If no eligible issue exists, report all blocked/gated candidates and the required human actions.
 8. Use the selected role's existing Level 4 protocol.
+   Context packs are advisory input-shaping aids. They do not replace required
+   safety docs, Level 5 metadata, validation, PR metadata, review cadence,
+   changed-file scrutiny, blocker checks, or human gates.
 9. Start from updated `main` where repo work is needed:
 
 ```powershell
