@@ -19,7 +19,7 @@ The Conductor must not:
 - review PRs
 - merge PRs
 - apply `merge:auto-eligible`
-- remove stop labels
+- remove human gate labels or PR stop labels
 - create a looping autonomous campaign runner
 
 ## Promotion Eligibility
@@ -35,9 +35,8 @@ The Conductor may promote an issue only when all are true:
 - the issue has no `needs-human-approval`
 - the issue has no `human-only`
 - the issue has no `risk:human-only`
-- the issue has no `blocked` label
 - the issue has no unresolved blocker that still matters for that role
-- the issue has no stop labels
+- the issue has no non-removable stop labels
 
 If more than one possible next issue exists, stop and ask for human triage.
 
@@ -46,12 +45,48 @@ Stop labels include:
 - `merge:do-not-merge`
 - `merge:human-required`
 - `needs-human-approval`
-- `blocked`
 - `human-only`
 - `risk:human-only`
 
-Stop labels are hard vetoes. Agents may recommend stop-label removal in a
-Linear or PR comment, but must not remove stop labels.
+Human gate labels and PR stop labels are hard vetoes. Agents may recommend
+removal in a Linear or PR comment, but must not remove them.
+
+## Dependency Source Of Truth
+
+Ordinary campaign sequencing uses Linear blocked-by / blocks relations. Planner
+and Groomer workflows must not add the `blocked` label for normal downstream
+campaign dependencies.
+
+The Conductor inspects blocked-by relations directly:
+
+- blockers in `Done` are satisfied;
+- blockers explicitly recorded as satisfied in the issue or campaign comments
+  may be treated as satisfied;
+- unresolved blockers stop promotion;
+- ambiguous dependency state stops promotion.
+
+## Legacy `blocked` Label Handling
+
+The `blocked` label is deprecated for ordinary campaign dependencies. For old
+or already-created campaign issues, the Conductor may remove a legacy `blocked`
+label only when all are true:
+
+- all blocked-by issues are `Done` or explicitly satisfied;
+- no `needs-human-approval` label is present;
+- no `human-only` label is present;
+- no `risk:human-only` label is present;
+- exactly one `role:*` label exists;
+- exactly one `type:*` label exists;
+- exactly one `risk:*` label exists;
+- exactly one `validation:*` label exists;
+- campaign order is unambiguous;
+- promoting the issue would expose only one next issue.
+
+When the Conductor removes a legacy `blocked` label, it must add a Linear
+comment explaining why the label was removed, which blockers were satisfied,
+and why promotion still exposes only one next issue. This exception does not
+allow removing `needs-human-approval`, `human-only`, `risk:human-only`, or any
+PR stop label.
 
 ## Safe Metadata Repair
 
@@ -87,8 +122,9 @@ Conductor must stop and report the required human action.
 ### Coder
 
 A Coder issue may be promoted only after required Architect and human gates are
-Done. It must not be promoted if blocked by unresolved prior work, or if its
-type, risk, or validation profile requires human approval.
+Done. It must not be promoted if blocked by unresolved prior work in Linear
+blocked-by relations, or if its type, risk, or validation profile requires
+human approval.
 
 ### Test
 
@@ -106,7 +142,7 @@ ready for review:
 - PR metadata check and CI have passed when Reviewer policy requires passing checks
 - pending checks block promotion when the Reviewer policy requires passing checks
 
-The issue's blocked relation to the authoring Coder or Test issue may be
+The issue's blocked-by relation to the authoring Coder or Test issue may be
 treated as satisfied only when the linked PR is open, non-draft, and checks are
 passing or accepted by policy. If the PR is Draft, do not promote; comment that
 the Coder or human must mark it ready first.
@@ -152,6 +188,9 @@ comment explaining:
 - which blockers were satisfied
 - which PR/check evidence was used
 - what the next expected Dispatcher role is
+
+For legacy `blocked` label removal, the comment must also state that the label
+was legacy dependency metadata, not a human gate or PR stop label.
 
 Whenever the Conductor refuses to promote, it must comment with:
 

@@ -77,6 +77,14 @@ The Conductor may repair a missing `role:*`, `type:*`, `risk:*`, or
 `validation:*` label only when the exact label is explicitly stated in the issue
 body. It must stop for absent or ambiguous metadata.
 
+Ordinary campaign dependencies should be represented by Linear blocked-by /
+blocks relations. The `blocked` label is deprecated for normal dependency
+sequencing. The Conductor may remove a legacy Linear issue `blocked` label only
+when all blocked-by issues are `Done` or explicitly satisfied, no human gate
+labels are present, Level 5 metadata is complete, campaign order is
+unambiguous, and promotion exposes exactly one next issue. It must never remove
+`needs-human-approval`, `human-only`, `risk:human-only`, or PR stop labels.
+
 Role readiness summary:
 
 - `role:architect`: may be promoted as the first safe campaign issue.

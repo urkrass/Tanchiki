@@ -28,7 +28,7 @@ Read the campaign brief supplied by the user, create 5-8 small Linear issues for
    - `automation-ready candidate`
    - `needs-human-approval`
    - `human-only`
-   - `blocked/dependency`
+   - `dependency via blocked-by relation`
 6. Add suggested role labels in the issue description:
    - `role:architect`
    - `role:coder`
@@ -38,17 +38,17 @@ Read the campaign brief supplied by the user, create 5-8 small Linear issues for
 7. Add suggested type, risk, and validation labels in the issue description.
 8. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
 9. For dependency chains, name exactly one issue that should become `Todo` + `automation-ready` first after human approval.
-10. Mark dependency issues as `blocked` or `needs-human-approval` where appropriate.
+10. Add blocked-by / blocks relations for dependency issues, and use `needs-human-approval` for human gates.
 11. Check whether likely files overlap with the previous 1-3 merged PRs or central integration files.
 12. Create the issues in Linear.
 13. Run the campaign grooming checklist before stopping:
    - normalize each issue to exactly one applied `role:*`, `type:*`, `risk:*`, and `validation:*` label where applicable
    - mark human gates with `needs-human-approval`
    - mark never-automated human work with `human-only`
-   - mark dependency-blocked work with `blocked`
+   - mark dependency-blocked work with blocked-by / blocks relations
    - apply `automation-ready` only to the one issue that may run next
 14. If the campaign requires Architect review first, make only that first Architect issue `Todo` + `role:architect` + `automation-ready`.
-15. Keep Coder, Test, Reviewer, and Release issues Backlog/blocked until their dependencies are complete.
+15. Keep Coder, Test, Reviewer, and Release issues Backlog with blocked-by relations until their dependencies are complete.
 16. Stop after reporting the final groomed queue.
 
 ## Issue Body Requirements
@@ -73,7 +73,7 @@ Each issue must include:
 - Planner classification
 - Dependencies or blockers
 - Dependency order
-- Blocked-by relationships where possible
+- Blocked-by relationships
 - Whether visible UI change is expected
 - Central-file conflict risk
 - First issue that should become `Todo` + `automation-ready` after human approval
@@ -85,7 +85,7 @@ Each issue must include:
 - Do not open a gameplay implementation PR.
 - Do not apply `automation-ready` broadly. The grooming pass may apply it only to the single first runnable issue allowed by `ops/policies/campaign-execution.md`.
 - Do not move issues to `In Progress`, `In Review`, or `Done`.
-- Do not put `automation-ready` on parent, epic, blocked, `needs-human-approval`, or `human-only` issues.
+- Do not put `automation-ready` on parent, epic, unresolved dependency, `needs-human-approval`, or `human-only` issues.
 - Do not make a Coder issue automation-ready immediately after planning unless the user explicitly requested it.
 - Do not use `agent-ready` for new campaign planning.
 - Do not use `human-review` to mean reviewer-agent work.
@@ -99,7 +99,7 @@ Report:
 - each classification
 - recommended implementation order
 - dependency notes
-- blocked-by relationships where possible
+- blocked-by relationships
 - whether visible UI change is expected for each issue
 - central-file conflict risk for each issue
 - suggested role label for each issue

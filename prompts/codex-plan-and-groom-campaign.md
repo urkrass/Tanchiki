@@ -27,7 +27,7 @@ Turn the supplied campaign brief into 5-7 small Linear issues, then groom the ca
 
 - Create 5-7 small Linear issues.
 - Keep issues small enough for one Level 4 role pass.
-- Include dependency order, blocked-by relationships where possible, visible UI expectation, central-file conflict risk, suggested role labels, and the first issue that should run.
+- Include dependency order, blocked-by relationships, visible UI expectation, central-file conflict risk, suggested role labels, and the first issue that should run.
 - Include suggested type, risk, and validation labels for every issue.
 - Do not implement gameplay.
 - Do not edit source files.
@@ -68,17 +68,18 @@ Immediately after issue creation, groom the same campaign queue:
 - Use `automation-ready` only for the one issue that may run next.
 - Do not expose `risk:human-only` issues to the dispatcher.
 - Use `needs-human-approval` for human gates.
-- Use `blocked` for dependency-blocked issues.
+- Use Linear blocked-by / blocks relations for ordinary campaign dependency sequencing.
+- Do not use the `blocked` label for normal downstream campaign dependencies.
 - Use `human-only` for issues that must never be automated.
 - Fix classification mismatches. For example, a human review issue must not be classified or labeled as Coder work.
 - If the campaign requires architecture review first, make only the first Architect issue:
   - `Todo`
   - `role:architect`
   - `automation-ready`
-- Leave implementation issues Backlog/blocked unless the user explicitly requested a Coder issue to be runnable immediately.
-- Leave Test issues blocked until implementation PRs are merged or ready.
-- Leave Reviewer issues blocked until implementation/test PRs exist.
-- Leave Release issues blocked until review is done.
+- Leave implementation issues Backlog with blocked-by relations unless the user explicitly requested a Coder issue to be runnable immediately.
+- Leave Test issues Backlog with blocked-by relations until implementation PRs are merged or ready.
+- Leave Reviewer issues Backlog with blocked-by relations until implementation/test PRs exist.
+- Leave Release issues Backlog with blocked-by relations until review is done.
 - Add a grooming comment summarizing queue order and required human actions.
 
 ## Final Report
@@ -89,7 +90,7 @@ Report:
 - final status and applied labels for each issue
 - recommended sequence
 - the only dispatcher-eligible issue
-- blocked issues and blockers
+- blocked-by dependencies and blockers
 - human-only or `needs-human-approval` issues
 - central-file conflict risks
 - next human action required

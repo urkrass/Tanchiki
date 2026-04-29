@@ -162,7 +162,7 @@ Issues with `validation:movement` should normally be gated by `risk:human-only` 
 - Planner must not apply `automation-ready` automatically.
 - Campaign Groomer must normalize role, type, risk, and validation labels.
 - Campaign Groomer may make only the first safe Architect issue automation-ready unless a human explicitly approves a different first runnable issue.
-- Campaign Groomer must keep Coder issues blocked until Architect or human gates are complete.
+- Campaign Groomer must keep Coder issues Backlog with blocked-by relations until Architect or human gates are complete.
 - Campaign Groomer must ensure only one issue in a campaign is automation-ready unless issues are genuinely independent.
 - Campaign Groomer must add a Linear comment explaining queue order and human gates.
 
@@ -170,9 +170,9 @@ Issues with `validation:movement` should normally be gated by `risk:human-only` 
 
 Use a small Level 5 shakedown campaign before larger gameplay campaigns when the gate itself needs validation. Prefer docs, UI-copy, or test-only issues, and avoid source gameplay changes.
 
-A passing shakedown queue should expose only the first Architect issue as `Todo` + `automation-ready`. Follow-up Coder, Test, Reviewer, and Release issues should remain blocked until the prior gate is complete. Include one intentionally gated movement placeholder with `type:movement`, `validation:movement`, `risk:human-only`, `human-only`, and `needs-human-approval`; it must not have `automation-ready`.
+A passing shakedown queue should expose only the first Architect issue as `Todo` + `automation-ready`. Follow-up Coder, Test, Reviewer, and Release issues should remain Backlog with blocked-by relations until the prior gate is complete. Include one intentionally gated movement placeholder with `type:movement`, `validation:movement`, `risk:human-only`, `human-only`, and `needs-human-approval`; it must not have `automation-ready`.
 
-The dispatcher should run only the exposed issue, skip blocked issues, and refuse the human-only movement placeholder if it is encountered. Shakedown work must not edit gameplay source or `src/game/movement.js`.
+The dispatcher should run only the exposed issue, skip issues with unresolved blocked-by relations, and refuse the human-only movement placeholder if it is encountered. Shakedown work must not edit gameplay source or `src/game/movement.js`.
 
 ## PR Body Requirements
 

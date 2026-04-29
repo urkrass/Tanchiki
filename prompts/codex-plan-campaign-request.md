@@ -43,7 +43,7 @@ Before creating or grooming Linear issues, read:
 - Do not change gameplay, progression, level tuning, enemy AI, shooting, collision, movement, upgrade behavior, or persistence.
 - Do not add dependencies.
 - Do not create broad catch-all issues.
-- Do not apply `automation-ready` to Coder, Test, Reviewer, Release, blocked, human-only, or needs-human-approval issues during intake.
+- Do not apply `automation-ready` to Coder, Test, Reviewer, Release, unresolved dependency, human-only, or needs-human-approval issues during intake.
 - Do not apply `automation-ready` to any issue labeled `risk:human-only`.
 - If the request includes unsafe categories, create a human approval gate before implementation work.
 
@@ -55,7 +55,7 @@ First classify the request:
 - `needs-human-approval`: gameplay behavior, progression, level tuning, dependencies, CI browser checks, screenshots as pass/fail, public-demo release gates, broad architecture, or ambiguous product choices.
 - `human-only`: movement, collision, spawning, control feel, persistence, credentials, destructive repository operations, broad rewrites, or any category requiring human judgment before automation.
 
-If any part is unsafe or ambiguous, split the campaign so the unsafe decision is a human gate issue and downstream implementation stays blocked.
+If any part is unsafe or ambiguous, split the campaign so the unsafe decision is a human gate issue and downstream implementation stays blocked by Linear blocked-by relations.
 
 ## Planner Work
 
@@ -99,13 +99,13 @@ After issue creation, groom the same Linear campaign:
 4. Normalize every issue to exactly one validation label.
 5. Add `needs-human-approval` to human gate issues.
 6. Add `human-only` and `risk:human-only` where automation must never run.
-7. Add `blocked` to dependency-blocked issues.
-8. Preserve blocked-by relationships where Linear supports them.
-9. Ensure no parent, umbrella, blocked, human-only, or gated issue has `automation-ready`.
+7. Add blocked-by / blocks relationships for dependency-blocked issues.
+8. Do not add the `blocked` label for ordinary dependency sequencing.
+9. Ensure no parent, umbrella, unresolved dependency, human-only, or gated issue has `automation-ready`.
 10. Ensure no issue has `automation-ready` with `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
 11. Make only the first safe Architect issue `Todo` + `automation-ready`.
-12. Keep all Coder/Test/Reviewer/Release issues Backlog or blocked until Architect and human gates are complete.
-13. Add a grooming comment with queue order, blocked issues, and human gates.
+12. Keep all Coder/Test/Reviewer/Release issues Backlog with blocked-by relations until Architect and human gates are complete.
+13. Add a grooming comment with queue order, blocked-by dependencies, and human gates.
 
 ## Validation Expectations
 
@@ -128,7 +128,7 @@ After creating and grooming the campaign, report:
 - role/type/risk/validation for each issue
 - dependency order
 - first eligible issue
-- blocked issues
+- blocked-by dependencies
 - human approval gates
 - central-file conflict risks
 - visible UI expectations

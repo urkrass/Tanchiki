@@ -16,10 +16,13 @@ Use this checklist for one Campaign Conductor run.
 - [ ] Confirm the candidate has no `needs-human-approval`.
 - [ ] Confirm the candidate has no `human-only`.
 - [ ] Confirm the candidate has no `risk:human-only`.
-- [ ] Confirm the candidate has no `blocked` label.
 - [ ] Confirm the candidate has no unresolved blocker that still matters for the role.
-- [ ] Confirm no stop labels are present.
-- [ ] Do not remove stop labels.
+- [ ] Inspect blocked-by relations directly and treat `Done` blockers as satisfied.
+- [ ] Stop if blocked-by state is ambiguous or exposes more than one possible next issue.
+- [ ] If a legacy `blocked` label is present, remove it only when the policy's strict legacy-label conditions are met.
+- [ ] If removing a legacy `blocked` label, add a Linear comment explaining satisfied blockers and why only one next issue is exposed.
+- [ ] Confirm no human gate labels or PR stop labels are present.
+- [ ] Do not remove `needs-human-approval`, `human-only`, `risk:human-only`, or PR stop labels.
 - [ ] For Architect, confirm it is the first safe issue exposed by Planner or Groomer.
 - [ ] For human gate work, do not promote; report the required human action.
 - [ ] For Coder, confirm required Architect and human gates are Done.
@@ -42,6 +45,6 @@ Use this checklist for one Campaign Conductor run.
 - [ ] For low-risk auto-merge burn-in, stop at the human merge-label gate and report: "Human must apply `merge:auto-eligible` using normal GitHub identity."
 - [ ] Keep Coder/Test issues `In Review` while their PR is open.
 - [ ] Recommend Coder/Test and Reviewer `Done` only after the PR is confirmed merged or the recorded outcome allows it.
-- [ ] Add a Linear comment for every promotion or repair with changed fields, eligibility reason, satisfied blockers, PR/check evidence, and next expected Dispatcher role.
+- [ ] Add a Linear comment for every promotion, metadata repair, or legacy `blocked` label removal with changed fields, eligibility reason, satisfied blockers, PR/check evidence, and next expected Dispatcher role.
 - [ ] Add a Linear comment for every refusal with missing labels, blockers, ambiguity, and human action required.
 

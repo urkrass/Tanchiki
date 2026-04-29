@@ -42,15 +42,15 @@ Every issue must be classified as one of:
 - `automation-ready candidate`: likely suitable for automation after human approval and labeling.
 - `needs-human-approval`: needs product, design, tuning, or architecture review before automation.
 - `human-only`: requires creative direction, credentials, external assets, business judgment, or safety-critical review.
-- `blocked/dependency`: cannot be implemented until another issue or decision is completed.
+- `dependency via blocked-by relation`: cannot be implemented until another issue or decision is completed.
 
 ## Label Rules
 
 The planner must run campaign grooming after issue creation. Grooming should normalize each issue to exactly one applied `role:*` label where applicable. The planner must not apply `automation-ready` broadly.
 
-For dependency chains, grooming may make only the first runnable issue `Todo` + `automation-ready`. If architecture review is required first, only the first Architect issue should receive `automation-ready`. Coder issues must stay Backlog/blocked immediately after planning unless the user explicitly requested Coder to run first.
+For dependency chains, grooming may make only the first runnable issue `Todo` + `automation-ready`. If architecture review is required first, only the first Architect issue should receive `automation-ready`. Coder issues must stay Backlog with blocked-by relations immediately after planning unless the user explicitly requested Coder to run first.
 
-Parent, epic, blocked, `needs-human-approval`, and `human-only` issues must not receive `automation-ready`. A gated issue may become automation-ready only after a human explicitly removes the gate and applies `automation-ready`.
+Parent, epic, unresolved dependency, `needs-human-approval`, and `human-only` issues must not receive `automation-ready`. A gated issue may become automation-ready only after a human explicitly removes the gate and applies `automation-ready`.
 
 Recommended labels include:
 
@@ -63,7 +63,6 @@ Recommended labels include:
 - `harness`
 - `needs-human-approval`
 - `human-only`
-- `blocked`
 - `role:architect`
 - `role:coder`
 - `role:test`
@@ -81,7 +80,10 @@ Blocks: Follow-up level content issues.
 
 Do not hide blocked work behind an `automation-ready candidate` classification.
 
-Where possible, create or preserve blocked-by relationships in Linear. If the tool cannot express the relationship, write explicit `Depends on:` and `Blocks:` lines in the issue body.
+Create or preserve blocked-by relationships in Linear. Do not use the `blocked`
+label for ordinary dependency sequencing. If the tool cannot express the
+relationship, write explicit `Depends on:` and `Blocks:` lines in the issue
+body.
 
 ## Visibility Rules
 

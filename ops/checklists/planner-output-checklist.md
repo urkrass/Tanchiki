@@ -16,7 +16,7 @@ Use this checklist before creating, grooming, or reporting Level 3 planner issue
 - No issue is a broad umbrella task.
 - Dependencies are preserved and named.
 - Dependency order is explicit.
-- Blocked-by relationships are added where possible or written in the issue body.
+- Blocked-by relationships are added or written in the issue body.
 - Risk level is stated.
 - Suggested labels are included.
 - Suggested role, type, risk, and validation labels are included.
@@ -48,7 +48,7 @@ Each issue includes:
 - Planner classification
 - Dependencies or blockers
 - Dependency order
-- Blocked-by relationships where possible
+- Blocked-by relationships
 - Visible UI change expected
 - Central-file conflict risk
 - First issue that should become `Todo` + `automation-ready`
@@ -58,7 +58,7 @@ Each issue includes:
 - No gameplay code was edited.
 - No branch or implementation PR was created for gameplay work.
 - No issue was marked `automation-ready` except the single first runnable issue exposed by the required grooming pass.
-- No parent, epic, blocked, or `needs-human-approval` issue was marked `automation-ready`.
+- No parent, epic, unresolved dependency, or `needs-human-approval` issue was marked `automation-ready`.
 - For dependency chains, only one issue is recommended as the first `Todo` + `automation-ready` candidate.
 - No issue was moved into implementation status.
 - The planner ran the campaign grooming checklist after creating issues.
@@ -70,11 +70,11 @@ Each issue includes:
 - Each issue has exactly one applied `type:*`, `risk:*`, and `validation:*` label where applicable.
 - Human gates use `needs-human-approval`.
 - Human-only issues use `human-only`.
-- Dependency-blocked issues use `blocked`.
+- Dependency-blocked issues use blocked-by / blocks relations.
 - Classification mismatches are corrected before automation starts.
 - Only the first runnable issue has `automation-ready`.
 - If architecture review is required first, only the first Architect issue is `Todo` + `role:architect` + `automation-ready`.
-- Coder issues remain Backlog/blocked immediately after planning unless the user explicitly requested Coder to run first.
+- Coder issues remain Backlog with blocked-by relations immediately after planning unless the user explicitly requested Coder to run first.
 - No issue has `automation-ready` with `blocked`, `needs-human-approval`, or `human-only`.
 - No issue has `automation-ready` with `risk:human-only`.
 - A grooming comment summarizes queue order and required human actions.
@@ -87,7 +87,7 @@ The final planner response includes:
 - classification for each issue
 - recommended implementation order
 - dependency notes
-- blocked-by relationships where possible
+- blocked-by relationships
 - visible UI expectation for each issue
 - central-file conflict risk for each issue
 - suggested role label for each issue

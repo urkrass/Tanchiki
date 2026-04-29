@@ -75,9 +75,9 @@ test("campaign request planner prompt exposes only the first safe Architect issu
     "Treat the request as intake for planning and grooming only.",
     "Do not let a request directly trigger Coder work.",
     "If required request fields are missing, create or report a human-gated clarification issue instead of guessing.",
-    "Do not apply `automation-ready` to Coder, Test, Reviewer, Release, blocked, human-only, or needs-human-approval issues during intake.",
+    "Do not apply `automation-ready` to Coder, Test, Reviewer, Release, unresolved dependency, human-only, or needs-human-approval issues during intake.",
     "Make only the first safe Architect issue `Todo` + `automation-ready`.",
-    "Keep all Coder/Test/Reviewer/Release issues Backlog or blocked until Architect and human gates are complete.",
+    "Keep all Coder/Test/Reviewer/Release issues Backlog with blocked-by relations until Architect and human gates are complete.",
   ]) {
     assert.match(prompt, new RegExp(escapeRegExp(expected)));
   }
@@ -93,7 +93,7 @@ test("campaign factory policy documents unsafe-category gates and metadata", () 
     "`human-only`: movement, collision, spawning, control feel, persistence, credentials, destructive repository operations",
     "`automation-ready` only for the single issue the dispatcher may run next",
     "Campaign requests must never directly promote Coder work to `automation-ready`.",
-    "no blocked, gated, human-only, parent, umbrella, or `risk:human-only` issue has `automation-ready`",
+    "no unresolved dependency, gated, human-only, parent, umbrella, or `risk:human-only` issue has `automation-ready`",
   ]) {
     assert.match(policy, new RegExp(escapeRegExp(expected)));
   }
@@ -345,11 +345,61 @@ test("campaign conductor reviewer and burn-in gates remain conservative", () => 
     "If the PR is Draft, do not promote",
     "The Conductor must not apply `merge:auto-eligible`.",
     "Human must apply `merge:auto-eligible` using normal GitHub identity.",
-    "Do not remove stop labels.",
+    "remove human gate labels or PR stop labels",
   ]) {
     assert.match(`${policy}\n${checklist}\n${protocol}\n${safety}\n${readme}\n${validation}`, new RegExp(escapeRegExp(expected)));
   }
   assert.match(policy, /The Conductor may promote Reviewer issues only when the linked PR is open,\s+non-draft, and checks are passing\./);
+});
+
+test("campaign dependencies use blocked-by relations with legacy blocked label cleanup", () => {
+  const planner = readRepoFile("prompts", "codex-plan-and-groom-campaign.md");
+  const groomer = readRepoFile("ops", "prompts", "campaign-groomer.md");
+  const execution = readRepoFile("ops", "policies", "campaign-execution.md");
+  const conductor = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const conductorPrompt = readRepoFile("ops", "prompts", "campaign-conductor.md");
+  const groomingChecklist = readRepoFile("ops", "checklists", "campaign-grooming-checklist.md");
+  const conductorChecklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+  const readme = readRepoFile("README.md");
+
+  for (const expected of [
+    "Use Linear blocked-by / blocks relations for ordinary campaign dependency sequencing.",
+    "Do not use the `blocked` label for normal downstream campaign dependencies.",
+    "Ensure ordinary dependency work uses Linear blocked-by / blocks relations, not the `blocked` label.",
+    "ensure dependency-blocked issues use Linear blocked-by / blocks relations",
+    "Confirm ordinary dependency sequencing uses Linear blocked-by / blocks relationships.",
+    "Ordinary campaign sequencing uses Linear blocked-by / blocks relations.",
+    "Ordinary campaign dependencies use Linear blocked-by / blocks",
+  ]) {
+    assert.match(
+      `${planner}\n${groomer}\n${execution}\n${groomingChecklist}\n${conductor}\n${protocol}\n${readme}`,
+      new RegExp(escapeRegExp(expected)),
+    );
+  }
+
+  for (const expected of [
+    "The `blocked` label is deprecated for ordinary campaign dependencies.",
+    "all blocked-by issues are `Done` or explicitly satisfied;",
+    "no `needs-human-approval` label is present;",
+    "no `human-only` label is present;",
+    "no `risk:human-only` label is present;",
+    "exactly one `role:*` label exists;",
+    "exactly one `type:*` label exists;",
+    "exactly one `risk:*` label exists;",
+    "exactly one `validation:*` label exists;",
+    "promoting the issue would expose only one next issue.",
+    "comment explaining why the label was removed",
+    "Do not remove `needs-human-approval`, `human-only`, `risk:human-only`, or PR stop labels.",
+    "allow removing `needs-human-approval`, `human-only`, `risk:human-only`, or any",
+    "Promote at most one issue.",
+  ]) {
+    assert.match(
+      `${conductor}\n${conductorPrompt}\n${conductorChecklist}\n${protocol}\n${validation}`,
+      new RegExp(escapeRegExp(expected)),
+    );
+  }
 });
 
 test("campaign conductor keeps human gates and open implementation issues from auto-closing", () => {

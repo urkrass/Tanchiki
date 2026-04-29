@@ -36,6 +36,14 @@ Missing Level 5 labels may be repaired only when the exact label value is
 explicitly stated in the issue body. The Conductor must not infer labels from
 titles or surrounding campaign context.
 
+Ordinary campaign sequencing uses Linear blocked-by / blocks relations, not the
+`blocked` label. Planner and Groomer workflows should keep downstream issues in
+`Backlog` with blocked-by relations and without `automation-ready`. For legacy
+campaign issues, the Conductor may remove a Linear issue `blocked` label only
+under the strict legacy-label rules in `ops/policies/campaign-conductor.md`;
+it must never remove `needs-human-approval`, `human-only`, `risk:human-only`,
+or PR stop labels.
+
 Reviewer issues require a linked PR that is open, non-draft, and has passing
 required checks when Reviewer policy requires passing checks. Draft PRs block
 Reviewer promotion.

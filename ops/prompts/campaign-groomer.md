@@ -31,17 +31,17 @@ Review campaign issues after Planner work and prepare the queue so the Level 5 D
 3. Normalize every issue to exactly one applied type, risk, and validation label where applicable.
 4. Verify dependency order and blocked-by relationships.
 5. Ensure human gates use `needs-human-approval`.
-6. Ensure blocked dependency work uses `blocked`.
+6. Ensure ordinary dependency work uses Linear blocked-by / blocks relations, not the `blocked` label.
 7. Ensure human-only work uses `human-only` and `risk:human-only` when automation must never run it.
 8. Fix classification mismatches before automation starts. Example: an issue titled like "Human review: approve difficulty targets" is not Coder work; mark it `needs-human-approval` or `human-only` and do not apply `automation-ready`.
 9. Ensure exactly one issue has `automation-ready`, and only when it may run next.
 10. If the campaign requires architecture review first, make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready`.
 11. Do not make a Coder issue automation-ready immediately after planning unless the user explicitly requested it.
 12. Keep downstream work safe:
-   - Coder issues stay Backlog/blocked until Architect and human gates are done.
-   - Test issues stay blocked until implementation PRs are merged or ready.
-   - Reviewer issues stay blocked until implementation/test PRs exist.
-   - Release issues stay blocked until review is done.
+   - Coder issues stay Backlog with blocked-by relations until Architect and human gates are done.
+   - Test issues stay Backlog with blocked-by relations until implementation PRs are merged or ready.
+   - Reviewer issues stay Backlog with blocked-by relations until implementation/test PRs exist.
+   - Release issues stay Backlog with blocked-by relations until review is done.
 13. Ensure no parent, epic, or campaign umbrella issue is automation-ready.
 14. Ensure no issue has `automation-ready` with `blocked`, `needs-human-approval`, `human-only`, or `risk:human-only`.
 15. Add a grooming comment summarizing queue order and human gates.
@@ -55,7 +55,7 @@ Review campaign issues after Planner work and prepare the queue so the Level 5 D
 - Do not change progression behavior.
 - Do not open a gameplay PR.
 - Do not mark issues `Done`.
-- Apply `automation-ready` only when the user asked for auto-grooming or when the planner workflow requires the first runnable issue to be exposed. Never apply it to blocked, gated, human-only, parent, epic, or umbrella issues.
+- Apply `automation-ready` only when the user asked for auto-grooming or when the planner workflow requires the first runnable issue to be exposed. Never apply it to issues with unresolved blocked-by relations, gated, human-only, parent, epic, or umbrella issues.
 - Never apply `automation-ready` to `risk:human-only`.
 
 ## Output

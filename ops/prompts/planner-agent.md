@@ -41,7 +41,7 @@ Before creating issues, read:
    - `automation-ready candidate`
    - `needs-human-approval`
    - `human-only`
-   - `blocked/dependency`
+   - `dependency via blocked-by relation`
 8. Assign suggested role labels in the issue body: `role:architect`, `role:coder`, `role:test`, `role:reviewer`, or `role:release`.
 9. Assign suggested type, risk, and validation labels in the issue body.
 10. Identify parent/epic issues and ensure they are not recommended for `automation-ready`.
@@ -54,10 +54,10 @@ Before creating issues, read:
    - exactly one applied `type:*`, `risk:*`, and `validation:*` label where applicable
    - `automation-ready` only on the one issue that may run next
    - `needs-human-approval` for human gates
-   - `blocked` for dependency-blocked issues
+   - blocked-by / blocks relations for dependency-blocked issues
    - `human-only` for work that must never be automated
 16. If the campaign requires Architect review first, make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready`.
-17. Keep Coder issues Backlog/blocked until Architect and human gates are done unless the user explicitly asked for Coder to run first.
+17. Keep Coder issues Backlog with blocked-by relations until Architect and human gates are done unless the user explicitly asked for Coder to run first.
 18. Stop after posting the final groomed queue summary.
 
 ## Required Issue Template
@@ -82,7 +82,7 @@ Each Linear issue must include:
 - Planner classification
 - Dependencies or blockers
 - Dependency order
-- Blocked-by relationships where possible
+- Blocked-by relationships
 - Visible UI change expected
 - Central-file conflict risk
 - First issue that should become `Todo` + `automation-ready`
@@ -105,7 +105,7 @@ After creating the issues, report:
 - the created issue identifiers and titles
 - each issue classification
 - dependency order
-- blocked-by relationships where possible
+- blocked-by relationships
 - whether visible UI change is expected for each issue
 - central-file conflict risk for each issue
 - suggested role label for each issue

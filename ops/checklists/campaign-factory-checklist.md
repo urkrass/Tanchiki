@@ -27,7 +27,7 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Create 6-8 small Linear issues when the request is campaign-sized.
 - [ ] Avoid parent, epic, umbrella, or catch-all tasks as runnable automation issues.
 - [ ] Preserve dependency order.
-- [ ] Add blocked-by relationships where possible.
+- [ ] Add blocked-by relationships for ordinary dependencies.
 - [ ] Keep each issue small enough for one Level 4 role pass.
 - [ ] Include Goal.
 - [ ] Include Current state.
@@ -56,7 +56,8 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Apply exactly one `validation:*` label to every issue where applicable.
 - [ ] Use `needs-human-approval` for human gates.
 - [ ] Use `human-only` and `risk:human-only` where automation must never run.
-- [ ] Use `blocked` for dependency-blocked work.
+- [ ] Use Linear blocked-by / blocks relations for dependency-blocked work.
+- [ ] Do not use the `blocked` label for ordinary campaign dependency sequencing.
 - [ ] Do not use `agent-ready` for new routing.
 - [ ] Do not use `human-review` to mean reviewer-agent work.
 
@@ -66,14 +67,14 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Confirm only one issue in the dependency chain is `Todo` + `automation-ready`.
 - [ ] Confirm the exposed issue is the first safe Architect issue unless a human explicitly approved another safe first issue.
 - [ ] Confirm no Coder issue became automation-ready directly from request intake.
-- [ ] Confirm no blocked issue has `automation-ready`.
+- [ ] Confirm no issue with unresolved blocked-by relations has `automation-ready`.
 - [ ] Confirm no `needs-human-approval` issue has `automation-ready`.
 - [ ] Confirm no `human-only` issue has `automation-ready`.
 - [ ] Confirm no `risk:human-only` issue has `automation-ready`.
-- [ ] Confirm Coder issues remain Backlog or blocked until Architect and human gates are complete.
-- [ ] Confirm Test issues remain blocked until implementation PRs are merged or ready.
-- [ ] Confirm Reviewer issues remain blocked until implementation or test PRs exist.
-- [ ] Confirm Release issues remain blocked until review is complete.
+- [ ] Confirm Coder issues remain Backlog with blocked-by relations until Architect and human gates are complete.
+- [ ] Confirm Test issues remain Backlog with blocked-by relations until implementation PRs are merged or ready.
+- [ ] Confirm Reviewer issues remain Backlog with blocked-by relations until implementation or test PRs exist.
+- [ ] Confirm Release issues remain Backlog with blocked-by relations until review is complete.
 - [ ] Add a grooming comment with queue order and human gates.
 
 ## Final Report
@@ -82,7 +83,7 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Report role/type/risk/validation for each issue.
 - [ ] Report dependency order.
 - [ ] Report the first eligible issue.
-- [ ] Report blocked issues.
+- [ ] Report blocked-by dependencies.
 - [ ] Report human approval gates.
 - [ ] Report visible UI expectations.
 - [ ] Report central-file conflict risks.
