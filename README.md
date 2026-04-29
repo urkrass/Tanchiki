@@ -192,9 +192,20 @@ acceptance policy.
 
 Use a clean identity boundary for each session:
 
+Before starting, decide which role this shell is serving. A shell should be a
+Coder shell, a Reviewer shell, or a human merge-label shell, not a mix of those
+roles.
+
 1. **Coder session:** use the normal GitHub identity. Do not load the Reviewer
    App environment file and do not use a Reviewer App `GH_TOKEN` while coding,
-   pushing branches, opening PRs, or updating PR metadata.
+   pushing branches, opening PRs, or updating PR metadata. If `GH_TOKEN` is set
+   from a prior review, clear it first:
+
+```powershell
+Remove-Item Env:\GH_TOKEN -ErrorAction SilentlyContinue
+gh auth status
+```
+
 2. **Reviewer session:** load `reviewer-env.ps1`, run
    `node scripts/reviewer-app-token.js`, and use the printed `GH_TOKEN` command
    only for Reviewer-agent PR inspection, comments, and reviews. Verify access
@@ -210,7 +221,9 @@ gh auth status
 
 4. **Human merge-label session:** return to the normal GitHub identity before
    applying `merge:auto-eligible`, enabling auto-merge, removing stop labels, or
-   merging. Reviewer App credentials must not perform those actions.
+   merging. Reviewer App credentials must not perform those actions. If the last
+   shell work was a Reviewer session, clear `GH_TOKEN` and verify the normal
+   identity before any label or merge action.
 
 Secrets, `.pem` files, local env files, and generated installation tokens stay
 outside the repo. The Reviewer App remains review/comment only.
