@@ -211,6 +211,55 @@ test("PR acceptance policy defines reviewer language and safe low-risk lane", ()
   }
 });
 
+test("PR acceptance policy keeps draft PRs as auto-merge hard vetoes", () => {
+  const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
+  const checklist = readRepoFile("ops", "checklists", "pr-acceptance-checklist.md");
+  const reviewerPrompt = readRepoFile("ops", "prompts", "reviewer-agent.md");
+
+  for (const expected of [
+    "Draft PRs are a hard veto for auto-merge approval.",
+    "PR is not draft; Draft PRs are hard vetoes for auto-merge approval.",
+  ]) {
+    assert.match(policy, new RegExp(escapeRegExp(expected)));
+  }
+  assert.match(policy, /Normal non-auto-merge\s+feature PRs may still use Draft when appropriate/);
+  assert.match(policy, /low-risk auto-merge\s+candidate PRs and burn-in PRs must be ready for review before the Coder stops\./);
+
+  for (const expected of [
+    "Draft PRs are hard vetoes for auto-merge approval.",
+    "Auto-merge candidate PRs and auto-merge burn-in PRs were marked ready for review before the Coder session stopped.",
+    "Normal non-auto-merge feature PRs may still use Draft when appropriate.",
+  ]) {
+    assert.match(checklist, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "Draft PRs are hard vetoes for auto-merge approval",
+    "Reviewer agents must keep rejecting Draft PRs for auto-merge paths.",
+    "the PR is Draft for an auto-merge path",
+  ]) {
+    assert.match(reviewerPrompt, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("coder prompt requires ready-for-review PRs for low-risk auto-merge lanes", () => {
+  const prompt = readRepoFile("ops", "prompts", "coder-agent.md");
+
+  for (const expected of [
+    "Normal feature PRs may still be Draft when appropriate.",
+    "Draft PRs are hard",
+    "auto-merge candidate or burn-in PR",
+    "Open the PR against `main`.",
+    "Ensure the PR is not Draft and is ready for review.",
+    "Fill the PR metadata",
+    "Run the required validation profile.",
+    "Move the Linear issue to `In Review`.",
+    "Stop without reviewing, labeling, or merging the PR.",
+  ]) {
+    assert.match(prompt, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 test("PR acceptance policy requires independent reviewer and active shakedown sequence", () => {
   const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
   const checklist = readRepoFile("ops", "checklists", "pr-acceptance-checklist.md");
@@ -224,7 +273,7 @@ test("PR acceptance policy requires independent reviewer and active shakedown se
     "Reviewer comments for acceptance or auto-merge shakedown review must state the",
     "independence basis: authoring session or source if known, reviewer session or",
     "If independence is unknown, the Reviewer must return `HUMAN REVIEW REQUIRED`.",
-    "PR remains open and unmerged.",
+    "PR remains open, ready for review, and unmerged.",
     "Independent Reviewer-agent approves.",
     "Human operator manually applies `merge:auto-eligible`.",
     "GitHub auto-merge performs the merge.",

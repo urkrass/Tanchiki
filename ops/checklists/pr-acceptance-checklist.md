@@ -6,6 +6,9 @@ Use this checklist before adding an acceptance label, recommending merge, or all
 
 - [ ] PR targets `main`.
 - [ ] PR is not draft before any auto-merge path is considered.
+- [ ] Draft PRs are hard vetoes for auto-merge approval.
+- [ ] Auto-merge candidate PRs and auto-merge burn-in PRs were marked ready for review before the Coder session stopped.
+- [ ] Normal non-auto-merge feature PRs may still use Draft when appropriate.
 - [ ] PR links exactly one Linear issue or explicit documentation task.
 - [ ] PR includes role, type, risk, and validation profile.
 - [ ] PR lists files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
@@ -90,6 +93,7 @@ For auto-merge shakedowns, reviewer comments must record:
 - [ ] PR number.
 - [ ] Linked Linear issue.
 - [ ] PR state at review time: open, draft, merged, or closed.
+- [ ] Whether an auto-merge candidate or burn-in PR is ready for review.
 - [ ] Whether CI passed.
 - [ ] Whether PR metadata check passed.
 - [ ] Whether stop labels are absent.

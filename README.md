@@ -248,7 +248,7 @@ CI uses Node.js 20. It installs dependencies with `npm ci` when `package-lock.js
 
 Use `.github/PULL_REQUEST_TEMPLATE.md` for PR descriptions and `ops/policies/level-1-agent-boundaries.md` for agent boundaries. Do not push directly to `main`, force push, start broad refactors, or include unrelated cleanup in a Level 1 PR.
 
-Harness smoke-test PRs should use an `agent/` branch, be opened as drafts with the PR template filled out, and remain unmerged until reviewed.
+Harness smoke-test PRs should use an `agent/` branch, be opened as drafts with the PR template filled out, and remain unmerged until reviewed. Normal feature PRs may also stay Draft when that is the clearest review posture. Low-risk auto-merge candidate PRs and auto-merge burn-in PRs are different: Draft PRs are hard vetoes for auto-merge approval, so those PRs must be marked ready for review before the Coder session stops.
 
 ## Linear Label Taxonomy
 
@@ -339,7 +339,7 @@ Codex may pick only issues that are all of the following:
 
 Older `agent-ready` issues may exist in history, but new automation should use `automation-ready` plus one role, one type, one risk, and one validation profile label.
 
-When Codex starts a Level 2 issue, it must move the issue to `In Progress`, create a branch from `main`, make one scoped change, run `npm test`, `npm run build`, and `npm run lint`, commit, push, and open a draft PR against `main`. After the draft PR is opened, Codex must move the Linear issue to `In Review`.
+When Codex starts a Level 2 issue, it must move the issue to `In Progress`, create a branch from `main`, make one scoped change, run `npm test`, `npm run build`, and `npm run lint`, commit, push, and open a draft PR against `main`. For an explicitly scoped auto-merge candidate or auto-merge burn-in PR, Codex must open the PR against `main`, ensure it is not Draft, fill PR metadata, run required validation, move the Linear issue to `In Review`, and stop without reviewing, labeling, or merging. After the PR is opened and the required draft or ready-for-review posture is set, Codex must move the Linear issue to `In Review`.
 
 Codex must not pick `Backlog` issues and must not move an issue to `Done` until the PR is merged or a human explicitly approves closing it.
 
@@ -473,6 +473,7 @@ Level 5 shakedown campaigns:
 - Expected queue: only the first Architect issue is `Todo` + `automation-ready`; follow-up Coder, Test, Reviewer, and Release issues stay blocked until their gates are cleared.
 - Burn-in reruns should keep each PR to one narrow docs, harness, or static-test surface so any gate failure is easy to trace.
 - Low-risk auto-merge shakedowns must stay limited to `risk:low` docs, harness, or test PRs, and any stop label remains a hard veto until a human operator resolves it.
+- Draft PRs are hard vetoes for auto-merge approval. Normal non-auto-merge feature PRs may still use Draft when appropriate, but low-risk auto-merge candidate PRs and auto-merge burn-in PRs must be marked ready for review before the Coder session stops.
 - A separate Reviewer-agent session must approve a low-risk auto-merge shakedown before a human applies `merge:auto-eligible`.
 - Auto-merge shakedowns are conclusive only when the PR stays open through independent Reviewer-agent approval, human-applied `merge:auto-eligible`, and GitHub auto-merge.
 - Include one intentionally gated movement placeholder with `type:movement`, `validation:movement`, `risk:human-only`, `human-only`, and `needs-human-approval`; it must not have `automation-ready`.
