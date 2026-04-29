@@ -370,6 +370,7 @@ test("campaign conductor metadata repair is explicit issue-body only", () => {
     "risk:low",
     "must not guess metadata from title alone",
     "Repair a missing Level 5 label only when the exact label appears in the issue body.",
+    "Record the exact issue-body line used for any metadata repair in the promotion comment.",
     "must stop for absent or ambiguous metadata",
   ]) {
     assert.match(`${policy}\n${checklist}\n${validation}`, new RegExp(escapeRegExp(expected)));
