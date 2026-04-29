@@ -1,7 +1,9 @@
 import { fileURLToPath } from "node:url";
 import { createCampaignGame } from "../src/game.js";
 import { createInput } from "../src/input.js";
+import { createProgressionFeedback } from "../src/game/progressionFeedback.js";
 import { damageTarget } from "../src/game/targets.js";
+import { describeUpgradePanelContext } from "../src/upgradePanel.js";
 
 const stepSeconds = 1 / 60;
 const moveArrivalSeconds = 0.3;
@@ -18,9 +20,12 @@ const requiredEvidencePaths = [
   "flow.controls.movementArrived.player.gridX",
   "flow.victory.mission.status",
   "flow.victory.mission.summary.nextAction",
+  "flow.victory.mission.progressionFeedback.rows",
   "flow.victory.upgradeChoice.pending",
+  "flow.victory.upgradeChoice.context",
   "flow.afterUpgrade.upgrade.applied",
   "flow.afterUpgrade.campaign.canAdvanceLevel",
+  "flow.afterUpgrade.mission.progressionFeedback.rows",
   "flow.nextLevel.advanced",
   "flow.nextLevel.campaign.currentLevelIndex",
   "flow.nextLevel.mission.status"
@@ -131,7 +136,21 @@ export function assertQaFirstDemoFlowEvidence(evidence) {
       phase.phase,
       "mission.summary.nextAction"
     );
+    expectIncludes(
+      phase.mission.progressionFeedback.rows.map((row) => row.label).join(", "),
+      "Next step",
+      phase.phase,
+      "mission.progressionFeedback.rows"
+    );
+    expectIncludes(
+      phase.mission.progressionFeedback.rows.map((row) => row.value).join(", "),
+      "Choose one upgrade for Level 2",
+      phase.phase,
+      "mission.progressionFeedback.rows"
+    );
     expectEqual(phase.upgradeChoice.pending, true, phase.phase, "upgradeChoice.pending");
+    expectIncludes(phase.upgradeChoice.context, "Earned +100 XP", phase.phase, "upgradeChoice.context");
+    expectIncludes(phase.upgradeChoice.context, "Level 2", phase.phase, "upgradeChoice.context");
     expectAtLeast(phase.upgradeChoice.choices.length, 1, phase.phase, "upgradeChoice.choices.length");
   });
 
@@ -139,6 +158,12 @@ export function assertQaFirstDemoFlowEvidence(evidence) {
     expectEqual(phase.upgrade.applied, true, phase.phase, "upgrade.applied");
     expectEqual(phase.campaign.canAdvanceLevel, true, phase.phase, "campaign.canAdvanceLevel");
     expectEqual(phase.upgradeChoice.pending, false, phase.phase, "upgradeChoice.pending");
+    expectIncludes(
+      phase.mission.progressionFeedback.rows.map((row) => row.value).join(", "),
+      "Continue to Level 2",
+      phase.phase,
+      "mission.progressionFeedback.rows"
+    );
   });
 
   expectPhase(evidence.flow.nextLevel, "next-level-start", (phase) => {
@@ -186,6 +211,7 @@ function createKeyEvent(type, code) {
 function stateEvidence(harness, phase, extra = {}) {
   const debug = harness.game.debugState();
   const snapshot = harness.game.snapshot();
+  const progressionFeedback = createProgressionFeedback(snapshot);
 
   return {
     phase,
@@ -213,7 +239,8 @@ function stateEvidence(harness, phase, extra = {}) {
             enemiesDestroyed: debug.missionSummary.enemiesDestroyed,
             nextAction: debug.missionSummary.nextAction
           }
-        : null
+        : null,
+      progressionFeedback
     },
     player: {
       gridX: snapshot.player.gridX,
@@ -237,6 +264,9 @@ function stateEvidence(harness, phase, extra = {}) {
     upgradeChoice: {
       pending: snapshot.upgradeChoice.pending,
       availableUpgradePoints: snapshot.upgradeChoice.availableUpgradePoints,
+      context: snapshot.upgradeChoice.pending
+        ? describeUpgradePanelContext(snapshot)
+        : "",
       choices: snapshot.upgradeChoice.choices.map((choice) => ({
         id: choice.id,
         rankLabel: choice.rankLabel,
