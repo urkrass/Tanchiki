@@ -263,6 +263,7 @@ Campaign Conductor prompt:
 Use Linear MCP and GitHub.
 Run the Tanchiki Campaign Conductor for the active campaign.
 Inspect campaign state.
+Inspect campaign notes, issue descriptions, grooming notes, and Architect comments for review_cadence before any promotion.
 Promote exactly one next safe issue if eligible.
 Repair only explicit metadata omissions from issue body.
 Stop at human gates or ambiguity.
@@ -283,10 +284,15 @@ the issue body. Ordinary campaign dependencies use Linear blocked-by / blocks
 relations, not the `blocked` label. For legacy issues only, the Conductor may
 remove a Linear issue `blocked` label under the strict conditions in
 `ops/policies/campaign-conductor.md`; it must comment with the blocker evidence.
-Reviewer promotion depends on review cadence. `paired-review` requires an open,
+Promotion depends on review cadence. `paired-review` requires an open,
 non-draft, unmerged linked PR with required checks passing when policy requires
-them; Draft PRs remain blockers. `final-audit` expects merged or explicitly
-abandoned campaign PRs and must not require open PRs. If review cadence is
+them; Draft PRs remain blockers, and the next Coder/Test issue waits until the
+previous PR-producing issue and paired Reviewer are Done and the PR outcome is
+recorded as merged or explicitly abandoned. `final-audit` expects merged or
+explicitly abandoned campaign PRs and must not require open PRs. Final-audit
+Reviewer promotion comments must say: "Promoted as final-audit Reviewer. Merged
+PRs are expected audit inputs." Paired-review Reviewer promotion comments must
+say: "Promoted as paired-review Reviewer for open PR #X." If review cadence is
 missing or ambiguous, the Conductor stops and asks for cadence triage. For
 low-risk auto-merge burn-in campaigns, the Conductor must stop at the human
 merge-label gate and report: "Human must apply `merge:auto-eligible` using
@@ -551,6 +557,7 @@ For a single safe promotion after blockers, human gates, or PR readiness change:
 Use Linear MCP and GitHub.
 Run the Tanchiki Campaign Conductor for the active campaign.
 Inspect campaign state.
+Inspect campaign notes, issue descriptions, grooming notes, and Architect comments for review_cadence before any promotion.
 Promote exactly one next safe issue if eligible.
 Repair only explicit metadata omissions from issue body.
 Stop at human gates or ambiguity.

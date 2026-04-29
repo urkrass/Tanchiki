@@ -44,7 +44,10 @@ under the strict legacy-label rules in `ops/policies/campaign-conductor.md`;
 it must never remove `needs-human-approval`, `human-only`, `risk:human-only`,
 or PR stop labels.
 
-Campaigns must declare a review cadence before Reviewer promotion:
+Campaigns must declare a review cadence before promotion. The Conductor checks
+campaign notes, issue descriptions, grooming notes, and Architect comments for
+`review_cadence: final-audit`, `review_cadence: paired-review`, or
+`review_cadence: let-architect-decide`:
 
 - `paired-review`: each PR-producing Coder/Test issue is followed by a
   Reviewer issue that inspects an open PR before merge. Reviewer issues require
@@ -61,9 +64,12 @@ Campaigns must declare a review cadence before Reviewer promotion:
 If review cadence is missing or ambiguous, the Conductor stops and comments
 asking for cadence triage. For `paired-review`, the Conductor must not promote
 the next Coder/Test issue until the previous PR-producing issue and its paired
-Reviewer issue are Done. For `final-audit`, the Conductor must not require open
-PRs and must promote the final-audit Reviewer only after implementation/test
-PRs are merged or explicitly abandoned.
+Reviewer issue are Done and the PR was merged or explicitly abandoned with a
+recorded outcome. For `final-audit`, the Conductor must not require open PRs
+and must promote the final-audit Reviewer only after upstream PR-producing
+issues are Done or explicitly abandoned and implementation/test PRs are merged
+or explicitly abandoned. The promotion comment must state: "Promoted as
+final-audit Reviewer. Merged PRs are expected audit inputs."
 
 For low-risk auto-merge burn-in campaigns, the Conductor may promote Coder,
 Test, and Reviewer issues one at a time, but must stop at the human merge-label

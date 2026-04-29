@@ -76,6 +76,8 @@ blocker, role-specific readiness, and PR-readiness checks from
 The Conductor may repair a missing `role:*`, `type:*`, `risk:*`, or
 `validation:*` label only when the exact label is explicitly stated in the issue
 body. It must stop for absent or ambiguous metadata.
+It must also inspect campaign notes, issue descriptions, grooming notes, and
+Architect comments for one explicit review cadence before promotion.
 
 Ordinary campaign dependencies should be represented by Linear blocked-by /
 blocks relations. The `blocked` label is deprecated for normal dependency
@@ -95,8 +97,9 @@ Role readiness summary:
 - `role:reviewer` with `paired-review`: requires an open, non-draft, unmerged
   linked PR with required checks passing when policy requires them.
 - `role:reviewer` with `final-audit`: requires campaign implementation/test
-  PRs to be merged or explicitly abandoned; merged PRs are expected audit
-  inputs and are not blockers.
+  PRs to be merged or explicitly abandoned, upstream PR-producing issues to be
+  Done or explicitly abandoned, and audit inputs to be available; merged PRs are
+  expected audit inputs and are not blockers.
 - `role:release`: requires implementation, test, reviewer, and human gates to
   be Done or the campaign to be explicitly stopped.
 

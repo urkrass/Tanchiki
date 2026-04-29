@@ -4,7 +4,7 @@ Use Linear MCP and GitHub.
 
 Run the Tanchiki Campaign Conductor for the active campaign.
 Inspect campaign state.
-Inspect the campaign review cadence before promoting Reviewer issues.
+Inspect the campaign review cadence before any promotion by checking campaign notes, issue descriptions, grooming notes, and Architect comments for `review_cadence: final-audit`, `review_cadence: paired-review`, or `review_cadence: let-architect-decide`.
 Promote exactly one next safe issue if eligible.
 Repair only explicit metadata omissions from issue body.
 Stop at human gates or ambiguity.
@@ -17,8 +17,9 @@ Report the promoted issue or the blocker.
 
 Review cadence rules:
 
-- `paired-review`: promote a Reviewer issue only when the linked PR is open, non-draft, unmerged, and checks/metadata are ready according to policy. Do not promote the next Coder/Test issue until the previous PR-producing issue and its paired Reviewer issue are Done.
-- `final-audit`: do not require open PRs. Promote the final-audit Reviewer issue only after campaign implementation/test PRs are merged or explicitly abandoned. Treat merged PRs as expected audit inputs and do not use pre-merge approval language.
+- `paired-review`: promote a Reviewer issue only when the linked PR is open, non-draft, unmerged, and checks/metadata are ready according to policy. Comment: "Promoted as paired-review Reviewer for open PR #X." Do not promote the next Coder/Test issue until the previous PR-producing issue is Done, its paired Reviewer issue is Done, and the PR was merged or explicitly abandoned with a recorded outcome.
+- `final-audit`: do not require open PRs. Promote the final-audit Reviewer issue only after campaign implementation/test PRs are merged or explicitly abandoned. Treat merged PRs as expected audit inputs and do not use pre-merge approval language. Comment: "Promoted as final-audit Reviewer. Merged PRs are expected audit inputs."
+- `let-architect-decide`: promote only the Architect cadence-decision issue unless Architect already recorded `review_cadence: final-audit` or `review_cadence: paired-review` in the issue body or comments. Do not promote implementation, test, reviewer, or release issues while the cadence remains undecided.
 
 Follow:
 
