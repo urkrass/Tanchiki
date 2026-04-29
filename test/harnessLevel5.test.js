@@ -260,6 +260,29 @@ test("coder prompt requires ready-for-review PRs for low-risk auto-merge lanes",
   }
 });
 
+test("repo task docs require ready burn-in PRs before Linear review handoff", () => {
+  const readme = readRepoFile("README.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+
+  for (const expected of [
+    "Low-risk auto-merge candidate PRs and auto-merge burn-in PRs are different",
+    "those PRs must be marked ready for review before the Coder session stops",
+    "ensure it is not Draft",
+    "move the Linear issue to `In Review`",
+    "stop without reviewing, labeling, or merging",
+  ]) {
+    assert.match(readme, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "auto-merge burn-in PR",
+    "mark it ready for review",
+    "Draft PRs are hard vetoes for auto-merge approval",
+  ]) {
+    assert.match(protocol, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 test("PR acceptance policy requires independent reviewer and active shakedown sequence", () => {
   const policy = readRepoFile("ops", "policies", "pr-acceptance.md");
   const checklist = readRepoFile("ops", "checklists", "pr-acceptance-checklist.md");
