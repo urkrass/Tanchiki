@@ -68,6 +68,17 @@ Auto-merge shakedowns must keep the PR open until independent Reviewer approval,
 human-applied `merge:auto-eligible`, no stop labels, and GitHub auto-merge
 complete the sequence.
 
+The Campaign Conductor may promote at most one next issue per run. It must not
+loop through a campaign, run Dispatcher, implement code, review PRs, merge PRs,
+apply `merge:auto-eligible`, remove stop labels, or create live auto-merge
+behavior. For low-risk auto-merge burn-in campaigns, it must stop at the human
+merge-label gate and report: "Human must apply `merge:auto-eligible` using
+normal GitHub identity."
+
+The Conductor may repair missing Level 5 metadata only from exact issue-body
+labels. It must stop for ambiguous labels, human gates, unresolved blockers,
+Draft PRs for Reviewer promotion, or any stop label.
+
 ## Gameplay Safety
 
 - Do not implement gameplay from a harness/docs issue.

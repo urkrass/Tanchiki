@@ -18,6 +18,40 @@ Eligibility requires:
 
 If metadata is missing or duplicated, the Dispatcher stops and comments on the issue with the exact fields to fix.
 
+## Campaign Conductor
+
+Use the Campaign Conductor when a campaign queue needs one safe promotion after
+dependencies, human gates, or PR readiness change. The Conductor is a
+single-step queue safety layer, not a campaign runner.
+
+The Conductor may promote at most one next issue per run. It must not loop,
+run Dispatcher, implement code, review PRs, merge PRs, apply
+`merge:auto-eligible`, remove stop labels, or mark issues `Done` unless this
+protocol explicitly allows it.
+
+Promotion requires an unambiguous campaign order, exactly one next candidate,
+exactly one `role:*`, `type:*`, `risk:*`, and `validation:*` label, no stop or
+human-gate labels, and no unresolved blocker that still matters for the role.
+Missing Level 5 labels may be repaired only when the exact label value is
+explicitly stated in the issue body. The Conductor must not infer labels from
+titles or surrounding campaign context.
+
+Reviewer issues require a linked PR that is open, non-draft, and has passing
+required checks when Reviewer policy requires passing checks. Draft PRs block
+Reviewer promotion.
+
+For low-risk auto-merge burn-in campaigns, the Conductor may promote Coder,
+Test, and Reviewer issues one at a time, but must stop at the human merge-label
+gate and report: "Human must apply `merge:auto-eligible` using normal GitHub
+identity."
+
+Use:
+
+- `prompts/codex-conduct-campaign.md`
+- `ops/prompts/campaign-conductor.md`
+- `ops/policies/campaign-conductor.md`
+- `ops/checklists/campaign-conductor-checklist.md`
+
 ## Branch Creation
 
 Agents that do repository work start from updated `main`:
@@ -122,7 +156,19 @@ Move an implementation issue to `In Review` after its PR is open and the
 required draft or ready-for-review posture is set. Do not mark it `Done` until
 the PR is merged or a human explicitly approves closure.
 
-Reviewer or release issues may move to `In Review` after their notes are posted, but must not be marked `Done` unless a human approves or the role protocol explicitly allows it.
+Coder and Test issues should remain `In Review` while their PR is open. They
+may be marked `Done` only after the linked PR is merged or explicitly abandoned
+with a recorded outcome.
+
+Reviewer issues may move to `In Review` after their notes are posted, but may
+be marked `Done` only after they post an allowed decision and the downstream
+action is recorded.
+
+Release issues may be marked `Done` only after their summary is posted and
+accepted by a human or operator.
+
+Human gate issues are `Done` only after the human decision or action is
+recorded.
 
 ## Campaign Closure
 

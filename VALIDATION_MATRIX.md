@@ -65,3 +65,29 @@ An issue is eligible only when all are true:
 Dispatcher eligibility does not imply merge eligibility. PR acceptance and any
 future auto-merge path must also satisfy `ops/policies/pr-acceptance.md` and
 `ops/checklists/pr-acceptance-checklist.md`.
+
+## Campaign Conductor Eligibility
+
+The Campaign Conductor may expose only one next campaign issue per run. It uses
+the same Level 5 metadata requirements as the Dispatcher, plus campaign-order,
+blocker, role-specific readiness, and PR-readiness checks from
+`ops/policies/campaign-conductor.md`.
+
+The Conductor may repair a missing `role:*`, `type:*`, `risk:*`, or
+`validation:*` label only when the exact label is explicitly stated in the issue
+body. It must stop for absent or ambiguous metadata.
+
+Role readiness summary:
+
+- `role:architect`: may be promoted as the first safe campaign issue.
+- human gate work: must not be auto-promoted as `automation-ready`.
+- `role:coder`: requires required Architect and human gates to be Done.
+- `role:test`: requires the preceding implementation PR to be merged or an
+  explicit already-merged test target.
+- `role:reviewer`: requires an open, non-draft linked PR with required checks
+  passing when policy requires them.
+- `role:release`: requires implementation, test, reviewer, and human gates to
+  be Done or the campaign to be explicitly stopped.
+
+Draft PRs block Reviewer promotion. Stop labels are hard vetoes and must not be
+removed by agents.
