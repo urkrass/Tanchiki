@@ -43,6 +43,69 @@ ambiguous.
   workflows, repository settings, and destructive operations:
   `model_hint: frontier` or `model_hint: human-only`.
 
+## Dry-Run Router
+
+The dry-run model router is advisory only. It may inspect the next eligible
+Linear issue, copied issue metadata, or a JSON fixture and print a launch
+recommendation. It must not execute agents, run Dispatcher, run Campaign
+Conductor, edit files, open PRs, apply labels, remove labels, mark issues Done,
+merge, enable auto-merge, or call a model-executing runner.
+
+The recommendation must print these fields:
+
+- `RUN` or `DO NOT RUN`;
+- next issue;
+- active Linear project;
+- role, type, risk, and validation;
+- review cadence;
+- `model_hint`;
+- recommended model class: `frontier`, `cheap`, `local-ok`, or `human-only`;
+- required identity: normal GitHub, Reviewer App, or human-only;
+- recommended prompt;
+- required context pack;
+- validation profile;
+- stop conditions;
+- next human action.
+
+The router must return `DO NOT RUN` when issue metadata is ambiguous,
+incomplete, duplicated, stale, or contradictory. Required metadata includes
+exactly one `role:*`, `type:*`, `risk:*`, and `validation:*` label, one explicit
+review cadence, active Linear project, issue state, blockers, gate labels,
+`model_hint`, and the context pack or enough copied metadata to name the
+required context pack.
+
+The router must also return `DO NOT RUN` for human gates, `human-only`,
+`risk:human-only`, stop labels, unresolved blockers, missing or ambiguous
+review cadence, PR readiness gaps for Reviewer issues, missing linked PRs for
+paired-review Reviewer issues, draft PRs for paired-review Reviewer issues, or
+any request to weaken validation, risk gates, stop-label handling, Reviewer App
+identity, Campaign Conductor separation, or Dispatcher separation.
+
+Model choice is derived from the stricter of `model_hint`, Level 5 metadata,
+changed-file risk, and safety context:
+
+- recommend `frontier` for trust-boundary, model-routing, PR acceptance,
+  Reviewer App identity, safety policy, CI/workflow, deployment, dependency,
+  security, protected-file, medium-risk, high-risk, ambiguous, or broad policy
+  work;
+- recommend `cheap` or `local-ok` only for bounded low-risk docs, static test,
+  release-summary, or narrow harness work with current context and unchanged
+  validation;
+- recommend `human-only` for human gates, `human-only`, `risk:human-only`,
+  movement/collision rewrites, secrets, destructive repository operations,
+  repository settings, or any issue that must not be automated.
+
+Identity choice is also gated:
+
+- Coder, Test, Architect, Release, and non-PR-inspecting advisory work use the
+  normal GitHub identity when repository access is needed.
+- Reviewer issues that inspect PRs require Reviewer App identity.
+- Human gates and human-only lanes require human-only identity.
+
+The dry-run router may recommend the next prompt to run, such as Dispatcher,
+Reviewer App Dispatcher, Campaign Conductor, Release, or a human action. That
+recommendation is text only; it must not invoke that workflow.
+
 ## Downgrade And Stop Rules
 
 - If the current model is below the required `model_hint`, stop unless a human
