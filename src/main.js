@@ -18,6 +18,12 @@ const game = createCampaignGame();
 const spriteAssets = createSpriteAssetStore({
   manifestUrl: new URL("../assets/sprites/manifest.json", import.meta.url)
 });
+const iconGlyphs = {
+  hp: "+",
+  enemy: "X",
+  base: "#",
+  mission: "I"
+};
 spriteAssets.load().then(renderCurrentState);
 
 const fixedStep = 1 / 60;
@@ -41,7 +47,6 @@ function frame(time) {
   }
 
   renderCurrentState();
-  status.textContent = game.statusText(input);
   requestAnimationFrame(frame);
 }
 
@@ -72,7 +77,6 @@ window.advanceTime = (milliseconds) => {
     game.update(fixedStep, input);
   }
   renderCurrentState();
-  status.textContent = game.statusText(input);
 };
 window.render_game_to_text = () => JSON.stringify(game.debugState());
 requestAnimationFrame(frame);
@@ -93,12 +97,12 @@ function resetTimingAndRender() {
   previousTime = performance.now();
   deterministicMode = false;
   renderCurrentState();
-  status.textContent = game.statusText(input);
 }
 
 function renderCurrentState() {
   const snapshot = game.snapshot();
   renderGame(context, snapshot, { spriteAssets });
+  renderMissionStatus(snapshot, game.statusText(input));
   renderUpgradePanel({
     panel: upgradePanel,
     contextElement: upgradeContext,
@@ -114,4 +118,79 @@ function chooseUpgradeByIndex(index) {
 
 function chooseUpgrade(upgradeId) {
   return game.applyUpgrade(upgradeId).applied;
+}
+
+function renderMissionStatus(snapshot, statusText) {
+  const enemyBase = snapshot.targets.find((target) => (
+    target.type === "base"
+    && target.team === "enemy"
+  ));
+  const liveEnemyTanks = snapshot.targets.filter((target) => (
+    target.type === "dummy"
+    && target.team === "enemy"
+    && target.alive
+  )).length;
+  const missionNumber = snapshot.levelNumber ?? ((snapshot.currentLevelIndex ?? 0) + 1);
+  const levelCount = snapshot.levelCount ?? 1;
+  const cooldownMs = Math.ceil((snapshot.cooldownRemaining ?? 0) * 1000);
+  const shieldCharges = snapshot.player?.shieldCharges ?? 0;
+  const missionState = snapshot.missionStatus ?? "playing";
+  const missionLabel = `Mission ${missionState}`;
+  const pickupBadges = shieldCharges > 0
+    ? [{ glyph: "S", label: `Shield x${shieldCharges}` }]
+    : [
+        { glyph: "+", label: "Repair" },
+        { glyph: "A", label: "Ammo" },
+        { glyph: "S", label: "Shield" }
+      ];
+
+  status.replaceChildren(
+    createElement("span", "status__summary", statusText),
+    createElement("div", "status__header", [
+      createElement("span", "status__kicker", `Mission ${missionNumber}/${levelCount}`),
+      createElement("strong", "status__title", missionLabel),
+      createElement("span", "status__objective", "Destroy enemy base")
+    ]),
+    createElement("div", "status__chips", [
+      createStatusChip("hp", "HP", `${snapshot.player.hp}/${snapshot.player.maxHp}`),
+      createStatusChip("enemy", "Enemies", String(liveEnemyTanks)),
+      createStatusChip(
+        "base",
+        "Base",
+        enemyBase ? enemyBase.destroyed ? "Destroyed" : `${enemyBase.hp}/${enemyBase.maxHp}` : "Missing"
+      ),
+      createStatusChip("mission", "Level", `${missionNumber}/${levelCount}`)
+    ]),
+    createElement("div", "status__lower", [
+      createElement("span", "status__cue", cooldownMs > 0 ? `Reload ${cooldownMs}ms` : "Space to fire"),
+      createElement("div", "status__badges", pickupBadges.map((badge) => (
+        createElement("span", "status__badge", [
+          createElement("span", "status__badge-glyph", badge.glyph),
+          createElement("span", "status__badge-label", badge.label)
+        ])
+      )))
+    ])
+  );
+  status.setAttribute("aria-label", statusText);
+}
+
+function createStatusChip(icon, label, value) {
+  return createElement("span", `status-chip status-chip--${icon}`, [
+    createElement("span", "status-chip__icon", iconGlyphs[icon] ?? "?"),
+    createElement("span", "status-chip__label", label),
+    createElement("strong", "status-chip__value", value)
+  ]);
+}
+
+function createElement(tagName, className, content) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  if (Array.isArray(content)) {
+    element.append(...content);
+  } else if (content !== undefined) {
+    element.textContent = content;
+  }
+  return element;
 }

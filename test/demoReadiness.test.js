@@ -17,7 +17,7 @@ test("first public demo page keeps objective, controls, and live status visible"
   assert.match(html, /<strong>Continue<\/strong> N or Enter/);
   assert.match(html, /<strong>Restart<\/strong> R/);
   assert.match(html, /<div class="status-bar" aria-label="Live mission status">/);
-  assert.match(html, /<p id="status" class="status" aria-live="polite"><\/p>/);
+  assert.match(html, /<div id="status" class="status" aria-live="polite"><\/div>/);
   assert.match(html, /<p id="upgrade-context" class="upgrade-panel__context"><\/p>/);
 });
 
