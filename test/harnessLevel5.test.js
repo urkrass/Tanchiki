@@ -893,6 +893,76 @@ test("reviewer decision vocabulary differs by review cadence", () => {
   }
 });
 
+test("model routing policy defines allowed hints and downgrade stop rules", () => {
+  const modelRouting = readRepoFile("ops", "policies", "model-routing.md");
+  const contextEconomy = readRepoFile("ops", "policies", "context-economy.md");
+  const checklist = readRepoFile("ops", "checklists", "model-routing-checklist.md");
+  const contextChecklist = readRepoFile("ops", "checklists", "context-pack-checklist.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+  const combined = `${modelRouting}\n${contextEconomy}\n${checklist}\n${contextChecklist}\n${protocol}\n${validation}`;
+
+  for (const expected of [
+    "`model_hint: frontier`",
+    "`model_hint: cheap`",
+    "`model_hint: local-ok`",
+    "`model_hint: human-only`",
+    "If the current model is below the required `model_hint`, stop unless a human",
+    "Agents must stop if the current model is below the required `model_hint` unless a human explicitly",
+    "`model_hint: human-only` stops automation",
+    "Local/cheap models may only be used for bounded low-risk work",
+    "Validation requirements, PR metadata, Reviewer",
+    "gates, human gates, and safety docs do not change",
+    "`model_hint` does not override risk gates.",
+    "`model_hint` does not override validation profiles or validation",
+    "`model_hint` does not override PR metadata requirements.",
+    "`model_hint` does not override safety docs, human gates, stop labels",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("model routing docs map hints to role type and risk lanes", () => {
+  const modelRouting = readRepoFile("ops", "policies", "model-routing.md");
+  const validation = readRepoFile("VALIDATION_MATRIX.md");
+  const readme = readRepoFile("README.md");
+  const combined = `${modelRouting}\n${validation}\n${readme}`;
+
+  for (const expected of [
+    "Planner: usually `model_hint: frontier`.",
+    "Architect: usually `model_hint: frontier`.",
+    "Coder, low-risk docs/test/harness: `model_hint: cheap` or",
+    "Coder, gameplay/progression/rendering/movement: `model_hint: frontier`",
+    "Reviewer, low-risk docs/test: `model_hint: cheap` or `model_hint: frontier`",
+    "Reviewer, trust-boundary, auto-merge, GitHub App, safety policy",
+    "Release: `model_hint: cheap` or `model_hint: local-ok`",
+    "Movement, collision, security, secrets, deployment, dependencies, CI",
+    "Allowed `model_hint` values are `model_hint: frontier`, `model_hint: cheap`",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("planner groomer dispatcher and conductor enforce model routing rules", () => {
+  const planner = readRepoFile("ops", "prompts", "planner-agent.md");
+  const groomer = readRepoFile("ops", "prompts", "campaign-groomer.md");
+  const dispatcher = readRepoFile("prompts", "codex-next.md");
+  const conductor = readRepoFile("prompts", "codex-conduct-campaign.md");
+  const combined = `${planner}\n${groomer}\n${dispatcher}\n${conductor}`;
+
+  for (const expected of [
+    "`ops/policies/model-routing.md`",
+    "`ops/checklists/model-routing-checklist.md`",
+    "advisory `model_hint` recommendations using `model_hint: frontier`, `model_hint: cheap`, `model_hint: local-ok`, or `model_hint: human-only`",
+    "Ensure `model_hint` uses one allowed value: `model_hint: frontier`, `model_hint: cheap`, `model_hint: local-ok`, or `model_hint: human-only`.",
+    "Stop if the current model is below the required `model_hint` and no human",
+    "downgrade approval is recorded.",
+    "Stop if the current model is below the required `model_hint` and no human downgrade approval is recorded.",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

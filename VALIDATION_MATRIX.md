@@ -68,9 +68,32 @@ future auto-merge path must also satisfy `ops/policies/pr-acceptance.md` and
 
 Context-pack or `model_hint` guidance does not change Dispatcher eligibility.
 Use `ops/policies/context-economy.md` and
-`ops/checklists/context-pack-checklist.md` to shape context, but still enforce
+`ops/policies/model-routing.md` plus
+`ops/checklists/context-pack-checklist.md` and
+`ops/checklists/model-routing-checklist.md` to shape context, but still enforce
 exactly one role, type, risk, and validation profile plus all stop-label,
 blocked-by, safety, PR metadata, and human-gate requirements.
+
+## Model Routing
+
+Allowed `model_hint` values are `model_hint: frontier`, `model_hint: cheap`,
+`model_hint: local-ok`, and `model_hint: human-only`.
+
+| Role/type/risk lane | Allowed model hints |
+| --- | --- |
+| Planner or Architect work | Usually `model_hint: frontier`; `model_hint: human-only` when gates require human handling. |
+| Low-risk docs/test/harness Coder work | `model_hint: cheap` or `model_hint: local-ok` when bounded and validation is unchanged. |
+| Gameplay/progression/rendering/movement Coder work | `model_hint: frontier`; use `model_hint: human-only` for movement/collision or gated safety work. |
+| Low-risk docs/test Reviewer work | `model_hint: cheap` or `model_hint: frontier` depending on changed-file risk. |
+| Trust-boundary, auto-merge, GitHub App, safety policy, CI/workflow, deployment, dependency, security, or protected-file Reviewer work | `model_hint: frontier`. |
+| Release summaries from merged PR summaries and Linear comments | `model_hint: cheap` or `model_hint: local-ok` when low-risk and bounded. |
+| Movement, collision, security, secrets, deployment, destructive repo operations, or repository settings | `model_hint: frontier` or `model_hint: human-only`. |
+
+If the current model is below the required `model_hint`, the agent must stop
+unless a human explicitly approves a downgrade. Local/cheap models may only be
+used for bounded low-risk work. Validation requirements, PR metadata, Reviewer
+gates, human gates, and safety docs do not change when using a cheaper or local
+model.
 
 ## Campaign Conductor Eligibility
 

@@ -65,7 +65,9 @@ It contains:
 - `VALIDATION_MATRIX.md` - role/type/risk/validation requirements.
 - `SAFETY_BOUNDARIES.md` - protected files, human gates, and repository safety rules.
 - `ops/policies/context-economy.md` - campaign and issue context-pack policy.
+- `ops/policies/model-routing.md` - `model_hint` values and model-routing safety rules.
 - `ops/checklists/context-pack-checklist.md` - context-pack safety checklist.
+- `ops/checklists/model-routing-checklist.md` - model-routing safety checklist.
 - `prompts/CODEX_START_PROMPT.md` - first prompt to paste into Codex.
 - `docs/ASSET_PIPELINE.md` - recommended sprite/tileset pipeline.
 - `assets/style_reference_sprite_sheet.png` - visual style reference only, not yet a clean production sprite sheet.
@@ -253,13 +255,19 @@ Level 6 source-of-truth docs:
 Context economy source-of-truth docs:
 
 - `ops/policies/context-economy.md`
+- `ops/policies/model-routing.md`
 - `ops/checklists/context-pack-checklist.md`
+- `ops/checklists/model-routing-checklist.md`
 
 Context packs may summarize campaign and issue context so agents avoid repeated
 rediscovery. They are not a substitute for safety-critical docs. Token saving
 must not skip Level 5 metadata, validation, PR metadata, review cadence,
-changed-file scrutiny, or human gates. `model_hint` values are advisory only and
-cannot override role/type/risk/validation labels.
+changed-file scrutiny, or human gates. Allowed values are
+`model_hint: frontier`, `model_hint: cheap`, `model_hint: local-ok`, and
+`model_hint: human-only`. Agents must stop if the current model is below the
+required `model_hint` unless a human explicitly approves a downgrade.
+`model_hint` cannot override role/type/risk/validation labels, validation
+commands, Reviewer gates, safety docs, or human gates.
 
 Normal dispatcher prompt:
 

@@ -138,6 +138,8 @@ Context packs must keep these sources visible and mandatory when relevant:
   repository safety.
 - `ARCHITECTURE.md` when ownership, protected movement, gameplay, rendering,
   progression, or central-file risk matters.
+- `ops/policies/model-routing.md` when `model_hint` affects routing, model
+  suitability, or downgrade decisions.
 - `ops/policies/pr-acceptance.md` and
   `ops/checklists/pr-acceptance-checklist.md` for PR review or acceptance work.
 - `ops/policies/campaign-conductor.md` and
@@ -244,9 +246,15 @@ Dispatcher:
 
 ## Model Hints
 
-`model_hint` is advisory. It never overrides role/type/risk labels, validation
-profile, required safety docs, human approval, PR readiness, or reviewer
-independence.
+Use one explicit `model_hint` value in campaign and issue context packs:
+`model_hint: frontier`, `model_hint: cheap`, `model_hint: local-ok`, or
+`model_hint: human-only`.
+
+`model_hint` is advisory for routing and cost, but the agent must stop when
+the current model is below the required hint unless a human explicitly approves
+a downgrade. It never overrides role/type/risk labels, validation profile,
+required safety docs, human approval, PR readiness, reviewer independence,
+stop labels, changed-file scrutiny, or PR metadata.
 
 Use a frontier model for:
 
@@ -271,10 +279,16 @@ Cheaper or local models may be candidates only when all are true:
   progression, or repo setting work is involved;
 - validation requirements remain unchanged and executable by the agent.
 
-Good candidates include release-summary drafting from merged PR summaries,
-low-risk static wording checks, narrow docs copy updates that do not change
-policy authority, and mechanical checklist consistency updates after a
-frontier-reviewed policy decision.
+Use `model_hint: human-only` for work that must not be automated, including
+movement/collision rewrites, security-sensitive secrets or credentials,
+destructive repository operations, repository settings, or any issue with
+human-only gate labels.
+
+Good `model_hint: cheap` or `model_hint: local-ok` candidates include
+release-summary drafting from merged PR summaries, low-risk static wording
+checks, narrow docs copy updates that do not change policy authority, and
+mechanical checklist consistency updates after a frontier-reviewed policy
+decision.
 
 ## Context Refresh
 
@@ -305,4 +319,3 @@ Stop and ask for human or operator input when:
   explicit issue scope;
 - broad scans reveal scope drift;
 - Reviewer independence cannot be established.
-
