@@ -7,7 +7,7 @@ Use this policy for multi-issue campaigns and Level 2 command-center runs.
 Campaigns with dependency chains must expose only the next automation issue as `Todo` + `automation-ready` with exactly one `role:*`, one `type:*`, one `risk:*`, and one `validation:*` label.
 
 - Parent, epic, and campaign umbrella issues must not have `automation-ready`.
-- Blocked issues must not be selected.
+- Issues with unresolved blocked-by relations must not be selected.
 - Issues labeled `needs-human-approval` must not be automated until a human removes the gate and applies `automation-ready`.
 - Issues labeled `human-only` must not be automated.
 - Issues labeled `risk:human-only` must not be automated.
@@ -60,13 +60,20 @@ Validation profile labels:
 Gate labels:
 
 - `needs-human-approval`
-- `blocked`
 - `human-only`
+- `risk:human-only`
+
+Dependency source of truth:
+
+- Use Linear blocked-by / blocks relations for ordinary campaign sequencing.
+- Keep downstream campaign issues in `Backlog` without `automation-ready` until promoted.
+- Do not use the `blocked` label for normal campaign dependencies.
 
 Deprecated ambiguous usage:
 
 - Do not use `agent-ready` for new campaign execution routing.
 - Do not use `human-review` to mean reviewer-agent work.
+- Do not use `blocked` for ordinary campaign dependency sequencing; treat it as a legacy label only.
 - Use `needs-human-approval` for human gates.
 - Use `role:reviewer` for reviewer-agent work.
 
@@ -77,7 +84,7 @@ After a planner creates campaign issues, the Planner must run the Campaign Groom
 - ensure each issue has exactly one applied `role:*` label where applicable
 - ensure each issue has exactly one applied `type:*`, `risk:*`, and `validation:*` label where applicable
 - ensure human gates use `needs-human-approval`
-- ensure dependency-blocked issues use `blocked`
+- ensure dependency-blocked issues use Linear blocked-by / blocks relations
 - ensure never-automated human work uses `human-only`
 - fix classification mismatches before automation starts
 - ensure exactly one issue is `Todo` + `automation-ready` in each dependency chain
@@ -86,14 +93,14 @@ After a planner creates campaign issues, the Planner must run the Campaign Groom
 - ensure parent and umbrella issues remain unready for automation
 - add a grooming comment with queue order and human actions
 
-If the campaign needs architecture review first, the groomer may make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready` after assigning exactly one type, risk, and validation label. Coder issues must stay Backlog/blocked immediately after planning unless the user explicitly requested a Coder issue to run first.
+If the campaign needs architecture review first, the groomer may make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready` after assigning exactly one type, risk, and validation label. Coder issues must stay Backlog with blocked-by relations immediately after planning unless the user explicitly requested a Coder issue to run first.
 
 Downstream defaults:
 
-- Coder issues stay Backlog/blocked until Architect and human gates are done.
-- Test issues stay blocked until implementation PRs are merged or ready.
-- Reviewer issues stay blocked until implementation/test PRs exist.
-- Release issues stay blocked until review is done.
+- Coder issues stay Backlog with blocked-by relations until Architect and human gates are done.
+- Test issues stay Backlog with blocked-by relations until implementation PRs are merged or ready.
+- Reviewer issues stay Backlog with blocked-by relations until implementation/test PRs exist.
+- Release issues stay Backlog with blocked-by relations until review is done.
 
 ## Branch Freshness
 

@@ -250,8 +250,12 @@ The Campaign Conductor is a single-step queue safety layer. It may promote at
 most one next campaign issue per run after checking Level 5 labels, dependency
 state, role readiness, human gates, and linked PR state. It must not loop, run
 Dispatcher, implement code, review PRs, merge PRs, apply
-`merge:auto-eligible`, or remove stop labels. Missing Level 5 labels may be
-repaired only when the exact label is explicitly stated in the issue body.
+`merge:auto-eligible`, or remove human gate labels or PR stop labels. Missing
+Level 5 labels may be repaired only when the exact label is explicitly stated in
+the issue body. Ordinary campaign dependencies use Linear blocked-by / blocks
+relations, not the `blocked` label. For legacy issues only, the Conductor may
+remove a Linear issue `blocked` label under the strict conditions in
+`ops/policies/campaign-conductor.md`; it must comment with the blocker evidence.
 Reviewer promotion requires an open, non-draft linked PR with required checks
 passing when policy requires them; Draft PRs remain blockers. For low-risk
 auto-merge burn-in campaigns, the Conductor must stop at the human merge-label
@@ -325,13 +329,20 @@ Validation profile labels:
 Gate labels:
 
 - `needs-human-approval`
-- `blocked`
 - `human-only`
+- `risk:human-only`
+
+Dependency source of truth:
+
+- Use Linear blocked-by / blocks relations for ordinary campaign sequencing.
+- Keep downstream campaign issues in `Backlog` without `automation-ready` until promoted.
+- Do not use the `blocked` label for normal downstream dependencies.
 
 Deprecated ambiguous usage:
 
 - Do not use `agent-ready` for new Level 4 routing.
 - Do not use `human-review` to mean reviewer-agent work.
+- Do not use `blocked` for ordinary campaign dependency sequencing; treat it as a legacy label only.
 - Use `needs-human-approval` for human gates.
 - Use `role:reviewer` for reviewer-agent work.
 
@@ -359,7 +370,8 @@ Codex may pick only issues that are all of the following:
 - exactly one `type:*` label
 - exactly one `risk:*` label
 - exactly one `validation:*` label
-- not blocked
+- no legacy `blocked` label
+- not blocked by an unresolved Linear blocked-by relation
 - not safety-critical
 - not labeled `needs-human-approval`
 - not labeled `human-only`
@@ -384,7 +396,7 @@ git pull --ff-only origin main
 git status --short
 ```
 
-Campaign chains must expose only one `Todo` + `automation-ready` implementation issue at a time. Parent or epic issues must not have `automation-ready`; blocked and `needs-human-approval` issues must not be implemented until a human explicitly makes them eligible.
+Campaign chains must expose only one `Todo` + `automation-ready` implementation issue at a time. Parent or epic issues must not have `automation-ready`; issues with unresolved blocked-by relations and `needs-human-approval` issues must not be implemented until they are explicitly made eligible.
 
 Before implementation, Codex should inspect recent merged PRs or git history. If the issue touches files changed by the previous one to three merged PRs, Codex must report conflict risk. Repeated changes to `src/game.js` or `test/game.test.js` should trigger a seam-extraction recommendation.
 
@@ -412,16 +424,16 @@ Planner agents must not:
 - apply `automation-ready` broadly
 - move issues into implementation states
 
-Planner agents must avoid applying `automation-ready` to parent, epic, blocked, `needs-human-approval`, or `human-only` issues. The required grooming pass may apply `automation-ready` only to the single first runnable issue. If architecture review is required first, that issue should be the first Architect issue, not a Coder issue.
+Planner agents must avoid applying `automation-ready` to parent, epic, unresolved dependency, `needs-human-approval`, or `human-only` issues. The required grooming pass may apply `automation-ready` only to the single first runnable issue. If architecture review is required first, that issue should be the first Architect issue, not a Coder issue.
 
 Every planned issue must be classified as one of:
 
 - `automation-ready candidate`
 - `needs-human-approval`
 - `human-only`
-- `blocked/dependency`
+- `dependency via blocked-by relation`
 
-Every planned issue must also include dependency order, blocked-by relationships where possible, whether visible UI change is expected, central-file conflict risk, suggested role/type/risk/validation labels, and which issue should become `Todo` + `automation-ready` first.
+Every planned issue must also include dependency order, blocked-by relationships, whether visible UI change is expected, central-file conflict risk, suggested role/type/risk/validation labels, and which issue should become `Todo` + `automation-ready` first.
 
 Use these files for Level 3 planning:
 
@@ -518,7 +530,7 @@ New normal workflow:
 Level 5 shakedown campaigns:
 
 - Use a small docs, UI-copy, or test-only campaign before larger gameplay campaigns to verify the gates.
-- Expected queue: only the first Architect issue is `Todo` + `automation-ready`; follow-up Coder, Test, Reviewer, and Release issues stay blocked until their gates are cleared.
+- Expected queue: only the first Architect issue is `Todo` + `automation-ready`; follow-up Coder, Test, Reviewer, and Release issues stay Backlog with blocked-by relations until their dependencies or gates are cleared.
 - Burn-in reruns should keep each PR to one narrow docs, harness, or static-test surface so any gate failure is easy to trace.
 - Low-risk auto-merge shakedowns must stay limited to `risk:low` docs, harness, or test PRs, and any stop label remains a hard veto until a human operator resolves it.
 - Draft PRs are hard vetoes for auto-merge approval. Normal non-auto-merge feature PRs may still use Draft when appropriate, but low-risk auto-merge candidate PRs and auto-merge burn-in PRs must be marked ready for review before the Coder session stops.
@@ -572,7 +584,7 @@ Do not merge.
 Do not mark Done.
 ```
 
-The dispatcher follows `ops/policies/role-router.md`, `ops/policies/risk-gated-validation.md`, `ops/checklists/role-routing-checklist.md`, and `ops/checklists/risk-gate-checklist.md`. It must scan all Todo issues, skip blocked/gated issues, read the full selected Linear issue, and choose the role from exactly one `role:*` label.
+The dispatcher follows `ops/policies/role-router.md`, `ops/policies/risk-gated-validation.md`, `ops/checklists/role-routing-checklist.md`, and `ops/checklists/risk-gate-checklist.md`. It must scan all Todo issues, skip issues with unresolved blocked-by relations or gates, read the full selected Linear issue, and choose the role from exactly one `role:*` label.
 
 Role routing:
 
@@ -584,7 +596,7 @@ Role routing:
 
 The dispatcher must never route architect, test, reviewer, or release work to Coder.
 
-If no eligible issue exists, the dispatcher reports all blocked/gated candidates and the human action required to make one eligible. If the queue is ungroomed, the dispatcher must stop and ask for Campaign Groomer work. Ungroomed signals include missing or multiple `role:*`, `type:*`, `risk:*`, or `validation:*` labels, more than one campaign issue with `automation-ready`, or `automation-ready` appearing with `blocked`, `needs-human-approval`, or `human-only`.
+If no eligible issue exists, the dispatcher reports all dependency-blocked or gated candidates and the human action required to make one eligible. If the queue is ungroomed, the dispatcher must stop and ask for Campaign Groomer work. Ungroomed signals include missing or multiple `role:*`, `type:*`, `risk:*`, or `validation:*` labels, more than one campaign issue with `automation-ready`, unresolved blocked-by relations on an automation-ready issue, or `automation-ready` appearing with `blocked`, `needs-human-approval`, or `human-only`.
 
 Use these files for Level 4 work:
 

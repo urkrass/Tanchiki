@@ -30,7 +30,9 @@ Classify the request before creating Linear issues:
 - `needs-human-approval`: gameplay behavior, progression, level tuning, dependency additions, CI browser checks, screenshot pass/fail gates, public-demo release flow, broad architecture, or ambiguous product decisions.
 - `human-only`: movement, collision, spawning, control feel, persistence, credentials, destructive repository operations, broad rewrites, or anything that requires human judgment before automation.
 
-Mixed requests must be split so unsafe or ambiguous decisions become human gate issues. Downstream implementation stays blocked until the gate is resolved.
+Mixed requests must be split so unsafe or ambiguous decisions become human gate
+issues. Downstream implementation stays in Backlog with blocked-by relations
+until the gate is resolved.
 
 ## Planning Rules
 
@@ -72,10 +74,12 @@ Use:
 
 - `needs-human-approval` for decision gates
 - `human-only` and `risk:human-only` where automation must never run
-- `blocked` for dependency-blocked issues
+- Linear blocked-by / blocks relations for dependency-blocked issues
 - `automation-ready` only for the single issue the dispatcher may run next
 
-Do not use deprecated `agent-ready` routing for new campaign factory work. Do not use `human-review` to mean reviewer-agent work.
+Do not use deprecated `agent-ready` routing for new campaign factory work. Do
+not use `human-review` to mean reviewer-agent work. Do not use the `blocked`
+label for ordinary campaign dependency sequencing.
 
 ## Grooming Rules
 
@@ -85,11 +89,11 @@ The groomed queue must satisfy:
 
 - exactly one issue in the dependency chain is `Todo` + `automation-ready`
 - the first exposed issue is the first safe Architect issue unless a human explicitly approved another safe first issue
-- Coder issues remain Backlog or blocked until Architect and human gates are complete
-- Test issues remain blocked until implementation PRs are merged or ready
-- Reviewer issues remain blocked until implementation or test PRs exist
-- Release issues remain blocked until review is complete
-- no blocked, gated, human-only, parent, umbrella, or `risk:human-only` issue has `automation-ready`
+- Coder issues remain Backlog with blocked-by relations until Architect and human gates are complete
+- Test issues remain Backlog with blocked-by relations until implementation PRs are merged or ready
+- Reviewer issues remain Backlog with blocked-by relations until implementation or test PRs exist
+- Release issues remain Backlog with blocked-by relations until review is complete
+- no unresolved dependency, gated, human-only, parent, umbrella, or `risk:human-only` issue has `automation-ready`
 
 Campaign requests must never directly promote Coder work to `automation-ready`.
 
@@ -131,7 +135,7 @@ After creating and grooming a campaign, report:
 - role/type/risk/validation for each issue
 - dependency order
 - first eligible issue
-- blocked issues
+- blocked-by dependencies
 - human approval gates
 - visible UI expectations
 - central-file conflict risks
