@@ -20,6 +20,8 @@ async function main() {
       "GITHUB_REVIEWER_PRIVATE_KEY_PATH does not point to an existing file.",
     );
   }
+  console.log("Reviewer App environment check passed.");
+  console.log("Private key path exists; private key contents will not be printed.");
 
   const privateKey = readFileSync(privateKeyPath, "utf8");
   const jwt = createGitHubAppJwt(appId, privateKey);
@@ -31,6 +33,30 @@ async function main() {
   }
   console.log("Run this in the current PowerShell session:");
   console.log(`$env:GH_TOKEN = ${formatPowerShellString(token.token)}`);
+  console.log("");
+  printReviewerSafetyInstructions();
+}
+
+function printReviewerSafetyInstructions() {
+  console.log("Verify repository installation access before reviewer work:");
+  console.log("gh api installation/repositories");
+  console.log("");
+  console.log(
+    "Identity warning: this GH_TOKEN is a GitHub App installation token, not a normal user token.",
+  );
+  console.log(
+    "Use it only for Reviewer-agent PR inspection, comments, and reviews as Tanchiki Reviewer.",
+  );
+  console.log("");
+  console.log("Forbidden with this Reviewer App token:");
+  console.log("- pushing code or updating PR branches");
+  console.log("- merging PRs");
+  console.log("- applying merge:auto-eligible");
+  console.log("- removing stop labels");
+  console.log("- changing workflows, repo settings, branch protection, or secrets");
+  console.log("");
+  console.log("Clear the token after reviewer work:");
+  console.log("Remove-Item Env:\\GH_TOKEN -ErrorAction SilentlyContinue");
   console.log("");
   console.log("This token is short-lived and was not written to disk.");
 }
