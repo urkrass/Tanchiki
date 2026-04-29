@@ -8,10 +8,26 @@ Use the router when a user asks Codex to continue the next Tanchiki issue withou
 
 ## Eligibility
 
-The router scans all `Todo` issues in the Tanchiki project. It must skip blocked or gated issues instead of stopping at the first one.
+The router scans `Todo` issues in the declared active Linear project. It must
+skip blocked or gated issues instead of stopping at the first one.
+
+Dispatcher runs require:
+
+```text
+Active Linear project: <Tanchiki project name>
+```
+
+If active project is missing and exactly one unambiguous eligible issue exists
+across visible Tanchiki projects, the router may report that project and issue
+before acting. If active project is missing and multiple eligible issues exist
+across Tanchiki projects, the router must stop and ask for human triage. It
+must not run issues from another campaign project.
 
 An issue is eligible only when all of these are true:
 
+- issue is in the declared active Linear project, or is the single unambiguous
+  eligible issue across visible Tanchiki projects when no active project was
+  supplied
 - status is `Todo`
 - has `automation-ready`
 - has exactly one `role:*` label
@@ -41,6 +57,8 @@ Stop and ask for campaign grooming before changing issue state or repository fil
 - any issue has `automation-ready` together with `risk:human-only`
 - an implementation issue is automation-ready immediately after planning while an Architect review or human gate is still open
 - role labels conflict with the issue classification, for example a human review gate labeled `role:coder`
+- multiple visible Tanchiki projects contain eligible `automation-ready` issues
+  and no active project was declared
 
 When stopping, add a Linear comment that asks for the Campaign Groomer and names the unsafe labels or statuses.
 
@@ -120,6 +138,9 @@ Use the single `role:*` label. Description classification may confirm intent, bu
 
 Stop before changing code or issue state if:
 
+- the active Linear project is missing and eligible issues are ambiguous across
+  Tanchiki projects
+- the selected issue is outside the declared active Linear project
 - the issue is blocked or dependency-gated
 - the issue has `needs-human-approval` or `human-only`
 - the issue has `risk:human-only`
@@ -185,6 +206,7 @@ npm run lint
 
 The router must state:
 
+- active Linear project
 - selected issue ID and title
 - selected role
 - role label used

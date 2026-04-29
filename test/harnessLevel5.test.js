@@ -1038,6 +1038,77 @@ test("planner groomer dispatcher and conductor enforce model routing rules", () 
   }
 });
 
+test("linear campaign project policy requires active project scoping", () => {
+  const factory = readRepoFile("ops", "policies", "campaign-factory.md");
+  const execution = readRepoFile("ops", "policies", "campaign-execution.md");
+  const conductorPolicy = readRepoFile("ops", "policies", "campaign-conductor.md");
+  const factoryChecklist = readRepoFile("ops", "checklists", "campaign-factory-checklist.md");
+  const groomingChecklist = readRepoFile("ops", "checklists", "campaign-grooming-checklist.md");
+  const conductorChecklist = readRepoFile("ops", "checklists", "campaign-conductor-checklist.md");
+  const roleRouter = readRepoFile("ops", "policies", "role-router.md");
+  const roleChecklist = readRepoFile("ops", "checklists", "role-routing-checklist.md");
+  const planner = readRepoFile("ops", "prompts", "planner-agent.md");
+  const groomer = readRepoFile("ops", "prompts", "campaign-groomer.md");
+  const conductorPrompt = readRepoFile("ops", "prompts", "campaign-conductor.md");
+  const releasePrompt = readRepoFile("ops", "prompts", "release-agent.md");
+  const requestPrompt = readRepoFile("prompts", "codex-plan-campaign-request.md");
+  const planAndGroom = readRepoFile("prompts", "codex-plan-and-groom-campaign.md");
+  const conduct = readRepoFile("prompts", "codex-conduct-campaign.md");
+  const dispatcher = readRepoFile("prompts", "codex-next.md");
+  const readme = readRepoFile("README.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+  const agents = readRepoFile("AGENTS.md");
+  const requestTemplate = readRepoFile(".github", "ISSUE_TEMPLATE", "campaign-request.yml");
+  const prTemplate = readRepoFile(".github", "PULL_REQUEST_TEMPLATE.md");
+  const combined = [
+    factory,
+    execution,
+    conductorPolicy,
+    roleRouter,
+    factoryChecklist,
+    groomingChecklist,
+    conductorChecklist,
+    roleChecklist,
+    planner,
+    groomer,
+    conductorPrompt,
+    releasePrompt,
+    requestPrompt,
+    planAndGroom,
+    conduct,
+    dispatcher,
+    readme,
+    protocol,
+    agents,
+    requestTemplate,
+    prTemplate,
+  ].join("\n");
+
+  for (const expected of [
+    "`main-project`: use `Tanchiki — Playable Tank RPG Prototype`",
+    "`campaign-project`: use a dedicated",
+    "`Tanchiki / Harness — <Campaign Name>`",
+    "`Tanchiki / Game — <Campaign Name>`",
+    "`Tanchiki / Release — <Campaign Name>`",
+    "`Tanchiki / Research — <Campaign Name>`",
+    "Planner output must include:",
+    "Active Linear project: exact project name",
+    "whether any automation-ready issues exist outside the active project",
+    "Auto-Groomer must verify all campaign issues are in the same active project",
+    "If campaign issues are split across projects",
+    "Do not move issues across projects without explicit approval.",
+    "The Campaign Conductor requires an active Linear project.",
+    "Inspect only the declared active project.",
+    "Run the Tanchiki dispatcher for the next eligible issue in the declared active project.",
+    "multiple eligible issues exist",
+    "across Tanchiki projects, stop.",
+    "Release summaries must record active Linear project",
+    "Active Linear project:",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

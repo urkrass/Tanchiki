@@ -2,6 +2,9 @@
 
 Use Linear MCP and GitHub.
 
+Active Linear project:
+<Tanchiki project name>
+
 Act as the Tanchiki Planner agent, then immediately act as Campaign Groomer for the issues you created. This is planning and queue grooming only.
 
 ## Task
@@ -28,12 +31,17 @@ Turn the supplied campaign brief into 5-7 small Linear issues, then groom the ca
 ## Planner Work
 
 - Create 5-7 small Linear issues.
+- Choose Linear project mode: `main-project` or `campaign-project`.
+- Do not create a new Linear project unless the campaign is multi-issue, the user requested or accepted campaign-project mode, the name follows the Tanchiki convention, and you report the active project.
+- Operate only inside the declared active Linear project.
 - Keep issues small enough for one Level 4 role pass.
 - Include dependency order, blocked-by relationships, visible UI expectation, central-file conflict risk, suggested role labels, and the first issue that should run.
 - Include suggested type, risk, and validation labels for every issue.
 - Recommend a review cadence for every campaign: `final-audit`, `paired-review`, or `let-architect-decide`.
 - Include review cadence in the campaign summary, every relevant issue description, dependency order, and grooming notes.
 - Create a concise campaign context pack using `ops/policies/context-economy.md`.
+- Include the active Linear project in the campaign context pack.
+- Add the active Linear project to the campaign grooming comment and release summary expectations.
 - Include issue context pack fields in every issue: required safety context, relevant files, forbidden files, validation profile, review cadence, known decisions, PR/issue sequence, context refresh triggers, and stop-and-ask conditions.
 - Include advisory `model_hint` recommendations for the campaign and each issue. Model hints must not override role/type/risk labels, validation profiles, PR metadata, human gates, review cadence, or safety docs.
 - Require broad repo scans to include a recorded reason. Do not treat token saving as permission to skip safety-critical docs.
@@ -57,6 +65,11 @@ Use `final-audit` for low-risk docs campaigns, low-risk harness docs/checklist c
 
 Immediately after issue creation, groom the same campaign queue:
 
+- Verify all campaign issues are in the declared active Linear project.
+- Verify only one first issue is `Todo` + `automation-ready` inside the active project.
+- Verify no unexpected `automation-ready` issue exists in another visible Tanchiki campaign project.
+- Avoid cross-project dependencies unless explicitly documented.
+- If campaign issues are split across projects, stop and ask for human triage. Do not move issues across projects without explicit approval.
 - Apply exactly one role label where applicable:
   - `role:architect`
   - `role:coder`
@@ -113,11 +126,15 @@ Immediately after issue creation, groom the same campaign queue:
 
 Report:
 
+- Linear project mode: `main-project` or `campaign-project`
+- active Linear project
+- campaign name
 - created issue identifiers and titles
 - final status and applied labels for each issue
 - recommended sequence
 - selected or deferred review cadence
 - the only dispatcher-eligible issue
+- whether any automation-ready issues exist outside the active project
 - blocked-by dependencies and blockers
 - human-only or `needs-human-approval` issues
 - central-file conflict risks

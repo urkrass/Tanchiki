@@ -7,6 +7,24 @@ The Campaign Conductor is not a campaign runner. It is a queue safety layer that
 may expose exactly one next issue to the Dispatcher after checking metadata,
 dependency state, human gates, and PR readiness.
 
+## Active Linear Project Scope
+
+The Campaign Conductor requires an active Linear project. The operator prompt or
+campaign context must declare:
+
+```text
+Active Linear project: <Tanchiki project name>
+```
+
+The Conductor must inspect only the declared active Linear project and promote
+issues only in that project. It must stop if the active project is missing,
+ambiguous, or does not match the campaign being inspected.
+
+If multiple Tanchiki projects contain eligible `automation-ready` issues and the
+active project is not declared, the Conductor must stop and ask for human
+triage. The Conductor must report the active project in its output and must not
+move issues across projects unless explicitly instructed.
+
 ## Single-Step Authority
 
 Per run, the Conductor may promote at most one next issue.
@@ -15,17 +33,21 @@ The Conductor must not:
 
 - loop through multiple issues
 - run Dispatcher itself
+- inspect or promote issues outside the declared active project
 - implement code
 - review PRs
 - merge PRs
 - apply `merge:auto-eligible`
 - remove human gate labels or PR stop labels
 - create a looping autonomous campaign runner
+- move issues across projects unless explicitly instructed
 
 ## Promotion Eligibility
 
 The Conductor may promote an issue only when all are true:
 
+- the active Linear project is declared and unambiguous
+- the issue is in the declared active Linear project
 - campaign order is unambiguous
 - exactly one next candidate exists
 - exactly one `role:*` label is present or safely repairable
@@ -39,6 +61,8 @@ The Conductor may promote an issue only when all are true:
 - the issue has no non-removable stop labels
 
 If more than one possible next issue exists, stop and ask for human triage.
+If more than one possible next issue exists across visible Tanchiki projects and
+the active project is not declared, stop and ask for human triage.
 
 Stop labels include:
 
@@ -248,6 +272,7 @@ For low-risk auto-merge burn-in campaigns:
 Whenever the Conductor promotes or repairs an issue, it must add a Linear
 comment explaining:
 
+- active Linear project
 - what it changed
 - why the issue is now eligible
 - which review cadence was used
@@ -266,6 +291,7 @@ was legacy dependency metadata, not a human gate or PR stop label.
 
 Whenever the Conductor refuses to promote, it must comment with:
 
+- active Linear project, or that it was missing or ambiguous
 - missing labels
 - unresolved blockers
 - ambiguous candidates

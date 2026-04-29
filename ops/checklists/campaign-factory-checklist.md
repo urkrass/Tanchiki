@@ -6,6 +6,8 @@ Use this checklist when converting a self-service campaign request into a groome
 
 - [ ] Read `.github/ISSUE_TEMPLATE/campaign-request.yml` or the equivalent pasted request.
 - [ ] Confirm the request names a campaign goal.
+- [ ] Confirm Linear project mode is stated as `main-project` or `campaign-project`.
+- [ ] Confirm the active Linear project is named exactly.
 - [ ] Confirm the current state is described.
 - [ ] Confirm constraints and do-not-touch areas are listed.
 - [ ] Confirm requested campaign shape or issue count is provided.
@@ -29,6 +31,11 @@ Use this checklist when converting a self-service campaign request into a groome
 
 ## Issue Creation
 
+- [ ] Use `main-project` mode for ordinary work, single issues, small fixes, and maintenance.
+- [ ] Use `campaign-project` mode only for multi-issue campaigns where the user requested or accepted it.
+- [ ] If creating a dedicated project, use `Tanchiki / Harness — <Campaign Name>`, `Tanchiki / Game — <Campaign Name>`, `Tanchiki / Release — <Campaign Name>`, or `Tanchiki / Research — <Campaign Name>`.
+- [ ] If using the main project, state the campaign name clearly in every issue body.
+- [ ] Record Linear project mode and active Linear project in Planner output.
 - [ ] Create 6-8 small Linear issues when the request is campaign-sized.
 - [ ] Avoid parent, epic, umbrella, or catch-all tasks as runnable automation issues.
 - [ ] Preserve dependency order.
@@ -71,6 +78,10 @@ Use this checklist when converting a self-service campaign request into a groome
 ## Grooming
 
 - [ ] Run the Campaign Groomer before stopping.
+- [ ] Confirm all campaign issues are in the declared active Linear project.
+- [ ] Confirm the grooming comment includes the active Linear project.
+- [ ] Confirm the campaign context pack includes the active Linear project when present.
+- [ ] Confirm release summary expectations include the active Linear project.
 - [ ] Confirm the grooming comment includes review cadence.
 - [ ] Confirm only one issue in the dependency chain is `Todo` + `automation-ready`.
 - [ ] Confirm the exposed issue is the first safe Architect issue unless a human explicitly approved another safe first issue.
@@ -79,6 +90,9 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Confirm no `needs-human-approval` issue has `automation-ready`.
 - [ ] Confirm no `human-only` issue has `automation-ready`.
 - [ ] Confirm no `risk:human-only` issue has `automation-ready`.
+- [ ] Confirm no unexpected `automation-ready` issue exists in another visible Tanchiki campaign project.
+- [ ] Confirm cross-project dependencies are absent unless explicitly documented.
+- [ ] If campaign issues are split across projects, stop for human triage instead of moving them.
 - [ ] Confirm Coder issues remain Backlog with blocked-by relations until Architect and human gates are complete.
 - [ ] Confirm Test issues remain Backlog with blocked-by relations until implementation PRs are merged or ready.
 - [ ] Confirm Reviewer issues remain Backlog with blocked-by relations until implementation or test PRs exist.
@@ -90,6 +104,9 @@ Use this checklist when converting a self-service campaign request into a groome
 ## Final Report
 
 - [ ] Report issue identifiers and titles.
+- [ ] Report Linear project mode.
+- [ ] Report active Linear project.
+- [ ] Report campaign name.
 - [ ] Report role/type/risk/validation for each issue.
 - [ ] Report selected or deferred review cadence.
 - [ ] Report dependency order.
@@ -98,6 +115,7 @@ Use this checklist when converting a self-service campaign request into a groome
 - [ ] Report human approval gates.
 - [ ] Report visible UI expectations.
 - [ ] Report central-file conflict risks.
+- [ ] Report whether any automation-ready issues exist outside the active project.
 - [ ] Report next human action.
 - [ ] Stop after reporting the groomed queue.
 - [ ] Do not edit source files.

@@ -2,6 +2,32 @@
 
 Use this policy for multi-issue campaigns and Level 2 command-center runs.
 
+## Active Linear Project
+
+Campaign execution must name one active Linear project before Planner,
+Auto-Groomer, Campaign Conductor, Dispatcher, or Release work starts.
+
+Valid modes:
+
+- `main-project`: use `Tanchiki — Playable Tank RPG Prototype` for ordinary
+  work, single issues, small fixes, and maintenance.
+- `campaign-project`: use a dedicated campaign project for multi-issue harness,
+  product, release, or research campaigns, especially when human gates and
+  paired reviews are involved.
+
+Dedicated campaign projects must follow a Tanchiki naming convention:
+
+- `Tanchiki / Harness — <Campaign Name>`
+- `Tanchiki / Game — <Campaign Name>`
+- `Tanchiki / Release — <Campaign Name>`
+- `Tanchiki / Research — <Campaign Name>`
+
+Planner, Auto-Groomer, Campaign Conductor, Dispatcher, and Release agents must
+operate only in the declared active project. If the active project is missing
+and multiple Tanchiki projects contain eligible `automation-ready` issues, the
+agent must stop and ask for human triage. Agents must not move issues across
+projects unless explicitly instructed.
+
 ## Sequential Execution
 
 Campaigns with dependency chains must expose only the next automation issue as `Todo` + `automation-ready` with exactly one `role:*`, one `type:*`, one `risk:*`, and one `validation:*` label.
@@ -12,6 +38,7 @@ Campaigns with dependency chains must expose only the next automation issue as `
 - Issues labeled `human-only` must not be automated.
 - Issues labeled `risk:human-only` must not be automated.
 - Planners must groom the queue after creating campaign issues. During grooming, they may apply `automation-ready` only to the single first runnable issue allowed by this policy.
+- The single exposed issue must be inside the declared active Linear project.
 
 If the Linear queue violates these rules, stop and report the queue problem before implementing.
 
@@ -103,6 +130,7 @@ Deprecated ambiguous usage:
 
 After a planner creates campaign issues, the Planner must run the Campaign Groomer workflow before stopping. The groomer normalizes the queue before automation starts:
 
+- verify all campaign issues are in the declared active Linear project
 - ensure each issue has exactly one applied `role:*` label where applicable
 - ensure each issue has exactly one applied `type:*`, `risk:*`, and `validation:*` label where applicable
 - ensure human gates use `needs-human-approval`
@@ -110,14 +138,23 @@ After a planner creates campaign issues, the Planner must run the Campaign Groom
 - ensure never-automated human work uses `human-only`
 - fix classification mismatches before automation starts
 - ensure exactly one issue is `Todo` + `automation-ready` in each dependency chain
+- ensure only one first issue is `Todo` + `automation-ready` in the active project
+- ensure no unexpected `automation-ready` issue exists in another visible
+  Tanchiki campaign project
+- avoid cross-project dependencies unless explicitly documented
 - ensure no issue has `automation-ready` together with `blocked`, `needs-human-approval`, or `human-only`
 - ensure no issue with `risk:human-only` has `automation-ready`
 - ensure parent and umbrella issues remain unready for automation
 - add a grooming comment with queue order and human actions
 - include review cadence in the campaign summary, relevant issue descriptions,
   dependency order, and grooming notes
+- include active Linear project in the grooming comment and campaign context
+  pack when present
 
 If the campaign needs architecture review first, the groomer may make only the first safe Architect issue `Todo` + `role:architect` + `automation-ready` after assigning exactly one type, risk, and validation label. Coder issues must stay Backlog with blocked-by relations immediately after planning unless the user explicitly requested a Coder issue to run first.
+
+If campaign issues are split across projects, Auto-Groomer must stop and ask for
+human triage. It may move issues between projects only with explicit approval.
 
 Downstream defaults:
 
@@ -165,6 +202,10 @@ campaign summaries.
 - Final-audit Reviewer issues become `Done` after audit findings are posted and
   accepted or acted on.
 - Release issues run only after the appropriate review cadence is complete.
+
+Release summaries must record the active Linear project, campaign name, issue
+list, PR list, whether any issue moved between projects, and any remaining
+active `automation-ready` issue in the campaign project.
 
 ## Branch Freshness
 

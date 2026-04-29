@@ -2,20 +2,29 @@
 
 Use Linear MCP and GitHub.
 
+Active Linear project:
+<Tanchiki project name>
+
 Run the Tanchiki Campaign Conductor for the active campaign.
+Inspect only the declared active project.
 Inspect campaign state.
 Inspect the campaign review cadence before any promotion by checking campaign notes, issue descriptions, grooming notes, and Architect comments for `review_cadence: final-audit`, `review_cadence: paired-review`, or `review_cadence: let-architect-decide`.
 Use the campaign context pack and issue context packs when present, but do not use them to skip campaign order, blockers, PR readiness, safety docs, or Level 5 metadata checks.
 Stop if the current model is below the required `model_hint` and no human downgrade approval is recorded.
+Stop if the active project is missing or ambiguous.
+Stop if multiple Tanchiki projects contain eligible `automation-ready` issues and the active project is not declared.
 Record a reason before broad repo scans.
 Promote exactly one next safe issue if eligible.
+Promote issues only in the declared active project.
 Repair only explicit metadata omissions from issue body.
 Stop at human gates or ambiguity.
+Do not move issues across projects unless explicitly instructed.
 If review cadence is missing or ambiguous, stop and add a Linear comment asking for cadence triage.
 Do not edit repo files.
 Do not run Dispatcher.
 Do not merge.
 Do not mark Done unless the protocol explicitly allows it.
+Report the active project.
 Report the promoted issue or the blocker.
 
 Review cadence rules:

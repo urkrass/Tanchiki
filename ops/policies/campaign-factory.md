@@ -9,6 +9,8 @@ The campaign factory is an intake, planning, and grooming workflow. It does not 
 A valid request should provide:
 
 - campaign name
+- Linear project mode: `main-project` or `campaign-project`
+- active Linear project name
 - goal
 - current state
 - requested campaign shape
@@ -22,6 +24,55 @@ A valid request should provide:
 - expected Planner + Auto-Groomer output
 
 If required fields are missing, the factory must not guess. Create or report a human-gated clarification item before planning implementation work.
+
+## Linear Project Strategy
+
+Campaign planning supports two valid Linear project modes:
+
+- `main-project`: use the existing main project,
+  `Tanchiki — Playable Tank RPG Prototype`. This is best for ordinary product
+  issues, small fixes, maintenance, and simple one-off tasks.
+- `campaign-project`: create or use a dedicated Linear project for a major
+  campaign. This is best for multi-issue campaigns with an Architect / Human
+  gate / Coder-Test / Reviewer / Release sequence.
+
+Dedicated campaign projects must use a clear Tanchiki prefix. Recommended
+patterns:
+
+- `Tanchiki / Harness — <Campaign Name>`
+- `Tanchiki / Game — <Campaign Name>`
+- `Tanchiki / Release — <Campaign Name>`
+- `Tanchiki / Research — <Campaign Name>`
+
+Examples:
+
+- `Tanchiki / Harness — Token Economy`
+- `Tanchiki / Harness — Reviewer App Routine`
+- `Tanchiki / Game — Visual Identity`
+- `Tanchiki / Release — Public Demo`
+
+If a campaign is created inside the main project, the campaign name must be
+clearly stated in every issue body.
+
+Planner must not casually create a new Linear project. A new campaign project
+is allowed only when all are true:
+
+- the campaign is multi-issue;
+- the user requested or accepted `campaign-project` mode;
+- the project name follows the Tanchiki naming convention;
+- the Planner reports the active Linear project name.
+
+Planner output must include:
+
+- Linear project mode: `main-project` or `campaign-project`;
+- Active Linear project: exact project name;
+- campaign name;
+- issue IDs created;
+- first eligible issue;
+- whether any automation-ready issues exist outside the active project.
+
+Planner must add the active project name to the campaign grooming comment, the
+campaign context pack when present, and release summary expectations.
 
 ## Intake Classification
 
@@ -130,6 +181,7 @@ After issue creation, the Planner must run the Campaign Groomer before stopping.
 
 The groomed queue must satisfy:
 
+- all campaign issues are in the declared active Linear project
 - exactly one issue in the dependency chain is `Todo` + `automation-ready`
 - the first exposed issue is the first safe Architect issue unless a human explicitly approved another safe first issue
 - Coder issues remain Backlog with blocked-by relations until Architect and human gates are complete
@@ -137,8 +189,14 @@ The groomed queue must satisfy:
 - Reviewer issues remain Backlog with blocked-by relations until implementation or test PRs exist
 - Release issues remain Backlog with blocked-by relations until review is complete
 - no unresolved dependency, gated, human-only, parent, umbrella, or `risk:human-only` issue has `automation-ready`
+- no unexpected `automation-ready` issue exists in another visible Tanchiki
+  campaign project
+- cross-project dependencies are avoided unless explicitly documented
 
 Campaign requests must never directly promote Coder work to `automation-ready`.
+
+If campaign issues are split across projects, Auto-Groomer must stop and ask for
+human triage. It may move issues between projects only with explicit approval.
 
 Grooming must shape dependencies according to review cadence:
 
@@ -188,6 +246,9 @@ Implementation remains a separate Dispatcher step after grooming and approval.
 
 After creating and grooming a campaign, report:
 
+- Linear project mode
+- active Linear project
+- campaign name
 - issue identifiers and titles
 - role/type/risk/validation for each issue
 - selected or deferred review cadence
@@ -197,6 +258,7 @@ After creating and grooming a campaign, report:
 - human approval gates
 - visible UI expectations
 - central-file conflict risks
+- whether any automation-ready issues exist outside the active project
 - next human action
 
 Stop after the report. Do not implement the campaign during intake.

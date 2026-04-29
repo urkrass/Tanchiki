@@ -17,6 +17,25 @@ body:
       placeholder: Self-service campaign factory
     validations:
       required: true
+  - type: dropdown
+    id: linear-project-mode
+    attributes:
+      label: Linear project mode
+      description: Use main-project for ordinary work and campaign-project only for accepted multi-issue campaign projects.
+      options:
+        - main-project
+        - campaign-project
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: active-linear-project
+    attributes:
+      label: Active Linear project
+      description: Exact Linear project name. Dedicated projects should use a Tanchiki prefix such as Tanchiki / Harness — Token Economy.
+      placeholder: Tanchiki — Playable Tank RPG Prototype
+    validations:
+      required: true
   - type: textarea
     id: goal
     attributes:
@@ -152,6 +171,8 @@ body:
       value: |
         The Planner should create 6-8 small Linear issues when appropriate. Every issue should include Goal, Current state, Files likely involved, Scope, Do-not-touch list, Acceptance criteria, Tests required, Validation commands, Manual QA, Risk level, Suggested labels, role/type/risk/validation labels, review cadence, dependency order, visible UI expectation, and central-file conflict risk.
 
-        Auto-Groomer should normalize labels, shape blocked-by dependencies according to the review cadence, keep blocked/gated work out of automation, mark human gates with needs-human-approval or human-only, and expose only the first safe Architect issue as Todo + automation-ready.
+        Planner output should report Linear project mode, active Linear project, campaign name, issue IDs created, first eligible issue, and whether any automation-ready issues exist outside the active project.
+
+        Auto-Groomer should operate only in the active Linear project, verify all campaign issues are in that project, normalize labels, shape blocked-by dependencies according to the review cadence, keep blocked/gated work out of automation, mark human gates with needs-human-approval or human-only, and expose only the first safe Architect issue as Todo + automation-ready.
     validations:
       required: true
