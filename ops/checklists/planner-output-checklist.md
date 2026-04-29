@@ -19,6 +19,11 @@ Use this checklist before creating, grooming, or reporting Level 3 planner issue
 - Blocked-by relationships are added or written in the issue body.
 - Review cadence is recommended for every campaign.
 - Review cadence appears in the campaign summary, relevant issue descriptions, dependency order, and grooming notes.
+- A campaign context pack is created or clearly referenced.
+- Every issue has a minimal issue context pack or clear reference to one.
+- Issue context packs include required safety context, relevant files, forbidden files, validation profile, review cadence, known decisions, PR/issue sequence, context refresh triggers, stop-and-ask conditions, and advisory `model_hint`.
+- `model_hint` recommendations are advisory and do not override risk gates, validation profiles, PR metadata, human gates, review cadence, or safety docs.
+- Broad repo scans require a recorded reason.
 - Risk level is stated.
 - Suggested labels are included.
 - Suggested role, type, risk, and validation labels are included.
@@ -48,6 +53,9 @@ Each issue includes:
 - Suggested risk label
 - Suggested validation label
 - Review cadence
+- Campaign context pack reference
+- Issue context pack
+- `model_hint`
 - Planner classification
 - Dependencies or blockers
 - Dependency order
@@ -66,6 +74,9 @@ Each issue includes:
 - For dependency chains, only one issue is recommended as the first `Todo` + `automation-ready` candidate.
 - No issue was moved into implementation status.
 - The planner ran the campaign grooming checklist after creating issues.
+- The planner ran or satisfied the context pack checklist.
+- Safety-critical docs remain mandatory and are not hidden by context packs.
+- Token saving is not used to skip validation, PR metadata, review cadence, changed-file scrutiny, or human gates.
 - The planner stopped after creating issues, grooming the queue, and reporting the final queue.
 
 ## Grooming Check
@@ -85,6 +96,9 @@ Each issue includes:
 - No issue has `automation-ready` with `blocked`, `needs-human-approval`, or `human-only`.
 - No issue has `automation-ready` with `risk:human-only`.
 - A grooming comment summarizes queue order and required human actions.
+- The grooming comment attaches or references the campaign context pack.
+- Grooming confirms issue context packs are concise and role-specific.
+- Grooming confirms `model_hint` values are advisory and compatible with issue risk/type/validation.
 
 ## Final Summary
 
@@ -94,6 +108,8 @@ The final planner response includes:
 - classification for each issue
 - recommended implementation order
 - selected or deferred review cadence
+- campaign context pack location
+- `model_hint` recommendations
 - dependency notes
 - blocked-by relationships
 - visible UI expectation for each issue

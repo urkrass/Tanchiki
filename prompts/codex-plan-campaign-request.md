@@ -27,10 +27,12 @@ Before creating or grooming Linear issues, read:
 8. `ops/policies/campaign-execution.md`
 9. `ops/policies/role-router.md`
 10. `ops/policies/risk-gated-validation.md`
-11. `ops/checklists/planner-output-checklist.md`
-12. `ops/checklists/campaign-grooming-checklist.md`
-13. `ops/checklists/conflict-risk-checklist.md`
-14. the supplied campaign request
+11. `ops/policies/context-economy.md`
+12. `ops/checklists/planner-output-checklist.md`
+13. `ops/checklists/campaign-grooming-checklist.md`
+14. `ops/checklists/context-pack-checklist.md`
+15. `ops/checklists/conflict-risk-checklist.md`
+16. the supplied campaign request
 
 ## Factory Rules
 
@@ -46,6 +48,7 @@ Before creating or grooming Linear issues, read:
 - Do not apply `automation-ready` to Coder, Test, Reviewer, Release, unresolved dependency, human-only, or needs-human-approval issues during intake.
 - Do not apply `automation-ready` to any issue labeled `risk:human-only`.
 - If the request includes unsafe categories, create a human approval gate before implementation work.
+- Do not use token saving, context packs, or `model_hint` as a reason to skip safety-critical docs, validation, PR metadata, review cadence, or human gates.
 
 ## Request Review
 
@@ -125,6 +128,8 @@ Create 6-8 small Linear issues when appropriate. Every issue must include:
 - Dependency order
 - Visible UI expectation
 - Central-file conflict risk
+- Issue context pack
+- `model_hint`
 
 Use Level 5 metadata on every issue:
 
@@ -134,6 +139,10 @@ Use Level 5 metadata on every issue:
 - one `validation:*` label from the repo taxonomy
 
 Preserve dependencies from the request. Keep issues small enough for one role pass. Prefer an Architect review issue first unless the request is already an approved continuation with a clear safe next issue.
+
+Create a campaign context pack using `ops/policies/context-economy.md`. It must include the campaign goal, non-goals, review cadence, queue order, human gates, paired-review points, required safety context, relevant files, forbidden files, validation profiles, known decisions, PR/issue sequence, broad-scan rules, context refresh triggers, stop-and-ask conditions, and advisory `model_hint` recommendations.
+
+Each issue context pack should be minimal and role-specific. Reference the campaign context pack instead of repeating broad repo process text.
 
 ## Auto-Groomer Work
 
@@ -155,6 +164,9 @@ After issue creation, groom the same Linear campaign:
    - For `paired-review`: Coder/Test issue blocks its paired Reviewer issue; paired Reviewer issue blocks the next Coder/Test issue; Release waits until all paired reviewers and PR-producing issues are Done. Example: Architect, Human gate, Coder A, Reviewer A, Coder B, Reviewer B, Test, Reviewer Test, Release.
    - For `final-audit`: Coder/Test issues may proceed sequentially after their PRs are merged; a single final-audit Reviewer issue runs after implementation/test PRs are merged or explicitly abandoned; Release waits for final-audit Reviewer. Example: Architect, Human gate, Coder A, Coder B, Test, Final-audit Reviewer, Release.
 14. Add a grooming comment with review cadence, queue order, blocked-by dependencies, and human gates.
+15. Attach or clearly reference the campaign context pack in the grooming comment or first Architect issue.
+16. Confirm every issue includes a minimal issue context pack and advisory `model_hint`.
+17. Confirm required safety docs remain visible and broad repo scans require a recorded reason.
 
 ## Validation Expectations
 
@@ -182,5 +194,7 @@ After creating and grooming the campaign, report:
 - central-file conflict risks
 - visible UI expectations
 - next human action
+- campaign context pack location
+- `model_hint` recommendations
 
 Stop after reporting the groomed queue. Do not implement anything.

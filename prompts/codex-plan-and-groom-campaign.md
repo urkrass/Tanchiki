@@ -18,10 +18,12 @@ Turn the supplied campaign brief into 5-7 small Linear issues, then groom the ca
 6. `ops/policies/planner-boundaries.md`
 7. `ops/policies/campaign-execution.md`
 8. `ops/policies/role-router.md`
-9. `ops/checklists/planner-output-checklist.md`
-10. `ops/checklists/campaign-grooming-checklist.md`
-11. `ops/checklists/conflict-risk-checklist.md`
-12. the supplied campaign brief
+9. `ops/policies/context-economy.md`
+10. `ops/checklists/planner-output-checklist.md`
+11. `ops/checklists/campaign-grooming-checklist.md`
+12. `ops/checklists/context-pack-checklist.md`
+13. `ops/checklists/conflict-risk-checklist.md`
+14. the supplied campaign brief
 
 ## Planner Work
 
@@ -31,6 +33,10 @@ Turn the supplied campaign brief into 5-7 small Linear issues, then groom the ca
 - Include suggested type, risk, and validation labels for every issue.
 - Recommend a review cadence for every campaign: `final-audit`, `paired-review`, or `let-architect-decide`.
 - Include review cadence in the campaign summary, every relevant issue description, dependency order, and grooming notes.
+- Create a concise campaign context pack using `ops/policies/context-economy.md`.
+- Include issue context pack fields in every issue: required safety context, relevant files, forbidden files, validation profile, review cadence, known decisions, PR/issue sequence, context refresh triggers, and stop-and-ask conditions.
+- Include advisory `model_hint` recommendations for the campaign and each issue. Model hints must not override role/type/risk labels, validation profiles, PR metadata, human gates, review cadence, or safety docs.
+- Require broad repo scans to include a recorded reason. Do not treat token saving as permission to skip safety-critical docs.
 - If using `let-architect-decide`, create an Architect issue that must choose `final-audit` or `paired-review`, record the reason in Linear, and adjust downstream issues before implementation is promoted.
 - Do not create ambiguous Reviewer issues. Use titles such as `Reviewer: paired-review PR for <issue id/title>` or `Reviewer: final audit for <campaign name>`.
 - Do not implement gameplay.
@@ -98,6 +104,10 @@ Immediately after issue creation, groom the same campaign queue:
 - For `paired-review`, each Coder/Test issue blocks its paired Reviewer issue, each paired Reviewer blocks the next Coder/Test issue, and Release waits until all paired reviewers and PR-producing issues are Done.
 - For `final-audit`, Coder/Test issues may proceed sequentially after their PRs are merged, a single final-audit Reviewer runs after implementation/test PRs are merged or explicitly abandoned, and Release waits for the final-audit Reviewer.
 - Add a grooming comment summarizing review cadence, queue order, blocked-by dependencies, and required human actions.
+- Attach or clearly reference the campaign context pack in the grooming comment or first Architect issue.
+- Confirm each issue has a minimal issue context pack instead of repeated broad process text.
+- Confirm `model_hint` values are advisory and compatible with issue risk/type/validation.
+- Confirm required safety docs remain visible and broad scans require justification.
 
 ## Final Report
 
@@ -111,6 +121,8 @@ Report:
 - blocked-by dependencies and blockers
 - human-only or `needs-human-approval` issues
 - central-file conflict risks
+- campaign context pack location
+- model_hint recommendations
 - next human action required
 
 Do not merge anything. Do not mark issues Done.
