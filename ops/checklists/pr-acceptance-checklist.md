@@ -100,6 +100,11 @@ For auto-merge shakedowns, reviewer comments must record:
 - [ ] Whether the Reviewer is independent from the PR authoring session.
 - [ ] Whether `merge:auto-eligible` was applied by a human.
 - [ ] Whether GitHub auto-merge, not manual merge, performed the merge.
+- [ ] Successful auto-merge proof includes GitHub timeline evidence such as
+      `AutoMergeEnabledEvent` / AutoMergeRequest evidence, or GitHub CLI/API
+      evidence showing `autoMergeRequest` was set before merge.
+- [ ] If that proof is absent, classify the result exactly as: "Reviewer
+      approval + human merge succeeded; auto-merge completion inconclusive."
 - [ ] Final decision using one of the approved Reviewer outcomes.
 
 An auto-merge shakedown is valid only if the PR remains open until Coder PR,
@@ -108,6 +113,11 @@ CI, PR metadata check, independent Reviewer approval, human-applied
 a human merges before Reviewer approval or before applying
 `merge:auto-eligible`, the PR may be a valid normal human merge, but the
 auto-merge shakedown is invalid or inconclusive.
+
+A burn-in summary must not count a PR as successful auto-merge solely because a
+human merged it after Reviewer approval. Without explicit auto-merge event or
+request evidence, use: "Reviewer approval + human merge succeeded; auto-merge
+completion inconclusive."
 
 ## Validation Evidence Gate
 
