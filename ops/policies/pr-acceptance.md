@@ -40,11 +40,12 @@ Auto-merge eligibility is limited to narrow, low-risk work after explicit human 
 
 An eligible PR must satisfy every gate in this policy. `merge:auto-eligible` is never enough by itself; it is only one required signal among CI, metadata, branch protection, independent approval, issue state, and changed-file safety.
 
-Draft PRs are a hard veto for auto-merge approval. A normal feature PR may
-remain Draft when that is the clearest review posture for incomplete,
-exploratory, or human-gated work, but an auto-merge candidate PR or
-auto-merge burn-in PR must be marked ready for review before the Coder session
-stops.
+Draft PRs are a hard veto for auto-merge approval and paired-review approval.
+A normal feature PR may remain Draft when that is the clearest review posture
+for incomplete, exploratory, ordinary non-paired-review, validation-not-passed,
+or human-gated work, but an auto-merge candidate PR, auto-merge burn-in PR, or
+paired-review producer PR with passing validation must be marked ready for
+review before the Coder or Test session stops.
 
 ### Do Not Merge
 
@@ -153,6 +154,7 @@ Reviewer agents must return `HUMAN REVIEW REQUIRED` when:
 - the Reviewer is from the same Codex session or run as the authoring agent
 - the authoring run cannot be distinguished from the review run
 - the PR was already merged before review
+- the paired-review PR is Draft
 - any stop label is present
 - required metadata or checks are missing
 
@@ -217,9 +219,11 @@ apply to low-risk categories such as:
 - `type:test` + `risk:low` + `validation:test`
 
 Even in these low-risk categories, stop labels remain hard vetoes.
-Draft PRs remain hard vetoes for auto-merge approval. Normal non-auto-merge
-feature PRs may still use Draft when appropriate, but low-risk auto-merge
-candidate PRs and burn-in PRs must be ready for review before the Coder stops.
+Draft PRs remain hard vetoes for auto-merge approval and paired-review
+approval. Normal non-auto-merge feature PRs may still use Draft when
+appropriate, but low-risk auto-merge candidate PRs, burn-in PRs, and
+paired-review producer PRs with passing validation must be ready for review
+before the Coder or Test stops.
 
 Human merge or human review remains required for:
 

@@ -22,4 +22,8 @@ npm run build
 npm run lint
 ```
 
-Open a draft PR against `main` for repository-owned test changes. Do not merge.
+Open a PR against `main` for repository-owned test changes. Draft is allowed
+while work is incomplete, exploratory, ordinary non-paired-review, validation
+has not passed, or the work explicitly awaits author completion. If the test
+work is a paired-review producer with passing validation, ensure the PR is not
+Draft and is ready for review before stopping. Do not merge.

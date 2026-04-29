@@ -30,7 +30,33 @@ npm run build
 npm run lint
 ```
 
-8. Commit and open a draft PR against `main` when the work is repository-owned test work. Fill the PR template with linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+8. Identify campaign review cadence from campaign notes, issue descriptions, grooming notes, and Architect comments when the work is part of a campaign.
+9. Commit and open a PR against `main` when the work is repository-owned test work. Fill the PR template with linked issue, role, type, risk, validation profile, summary, files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.
+10. If `review_cadence: paired-review` and validation passed, ensure the PR is not Draft and is ready for review before stopping.
+11. If validation failed or work is incomplete, leave the PR Draft if one exists, do not expose the paired Reviewer issue, and comment with the blocker.
+12. Move the Linear issue to `In Review` when the PR is opened and the required draft or ready-for-review posture is set.
+
+## Paired-Review PR Readiness
+
+Draft PRs remain allowed for incomplete work, exploratory work, ordinary
+non-paired-review work, work where validation has not passed, and work
+explicitly awaiting author completion. Paired-review PRs must be open,
+non-draft, unmerged, and passing required checks before the paired Reviewer
+issue may run.
+
+When the issue uses `review_cadence: paired-review` and validation passes:
+
+1. Open the PR against `main`.
+2. Fill the PR metadata completely.
+3. Ensure the PR is not Draft and is ready for review.
+4. Move the Linear issue to `In Review`.
+5. Report the PR number.
+6. Stop without reviewing, labeling, or merging the PR.
+
+If the PR cannot be marked ready for review, clearly explain why, keep the PR
+Draft, leave the issue out of paired-review promotion, and comment with the
+blocker. Do not review the PR, do not apply labels, do not merge, and do not
+mark the issue `Done`.
 
 ## Boundaries
 

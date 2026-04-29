@@ -123,11 +123,14 @@ git diff --check
 
 ## Pull Requests
 
-Open a draft PR against `main` by default. Normal feature PRs may remain Draft
-when appropriate. If the PR is an explicitly scoped auto-merge candidate or
-auto-merge burn-in PR, mark it ready for review before the Coder session stops
-because Draft PRs are hard vetoes for auto-merge approval. Fill the PR template
-with:
+Open a PR against `main`. Draft PRs are allowed while work is incomplete, for
+exploratory work, for ordinary non-paired-review work, when validation has not
+passed, or when the work is explicitly awaiting author completion. If the PR is
+an explicitly scoped auto-merge candidate, auto-merge burn-in PR, or
+`review_cadence: paired-review` producer PR with passing validation, mark it
+ready for review before the Coder or Test session stops. Paired-review PRs must
+be open, non-draft, unmerged, and passing required checks before the paired
+Reviewer issue may run. Fill the PR template with:
 
 - linked Linear issue
 - role, type, risk, validation profile
@@ -140,6 +143,11 @@ with:
 - known limitations
 
 Do not merge automatically.
+
+If a paired-review producer cannot mark the PR ready for review, it must keep
+the PR Draft, explain the blocker clearly, and leave the paired Reviewer issue
+unexposed. The Conductor must not promote the paired Reviewer issue until the
+producer PR is ready for pre-merge review.
 
 ## CI And Review
 

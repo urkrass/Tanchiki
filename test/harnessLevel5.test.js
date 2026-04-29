@@ -217,26 +217,27 @@ test("PR acceptance policy keeps draft PRs as auto-merge hard vetoes", () => {
   const reviewerPrompt = readRepoFile("ops", "prompts", "reviewer-agent.md");
 
   for (const expected of [
-    "Draft PRs are a hard veto for auto-merge approval.",
+    "Draft PRs are a hard veto for auto-merge approval and paired-review approval.",
     "PR is not draft; Draft PRs are hard vetoes for auto-merge approval.",
   ]) {
     assert.match(policy, new RegExp(escapeRegExp(expected)));
   }
-  assert.match(policy, /Normal non-auto-merge\s+feature PRs may still use Draft when appropriate/);
-  assert.match(policy, /low-risk auto-merge\s+candidate PRs and burn-in PRs must be ready for review before the Coder stops\./);
+  assert.match(policy, /ordinary non-paired-review, validation-not-passed,\s+or human-gated work/);
+  assert.match(policy, /paired-review producer PR with passing validation must be marked ready for\s+review before the Coder or Test session stops/);
 
   for (const expected of [
     "Draft PRs are hard vetoes for auto-merge approval.",
-    "Auto-merge candidate PRs and auto-merge burn-in PRs were marked ready for review before the Coder session stopped.",
-    "Normal non-auto-merge feature PRs may still use Draft when appropriate.",
+    "Draft PRs are hard vetoes for paired-review approval.",
+    "Paired-review producer PRs with passing validation were marked ready for review before the Coder or Test session stopped.",
+    "Draft PRs remain allowed for incomplete work, exploratory work, ordinary non-paired-review work, validation-not-passed work, and work explicitly awaiting author completion.",
   ]) {
     assert.match(checklist, new RegExp(escapeRegExp(expected)));
   }
 
   for (const expected of [
-    "Draft PRs are hard vetoes for auto-merge approval",
-    "Reviewer agents must keep rejecting Draft PRs for auto-merge paths.",
-    "the PR is Draft for an auto-merge path",
+    "Draft PRs block paired-review approval and are hard vetoes for auto-merge approval",
+    "Reviewer agents must reject Draft PRs for paired-review with `HUMAN REVIEW REQUIRED` or `BLOCKED`.",
+    "the PR is Draft",
   ]) {
     assert.match(reviewerPrompt, new RegExp(escapeRegExp(expected)));
   }
@@ -246,7 +247,7 @@ test("coder prompt requires ready-for-review PRs for low-risk auto-merge lanes",
   const prompt = readRepoFile("ops", "prompts", "coder-agent.md");
 
   for (const expected of [
-    "Normal feature PRs may still be Draft when appropriate.",
+    "Draft PRs remain allowed for incomplete work",
     "Draft PRs are hard",
     "auto-merge candidate or burn-in PR",
     "Open the PR against `main`.",
@@ -260,27 +261,51 @@ test("coder prompt requires ready-for-review PRs for low-risk auto-merge lanes",
   }
 });
 
+test("coder and test prompts require ready paired-review PRs after validation passes", () => {
+  const coderPrompt = readRepoFile("ops", "prompts", "coder-agent.md");
+  const testPrompt = readRepoFile("ops", "prompts", "test-agent.md");
+  const roleBoundaries = readRepoFile("ops", "policies", "role-boundaries.md");
+  const combined = `${coderPrompt}\n${testPrompt}\n${roleBoundaries}`;
+
+  for (const expected of [
+    "Identify campaign review cadence from campaign notes, issue descriptions, grooming notes, and Architect comments",
+    "If `review_cadence: paired-review` and validation passed, ensure the PR is not Draft and is ready for review before stopping.",
+    "Draft PRs remain allowed for incomplete work, exploratory work, ordinary\nnon-paired-review work, work where validation has not passed, and work\nexplicitly awaiting author completion.",
+    "If validation failed or work is incomplete, leave the PR Draft if one exists, do not expose the paired Reviewer issue, and comment with the blocker.",
+    "Report the PR number.",
+    "Stop without reviewing, labeling, or merging the PR.",
+    "Do not review the PR, do not apply labels, do not merge, and do not\nmark the issue `Done`.",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+  assert.match(
+    combined,
+    /Paired-review PRs must be open,\s+non-draft, unmerged, and passing required checks before the paired Reviewer\s+issue may run\./,
+  );
+});
+
 test("repo task docs require ready burn-in PRs before Linear review handoff", () => {
   const readme = readRepoFile("README.md");
   const protocol = readRepoFile("TASK_PROTOCOL.md");
 
   for (const expected of [
-    "Low-risk auto-merge candidate PRs and auto-merge burn-in PRs are different",
-    "those PRs must be marked ready for review before the Coder session stops",
-    "ensure it is not Draft",
+    "Low-risk auto-merge candidate PRs, auto-merge burn-in PRs, and paired-review producer PRs with passing validation are different",
+    "those PRs must be marked ready for review before the Coder or Test session stops",
+    "ensure the PR is not Draft",
     "move the Linear issue to `In Review`",
     "stop without reviewing, labeling, or merging",
   ]) {
     assert.match(readme, new RegExp(escapeRegExp(expected)));
   }
 
-  for (const expected of [
-    "auto-merge burn-in PR",
-    "mark it ready for review",
-    "Draft PRs are hard vetoes for auto-merge approval",
-  ]) {
+  for (const expected of ["auto-merge burn-in PR"]) {
     assert.match(protocol, new RegExp(escapeRegExp(expected)));
   }
+  assert.match(protocol, /mark it\s+ready for review/);
+  assert.match(
+    protocol,
+    /Paired-review PRs must\s+be open, non-draft, unmerged, and passing required checks before the paired\s+Reviewer issue may run\./,
+  );
 });
 
 test("campaign conductor docs require single-step promotion and no campaign loop", () => {
@@ -499,7 +524,7 @@ test("PR acceptance policy requires independent reviewer and active shakedown se
 
   for (const expected of [
     "Establish reviewer independence before any approval:",
-    "Return `HUMAN REVIEW REQUIRED` if you authored the PR",
+    "return `HUMAN REVIEW REQUIRED` if you authored the PR",
     "For auto-merge shakedowns, verify the PR is open until the full sequence completes",
     "Do not approve a PR authored by the same Codex session/run.",
     "Do not apply `merge:auto-eligible`; that label is human-controlled during shakedowns.",
@@ -534,7 +559,7 @@ test("PR acceptance checklist and template guard auto-merge gates without live G
   const template = readRepoFile(".github", "PULL_REQUEST_TEMPLATE.md");
 
   for (const expected of [
-    "PR is not draft before any auto-merge path is considered.",
+    "PR is not draft before any paired-review approval or auto-merge path is considered.",
     "PR metadata check is passing.",
     "CI is passing.",
     "Branch protection requirements are satisfied and not bypassed.",
@@ -807,7 +832,7 @@ test("conductor separates paired-review open PR rules from final-audit inputs", 
   for (const expected of [
     "If review cadence is missing or ambiguous, stop",
     "paired-review",
-    "linked PR is open, non-draft, unmerged",
+    "linked PR exists, is open, non-draft, unmerged",
     "Promoted as paired-review Reviewer for open PR #X.",
     "final-audit",
     "do not require open PRs",

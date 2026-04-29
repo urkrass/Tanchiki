@@ -39,6 +39,8 @@ Use this checklist for one Campaign Conductor run.
 - [ ] For paired-review Reviewer, confirm the linked PR is not Draft.
 - [ ] For paired-review Reviewer, confirm the linked PR is unmerged.
 - [ ] For paired-review Reviewer, confirm required PR metadata checks and CI are passing before promotion.
+- [ ] For paired-review Reviewer, confirm the upstream Coder/Test issue is `In Review`, not prematurely `Done`.
+- [ ] For paired-review Reviewer, confirm metadata is complete and no human gate or stop label blocks review.
 - [ ] For paired-review Reviewer promotion, comment: "Promoted as paired-review Reviewer for open PR #X."
 - [ ] For paired-review sequencing, do not promote the next Coder/Test issue until the previous PR-producing issue is Done, the paired Reviewer issue is Done, and the PR was merged or explicitly abandoned with a recorded outcome.
 - [ ] For final-audit Reviewer, do not require open PRs.
@@ -48,7 +50,7 @@ Use this checklist for one Campaign Conductor run.
 - [ ] For final-audit Reviewer, treat merged PRs as expected audit inputs.
 - [ ] For final-audit Reviewer, do not use paired-review pre-merge approval language.
 - [ ] For final-audit Reviewer promotion, comment: "Promoted as final-audit Reviewer. Merged PRs are expected audit inputs."
-- [ ] If the linked PR is Draft, do not promote and comment that Coder or human must mark it ready first.
+- [ ] If the linked PR is Draft, do not promote and comment: "PR #X is still Draft. In paired-review mode, the producer must mark the PR ready for review before the Reviewer issue can run."
 - [ ] For Release, confirm implementation, test, the appropriate review cadence, and human gate steps are Done or explicitly stopped.
 - [ ] Promote at most one issue.
 - [ ] Do not run Dispatcher.

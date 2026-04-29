@@ -6,10 +6,12 @@ Use this checklist before adding an acceptance label, recommending merge, or all
 
 - [ ] This is a `paired-review` pre-merge PR acceptance review, not a `final-audit` campaign audit.
 - [ ] PR targets `main`.
-- [ ] PR is not draft before any auto-merge path is considered.
+- [ ] PR is not draft before any paired-review approval or auto-merge path is considered.
 - [ ] Draft PRs are hard vetoes for auto-merge approval.
+- [ ] Draft PRs are hard vetoes for paired-review approval.
 - [ ] Auto-merge candidate PRs and auto-merge burn-in PRs were marked ready for review before the Coder session stopped.
-- [ ] Normal non-auto-merge feature PRs may still use Draft when appropriate.
+- [ ] Paired-review producer PRs with passing validation were marked ready for review before the Coder or Test session stopped.
+- [ ] Draft PRs remain allowed for incomplete work, exploratory work, ordinary non-paired-review work, validation-not-passed work, and work explicitly awaiting author completion.
 - [ ] PR links exactly one Linear issue or explicit documentation task.
 - [ ] PR includes role, type, risk, and validation profile.
 - [ ] PR lists files changed, tests run, manual QA, conflict risk, visible UI expectation, and known limitations.

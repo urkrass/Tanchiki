@@ -7,8 +7,8 @@ Level 6 keeps validation machine-readable by requiring every automated Linear is
 | Role label | Agent | Allowed work | Required output |
 | --- | --- | --- | --- |
 | `role:architect` | Architect | Review issue shape, architecture risk, dependencies, file ownership, and conflict risk. No implementation. | Linear comment or architecture notes. |
-| `role:coder` | Coder | Implement exactly one eligible issue. | Draft PR against `main`. |
-| `role:test` | Test | Add or improve tests without changing gameplay behavior unless explicitly justified. | Draft PR or test-gap report. |
+| `role:coder` | Coder | Implement exactly one eligible issue. | PR against `main`; Draft is allowed for incomplete or non-paired work, but paired-review producer PRs with passing validation must be ready for review. |
+| `role:test` | Test | Add or improve tests without changing gameplay behavior unless explicitly justified. | PR against `main` or test-gap report; Draft is allowed for incomplete or non-paired work, but paired-review producer PRs with passing validation must be ready for review. |
 | `role:reviewer` | Reviewer | Review PRs, validation, CI, and boundaries. Do not merge. | Review comment or Linear findings. |
 | `role:release` | Release | Summarize completed work and campaign status. No gameplay changes. | Release or campaign summary. |
 
@@ -103,8 +103,10 @@ Role readiness summary:
 - `role:release`: requires implementation, test, reviewer, and human gates to
   be Done or the campaign to be explicitly stopped.
 
-Draft PRs block paired-review Reviewer promotion. Stop labels are hard vetoes
-and must not be removed by agents.
+Paired-review PRs must be open, non-draft, unmerged, and passing required
+checks before the paired Reviewer issue may run. Draft PRs block paired-review
+Reviewer promotion. Stop labels are hard vetoes and must not be removed by
+agents.
 
 Campaign review cadence must be explicit:
 

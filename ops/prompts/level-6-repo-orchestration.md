@@ -21,7 +21,8 @@ Rules:
 - Do not modify `src/game/movement.js`.
 - Do not change game behavior, progression behavior, or level tuning.
 - Preserve existing CI unless a minimal safe improvement is needed.
-- Open a draft PR against `main`.
+- Open a PR against `main`; keep it Draft only while work is incomplete or
+  non-paired, and mark paired-review producer PRs ready after validation passes.
 - Do not merge.
 - Do not mark Done.
 

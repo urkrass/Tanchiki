@@ -286,9 +286,11 @@ remove a Linear issue `blocked` label under the strict conditions in
 `ops/policies/campaign-conductor.md`; it must comment with the blocker evidence.
 Promotion depends on review cadence. `paired-review` requires an open,
 non-draft, unmerged linked PR with required checks passing when policy requires
-them; Draft PRs remain blockers, and the next Coder/Test issue waits until the
-previous PR-producing issue and paired Reviewer are Done and the PR outcome is
-recorded as merged or explicitly abandoned. `final-audit` expects merged or
+them; paired-review PRs must be open, non-draft, unmerged, and passing required
+checks before the paired Reviewer issue may run. Draft PRs remain blockers, and
+the next Coder/Test issue waits until the previous PR-producing issue and
+paired Reviewer are Done and the PR outcome is recorded as merged or explicitly
+abandoned. `final-audit` expects merged or
 explicitly abandoned campaign PRs and must not require open PRs. Final-audit
 Reviewer promotion comments must say: "Promoted as final-audit Reviewer. Merged
 PRs are expected audit inputs." Paired-review Reviewer promotion comments must
@@ -316,7 +318,7 @@ CI uses Node.js 20. It installs dependencies with `npm ci` when `package-lock.js
 
 Use `.github/PULL_REQUEST_TEMPLATE.md` for PR descriptions and `ops/policies/level-1-agent-boundaries.md` for agent boundaries. Do not push directly to `main`, force push, start broad refactors, or include unrelated cleanup in a Level 1 PR.
 
-Harness smoke-test PRs should use an `agent/` branch, be opened as drafts with the PR template filled out, and remain unmerged until reviewed. Normal feature PRs may also stay Draft when that is the clearest review posture. Low-risk auto-merge candidate PRs and auto-merge burn-in PRs are different: Draft PRs are hard vetoes for auto-merge approval, so those PRs must be marked ready for review before the Coder session stops.
+Harness smoke-test PRs should use an `agent/` branch, may be opened as drafts while work is incomplete, and must have the PR template filled out before review. Normal feature PRs may also stay Draft when that is the clearest review posture for incomplete, exploratory, ordinary non-paired-review, validation-not-passed, or explicitly awaiting-author-completion work. Low-risk auto-merge candidate PRs, auto-merge burn-in PRs, and paired-review producer PRs with passing validation are different: Draft PRs are hard vetoes for auto-merge approval and paired-review approval, so those PRs must be marked ready for review before the Coder or Test session stops.
 
 ## Linear Label Taxonomy
 
@@ -456,7 +458,7 @@ Codex may pick only issues that are all of the following:
 
 Older `agent-ready` issues may exist in history, but new automation should use `automation-ready` plus one role, one type, one risk, and one validation profile label.
 
-When Codex starts a Level 2 issue, it must move the issue to `In Progress`, create a branch from `main`, make one scoped change, run `npm test`, `npm run build`, and `npm run lint`, commit, push, and open a draft PR against `main`. For an explicitly scoped auto-merge candidate or auto-merge burn-in PR, Codex must open the PR against `main`, ensure it is not Draft, fill PR metadata, run required validation, move the Linear issue to `In Review`, and stop without reviewing, labeling, or merging. After the PR is opened and the required draft or ready-for-review posture is set, Codex must move the Linear issue to `In Review`.
+When Codex starts a Level 2 issue, it must move the issue to `In Progress`, create a branch from `main`, make one scoped change, run `npm test`, `npm run build`, and `npm run lint`, commit, push, and open a PR against `main`. Draft is allowed while work is incomplete, exploratory, ordinary non-paired-review, validation has not passed, or the work explicitly awaits author completion. For an explicitly scoped auto-merge candidate, auto-merge burn-in PR, or paired-review producer PR with passing validation, Codex must ensure the PR is not Draft, fill PR metadata, run required validation, move the Linear issue to `In Review`, report the PR number, and stop without reviewing, labeling, or merging. After the PR is opened and the required draft or ready-for-review posture is set, Codex must move the Linear issue to `In Review`.
 
 Codex must not pick `Backlog` issues and must not move an issue to `Done` until the PR is merged or a human explicitly approves closing it.
 
@@ -611,7 +613,7 @@ Level 5 shakedown campaigns:
 - Expected queue: only the first Architect issue is `Todo` + `automation-ready`; follow-up Coder, Test, Reviewer, and Release issues stay Backlog with blocked-by relations until their dependencies or gates are cleared.
 - Burn-in reruns should keep each PR to one narrow docs, harness, or static-test surface so any gate failure is easy to trace.
 - Low-risk auto-merge shakedowns must stay limited to `risk:low` docs, harness, or test PRs, and any stop label remains a hard veto until a human operator resolves it.
-- Draft PRs are hard vetoes for auto-merge approval. Normal non-auto-merge feature PRs may still use Draft when appropriate, but low-risk auto-merge candidate PRs and auto-merge burn-in PRs must be marked ready for review before the Coder session stops.
+- Draft PRs are hard vetoes for auto-merge approval and paired-review approval. Normal non-auto-merge feature PRs may still use Draft when appropriate, but low-risk auto-merge candidate PRs, auto-merge burn-in PRs, and paired-review producer PRs with passing validation must be marked ready for review before the Coder or Test session stops.
 - A separate Reviewer-agent session must approve a low-risk auto-merge shakedown before a human applies `merge:auto-eligible`.
 - Auto-merge shakedowns are conclusive only when the PR stays open through independent Reviewer-agent approval, human-applied `merge:auto-eligible`, and GitHub auto-merge.
 - Include one intentionally gated movement placeholder with `type:movement`, `validation:movement`, `risk:human-only`, `human-only`, and `needs-human-approval`; it must not have `automation-ready`.

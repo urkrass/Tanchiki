@@ -28,7 +28,9 @@ Use this policy with `TASK_PROTOCOL.md`, `VALIDATION_MATRIX.md`, and `SAFETY_BOU
 ## Coder
 
 - Implements exactly one eligible issue.
-- Opens a draft PR against `main`.
+- Opens a PR against `main`; Draft is allowed for incomplete or non-paired
+  work, but paired-review producer PRs with passing validation must be ready
+  for review before stopping.
 - Runs the declared validation profile.
 - Does not implement other roles' work.
 - Does not mark issues `Done`.
