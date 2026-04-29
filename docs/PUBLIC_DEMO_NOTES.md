@@ -12,6 +12,8 @@ https://urkrass.github.io/Tanchiki/
 
 GitHub Pages deployment is configured, but the repository Pages setting must allow GitHub Actions deployment before the public URL is live.
 
+Until that setting is enabled, use the local fallback below as the expected demo verification path.
+
 Local fallback:
 
 ```powershell
