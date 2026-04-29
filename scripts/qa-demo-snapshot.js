@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createCampaignGame } from "../src/game.js";
 import { createInput } from "../src/input.js";
+import { createProgressionFeedback } from "../src/game/progressionFeedback.js";
 import { damageTarget } from "../src/game/targets.js";
+import { describeUpgradePanelContext } from "../src/upgradePanel.js";
 import {
   listSpriteImages,
   normalizeSpriteManifest,
@@ -23,9 +25,12 @@ const requiredSnapshotPaths = [
   "flow.opening.progression.xp",
   "flow.victory.mission.status",
   "flow.victory.mission.summary.nextAction",
+  "flow.victory.mission.progressionFeedback.rows",
   "flow.victory.upgradeChoice.pending",
+  "flow.victory.upgradeChoice.context",
   "flow.afterUpgrade.upgrade.applied",
   "flow.afterUpgrade.campaign.canAdvanceLevel",
+  "flow.afterUpgrade.mission.progressionFeedback.rows",
   "flow.nextLevel.campaign.currentLevelIndex",
   "flow.nextLevel.mission.status",
   "spriteAssets.manifest.status"
@@ -88,6 +93,7 @@ function createCampaignHarness() {
 function stateEvidence(game, input, extra = {}) {
   const debug = game.debugState();
   const snapshot = game.snapshot();
+  const progressionFeedback = createProgressionFeedback(snapshot);
 
   return {
     level: {
@@ -114,7 +120,8 @@ function stateEvidence(game, input, extra = {}) {
             enemiesDestroyed: debug.missionSummary.enemiesDestroyed,
             nextAction: debug.missionSummary.nextAction
           }
-        : null
+        : null,
+      progressionFeedback
     },
     player: {
       gridX: debug.player.gridX,
@@ -136,6 +143,9 @@ function stateEvidence(game, input, extra = {}) {
     upgradeChoice: {
       pending: snapshot.upgradeChoice.pending,
       availableUpgradePoints: snapshot.upgradeChoice.availableUpgradePoints,
+      context: snapshot.upgradeChoice.pending
+        ? describeUpgradePanelContext(snapshot)
+        : "",
       choices: snapshot.upgradeChoice.choices.map((choice) => ({
         id: choice.id,
         rankLabel: choice.rankLabel,
