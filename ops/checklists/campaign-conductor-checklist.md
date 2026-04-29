@@ -31,6 +31,7 @@ Use this checklist for one Campaign Conductor run.
 - [ ] Confirm the candidate has exactly one `risk:*` label or an explicitly repairable omission.
 - [ ] Confirm the candidate has exactly one `validation:*` label or an explicitly repairable omission.
 - [ ] Repair a missing Level 5 label only when the exact label appears in the issue body.
+- [ ] Record the exact issue-body line used for any metadata repair in the promotion comment.
 - [ ] Do not guess labels from title, neighboring issues, project defaults, or prior campaigns.
 - [ ] Confirm the candidate has no `needs-human-approval`.
 - [ ] Confirm the candidate has no `human-only`.
