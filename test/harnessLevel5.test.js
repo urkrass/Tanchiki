@@ -565,6 +565,18 @@ test("Reviewer App token helper documents local-only temporary GitHub App identi
     "merge PRs",
     "apply `merge:auto-eligible`",
     "remove stop labels",
+    "## Daily Identity Ritual",
+    "Coder session:",
+    "normal GitHub identity",
+    "Do not load the Reviewer",
+    "Reviewer session:",
+    "only for Reviewer-agent PR inspection, comments, and reviews",
+    "Cleanup after review:",
+    "Remove-Item Env:\\GH_TOKEN -ErrorAction SilentlyContinue",
+    "Human merge-label session:",
+    "return to the normal GitHub identity",
+    "Secrets, `.pem` files, local env files, and generated installation tokens stay",
+    "Reviewer App remains review/comment only",
   ]) {
     assert.match(readme, new RegExp(escapeRegExp(expected)));
   }
