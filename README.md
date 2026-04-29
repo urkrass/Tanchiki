@@ -60,6 +60,7 @@ The smoke runner starts or reuses the local demo at `http://127.0.0.1:5173`, lau
 It contains:
 
 - `CODEX_HANDOFF.md` - project brief and constraints.
+- `HARNESS_MISSION.md` - short statement of the harness training purpose.
 - `ARCHITECTURE.md` - current module ownership and extension points.
 - `TASK_PROTOCOL.md` - Linear, branch, PR, CI, review, merge, and Done rules.
 - `VALIDATION_MATRIX.md` - role/type/risk/validation requirements.
