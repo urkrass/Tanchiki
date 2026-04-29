@@ -64,6 +64,8 @@ It contains:
 - `TASK_PROTOCOL.md` - Linear, branch, PR, CI, review, merge, and Done rules.
 - `VALIDATION_MATRIX.md` - role/type/risk/validation requirements.
 - `SAFETY_BOUNDARIES.md` - protected files, human gates, and repository safety rules.
+- `ops/policies/context-economy.md` - campaign and issue context-pack policy.
+- `ops/checklists/context-pack-checklist.md` - context-pack safety checklist.
 - `prompts/CODEX_START_PROMPT.md` - first prompt to paste into Codex.
 - `docs/ASSET_PIPELINE.md` - recommended sprite/tileset pipeline.
 - `assets/style_reference_sprite_sheet.png` - visual style reference only, not yet a clean production sprite sheet.
@@ -247,6 +249,17 @@ Level 6 source-of-truth docs:
 - `SAFETY_BOUNDARIES.md`
 - `ops/policies/`
 - `ops/checklists/`
+
+Context economy source-of-truth docs:
+
+- `ops/policies/context-economy.md`
+- `ops/checklists/context-pack-checklist.md`
+
+Context packs may summarize campaign and issue context so agents avoid repeated
+rediscovery. They are not a substitute for safety-critical docs. Token saving
+must not skip Level 5 metadata, validation, PR metadata, review cadence,
+changed-file scrutiny, or human gates. `model_hint` values are advisory only and
+cannot override role/type/risk/validation labels.
 
 Normal dispatcher prompt:
 

@@ -121,6 +121,21 @@ Docs and harness changes also require:
 git diff --check
 ```
 
+## Context Economy
+
+Campaigns may use context packs to reduce repeated context rebuilding, but
+context packs do not replace the authoritative protocol docs. Use
+`ops/policies/context-economy.md` and
+`ops/checklists/context-pack-checklist.md` for campaign and issue context pack
+templates, role-specific context budgets, context refresh rules, and advisory
+`model_hint` guidance.
+
+Token saving must never be used to skip required safety docs, Level 5 metadata,
+validation, PR metadata, review cadence, changed-file scrutiny, or human gates.
+Broad repo scans are allowed when safety or ambiguity requires them, but the
+agent must record the reason in Linear, the PR body, the review note, or the
+final summary.
+
 ## Pull Requests
 
 Open a PR against `main`. Draft PRs are allowed while work is incomplete, for
