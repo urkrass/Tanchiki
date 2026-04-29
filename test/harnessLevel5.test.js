@@ -393,6 +393,8 @@ test("campaign conductor reviewer and burn-in gates remain conservative", () => 
     "If the PR is Draft, do not promote",
     "The Conductor must not apply `merge:auto-eligible`.",
     "Human must apply `merge:auto-eligible` using normal GitHub identity.",
+    "If a prior burn-in result was inconclusive but the campaign continues",
+    "cite the explicit operator continuation record in the promotion comment",
     "remove human gate labels or PR stop labels",
   ]) {
     assert.match(`${policy}\n${checklist}\n${protocol}\n${safety}\n${readme}\n${validation}`, new RegExp(escapeRegExp(expected)));
