@@ -893,6 +893,79 @@ test("reviewer decision vocabulary differs by review cadence", () => {
   }
 });
 
+test("context economy docs protect context packs and safety context", () => {
+  const policy = readRepoFile("ops", "policies", "context-economy.md");
+  const checklist = readRepoFile("ops", "checklists", "context-pack-checklist.md");
+  const protocol = readRepoFile("TASK_PROTOCOL.md");
+  const combined = `${policy}\n${checklist}\n${protocol}`;
+
+  for (const expected of [
+    "A campaign context pack is a compact, durable summary for one multi-issue",
+    "An issue context pack is the smallest safe slice needed to run one role.",
+    "Role-Specific Context Budgets",
+    "Safety-critical docs cannot be skipped. Token saving never overrides",
+    "Token saving is not used to skip `TASK_PROTOCOL.md`.",
+    "Token saving is not used to skip `VALIDATION_MATRIX.md`.",
+    "Token saving is not used to skip `SAFETY_BOUNDARIES.md`.",
+    "Broad repo scans require a recorded reason",
+    "The reason for any broad repo scan is recorded in Linear, the PR body",
+    "templates, role-specific context budgets, context refresh rules, and advisory",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("context economy role prompts start from bounded role inputs", () => {
+  const contextPolicy = readRepoFile("ops", "policies", "context-economy.md");
+  const contextChecklist = readRepoFile("ops", "checklists", "context-pack-checklist.md");
+  const coderPrompt = readRepoFile("ops", "prompts", "coder-agent.md");
+  const testPrompt = readRepoFile("ops", "prompts", "test-agent.md");
+  const reviewerPrompt = readRepoFile("ops", "prompts", "reviewer-agent.md");
+  const releasePrompt = readRepoFile("ops", "prompts", "release-agent.md");
+  const combined = [
+    contextPolicy,
+    contextChecklist,
+    coderPrompt,
+    testPrompt,
+    reviewerPrompt,
+    releasePrompt,
+  ].join("\n");
+
+  for (const expected of [
+    "Start from the issue context pack, listed files, required safety docs, and",
+    "Read the relevant issue, issue context pack, campaign context pack, PR diff",
+    "Start from PR diff, linked issue, context pack, validation evidence, and PR",
+    "Start from merged PR summaries, Linear comments, campaign context pack, and",
+    "Token saving must never reduce diff scrutiny.",
+    "Reviewer starts from PR diff, linked issue, context pack, validation",
+    "Coder starts from issue context pack, listed files, required safety docs",
+    "Release starts from merged PR summaries, Linear comments, campaign",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("context economy planning and routing prompts preserve pack boundaries", () => {
+  const planner = readRepoFile("ops", "prompts", "planner-agent.md");
+  const groomer = readRepoFile("ops", "prompts", "campaign-groomer.md");
+  const plannerRequest = readRepoFile("prompts", "codex-plan-campaign-request.md");
+  const dispatcher = readRepoFile("prompts", "codex-next.md");
+  const conductor = readRepoFile("prompts", "codex-conduct-campaign.md");
+  const combined = `${planner}\n${groomer}\n${plannerRequest}\n${dispatcher}\n${conductor}`;
+
+  for (const expected of [
+    "Create a campaign context pack",
+    "Keep issue context packs concise. Reference the campaign context pack instead of repeating broad repo process text.",
+    "Ensure the campaign has a campaign context pack attached or clearly referenced",
+    "Each issue context pack should be minimal and role-specific.",
+    "Use the issue context pack and campaign context pack when present.",
+    "Use the campaign context pack and issue context packs when present, but do not use them to skip campaign order, blockers, PR readiness, safety docs, or Level 5 metadata checks.",
+    "Record a reason before broad repo scans.",
+  ]) {
+    assert.match(combined, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 test("model routing policy defines allowed hints and downgrade stop rules", () => {
   const modelRouting = readRepoFile("ops", "policies", "model-routing.md");
   const contextEconomy = readRepoFile("ops", "policies", "context-economy.md");
