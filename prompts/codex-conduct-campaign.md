@@ -8,6 +8,9 @@ Active Linear project:
 Run the Tanchiki Campaign Conductor for the active campaign.
 Inspect only the declared active project.
 Inspect campaign state.
+Start from `ops/context-manifest.md`, then load the Conductor-specific context,
+campaign order, issue states, blockers, review cadence, and PR readiness
+evidence required by the manifest.
 Inspect the campaign review cadence before any promotion by checking campaign notes, issue descriptions, grooming notes, and Architect comments for `review_cadence: final-audit`, `review_cadence: paired-review`, or `review_cadence: let-architect-decide`.
 Use the campaign context pack and issue context packs when present, but do not use them to skip campaign order, blockers, PR readiness, safety docs, or Level 5 metadata checks.
 Stop if the current model is below the required `model_hint` and no human downgrade approval is recorded.
@@ -38,6 +41,7 @@ Review cadence rules:
 
 Follow:
 
+- `ops/context-manifest.md`
 - `ops/prompts/campaign-conductor.md`
 - `ops/policies/campaign-conductor.md`
 - `ops/policies/context-economy.md`

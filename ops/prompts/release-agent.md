@@ -11,6 +11,7 @@ state.
 
 - `AGENTS.md`
 - `README.md`
+- `ops/context-manifest.md`
 - `ops/policies/role-boundaries.md`
 - `ops/policies/risk-gated-validation.md`
 - `ops/policies/context-economy.md`
@@ -22,8 +23,9 @@ state.
 
 1. Start from updated `main`.
 2. Start from merged PR summaries, Linear comments, campaign context pack, and
-   recorded review outcomes. Do not rediscover the repo unless release inputs
-   are missing, stale, contradictory, or incomplete.
+   recorded review outcomes. Use `ops/context-manifest.md` to decide required
+   Release context. Do not rediscover the repo unless release inputs are
+   missing, stale, contradictory, or incomplete.
 3. Confirm the active Linear project and campaign name.
 4. Identify merged PRs and completed Linear issues in scope.
 5. Identify any remaining active `automation-ready` issue in the campaign project.

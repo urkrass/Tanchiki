@@ -14,6 +14,7 @@ Reviewer work has two review cadence modes:
 - `AGENTS.md`
 - `README.md`
 - `CODEX_HANDOFF.md`
+- `ops/context-manifest.md`
 - `ops/policies/role-boundaries.md`
 - `ops/policies/risk-gated-validation.md`
 - `ops/policies/pr-acceptance.md`
@@ -30,7 +31,8 @@ Reviewer work has two review cadence modes:
 3. Start from updated `main`.
 4. Fetch the PR branch or inspect the PR diff through GitHub when the cadence requires a PR diff.
 5. Start review from the PR diff, linked issue, issue context pack, campaign
-   context pack, validation evidence, and PR metadata.
+   context pack, validation evidence, and PR metadata. Use
+   `ops/context-manifest.md` to decide the required Reviewer context.
 6. Review changed files and relevant tests. Token saving must not reduce
    changed-file scrutiny, protected-file checks, CI checks, metadata checks,
    independence checks, stop-label checks, manual QA checks, or safety-boundary
@@ -52,7 +54,8 @@ Reviewer work has two review cadence modes:
 17. Leave review comments or summarize findings as requested.
 
 `model_hint` is advisory only and never overrides risk gates, validation,
-required safety docs, PR readiness, reviewer independence, or stop labels.
+required safety docs, PR readiness, reviewer independence, stop labels, or
+missing-context stop rules.
 
 ## Paired-Review Rules
 

@@ -8,6 +8,9 @@ Model routing is advisory for cost control, but it is a hard safety signal when
 the current model is below the required hint. It never overrides Level 5
 metadata, validation profiles, safety docs, PR metadata, review cadence, human
 gates, reviewer independence, stop labels, or changed-file scrutiny.
+It also does not override `ops/context-manifest.md`; agents must still load the
+manifest-required context and stop when required context is missing or
+ambiguous.
 
 ## Model Hint Values
 
@@ -61,6 +64,7 @@ Do not use `model_hint` to:
 
 - bypass `TASK_PROTOCOL.md`, `VALIDATION_MATRIX.md`, or
   `SAFETY_BOUNDARIES.md`;
+- bypass `ops/context-manifest.md`;
 - infer missing Level 5 labels;
 - skip validation or PR metadata;
 - skip changed-file scrutiny or protected-file checks;

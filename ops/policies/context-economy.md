@@ -8,6 +8,11 @@ Context economy is an input-shaping aid. It is not authority to skip required
 docs, ignore changed-file risk, bypass validation, shorten PR metadata, remove
 human gates, or override the current Linear issue.
 
+`ops/context-manifest.md` is the short-prompt context-loading source of truth.
+Context packs should point agents to the manifest and the narrow role-specific
+docs they need; they must not replace the manifest, safety-critical docs,
+current Linear state, PR state, or current user instructions.
+
 ## Campaign Context Pack
 
 A campaign context pack is a compact, durable summary for one multi-issue
@@ -148,7 +153,8 @@ Context packs must keep these sources visible and mandatory when relevant:
 
 Safety-critical docs cannot be skipped. Token saving never overrides
 validation, PR metadata, safety boundaries, review cadence, changed-file risk,
-or human gates.
+stop labels, or human gates. Missing, stale, ambiguous, or contradictory
+required context is a stop condition.
 
 ## Context To Avoid Unless Needed
 

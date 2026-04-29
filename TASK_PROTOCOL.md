@@ -182,7 +182,9 @@ git diff --check
 ## Context Economy
 
 Campaigns may use context packs to reduce repeated context rebuilding, but
-context packs do not replace the authoritative protocol docs. Use
+context packs do not replace the authoritative protocol docs. Short prompts
+must start from `ops/context-manifest.md`, then load the role-specific docs and
+current Linear/GitHub state required by the issue. Use
 `ops/policies/context-economy.md`, `ops/policies/model-routing.md`,
 `ops/checklists/context-pack-checklist.md`, and
 `ops/checklists/model-routing-checklist.md` for campaign and issue context pack
@@ -193,7 +195,8 @@ Token saving must never be used to skip required safety docs, Level 5 metadata,
 validation, PR metadata, review cadence, changed-file scrutiny, or human gates.
 Broad repo scans are allowed when safety or ambiguity requires them, but the
 agent must record the reason in Linear, the PR body, the review note, or the
-final summary.
+final summary. If required context is missing, stale, ambiguous, or
+contradictory, stop for human or operator triage instead of guessing.
 
 Allowed hints are `model_hint: frontier`, `model_hint: cheap`,
 `model_hint: local-ok`, and `model_hint: human-only`. Agents must stop if the

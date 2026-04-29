@@ -29,6 +29,7 @@ If a dependency chain exposes more than one `Todo` + `automation-ready` implemen
 - `AGENTS.md`
 - `README.md`
 - `CODEX_HANDOFF.md`
+- `ops/context-manifest.md`
 - `ops/policies/role-boundaries.md`
 - `ops/policies/risk-gated-validation.md`
 - `ops/policies/context-economy.md`
@@ -46,7 +47,8 @@ If a dependency chain exposes more than one `Todo` + `automation-ready` implemen
 5. Start from updated `main`.
 6. Start implementation context from the issue body, issue context pack,
    campaign context pack, listed files, required safety docs for the issue
-   risk/type, and direct blocker or paired-review notes.
+   risk/type, and direct blocker or paired-review notes. Use
+   `ops/context-manifest.md` to decide which role-specific context is required.
 7. Inspect recent merged PRs or git history for conflict risk when the issue,
    context pack, or central-file risk calls for it. Record the reason before a
    broad repo scan.
@@ -71,7 +73,7 @@ npm run lint
 
 `model_hint` values from context packs are advisory only. They do not change
 the selected role, risk, validation profile, safety docs, PR metadata, review
-cadence, or human gates.
+cadence, stop labels, missing-context stop rules, or human gates.
 
 ## Paired-Review PR Readiness
 

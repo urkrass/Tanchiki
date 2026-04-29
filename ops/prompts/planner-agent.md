@@ -15,6 +15,7 @@ Before creating issues, read:
 - `CODEX_HANDOFF.md`
 - `AGENTS.md`
 - `README.md`
+- `ops/context-manifest.md`
 - `ops/policies/planner-boundaries.md`
 - `ops/policies/campaign-execution.md`
 - `ops/policies/risk-gated-validation.md`
@@ -82,7 +83,11 @@ Before creating issues, read:
 31. Keep Coder issues Backlog with blocked-by relations until Architect and human gates are done unless the user explicitly asked for Coder to run first.
 32. Stop after posting the final groomed queue summary.
 
-`model_hint` is advisory only. It must not override role/type/risk labels, validation profiles, PR metadata, human gates, review cadence, safety docs, or the requirement to justify broad repo scans.
+Use `ops/context-manifest.md` as the source of truth for short-prompt context
+loading and role-specific required context. `model_hint` is advisory only. It
+must not override role/type/risk labels, validation profiles, PR metadata,
+human gates, review cadence, safety docs, missing-context stop rules, or the
+requirement to justify broad repo scans.
 
 ## Review Cadence Modes
 
