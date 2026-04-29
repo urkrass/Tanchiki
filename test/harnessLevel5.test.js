@@ -679,20 +679,30 @@ test("daily identity ritual keeps coder reviewer and human merge identities sepa
   const readme = readRepoFile("README.md");
 
   for (const expected of [
+    "Before starting, decide which role this shell is serving.",
+    "A shell should be a",
+    "human merge-label shell, not a mix of those",
     "Coder session:",
     "use the normal GitHub identity",
     "Do not load the Reviewer",
     "do not use a Reviewer App `GH_TOKEN` while coding",
     "pushing branches",
     "opening PRs",
+    "If `GH_TOKEN` is set",
+    "from a prior review, clear it first:",
     "Reviewer session:",
     "only for Reviewer-agent PR inspection, comments, and reviews",
+    "Verify access",
+    "`gh api installation/repositories` before review",
     "Cleanup after review:",
     "Remove-Item Env:\\GH_TOKEN -ErrorAction SilentlyContinue",
     "Human merge-label session:",
     "return to the normal GitHub identity before",
     "applying `merge:auto-eligible`",
     "merging",
+    "Reviewer App credentials must not perform those actions.",
+    "verify the normal",
+    "identity before any label or merge action.",
   ]) {
     assert.match(readme, new RegExp(escapeRegExp(expected)));
   }
@@ -702,6 +712,7 @@ test("reviewer app routine statically guards forbidden merge and secret handling
   const script = readRepoFile("scripts", "reviewer-app-token.js");
   const readme = readRepoFile("README.md");
   const safety = readRepoFile("SAFETY_BOUNDARIES.md");
+  const gitignore = readRepoFile(".gitignore");
   const combinedRoutineText = `${script}\n${readme}\n${safety}`;
 
   for (const expected of [
@@ -727,6 +738,10 @@ test("reviewer app routine statically guards forbidden merge and secret handling
     "`GH_TOKEN`",
   ]) {
     assert.match(combinedRoutineText, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of ["*.pem", "reviewer-env.ps1", ".env", ".env.*"]) {
+    assert.match(gitignore, new RegExp(`^${escapeRegExp(expected)}$`, "m"));
   }
 });
 
