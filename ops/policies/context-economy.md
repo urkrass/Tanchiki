@@ -250,6 +250,21 @@ Dispatcher:
   label, no stop or human gate labels, and no unresolved blockers.
 - Stop on ambiguity instead of filling gaps from context-pack assumptions.
 
+Dry-run model router:
+
+- Inspect one next eligible issue or a manually supplied metadata fixture and
+  print advisory launch instructions only.
+- Do not execute agents, run Dispatcher, run Campaign Conductor, edit files,
+  open PRs, apply labels, remove labels, mark issues Done, merge, enable
+  auto-merge, or call a model-executing runner.
+- Refuse incomplete or ambiguous metadata instead of guessing from surrounding
+  context.
+- Preserve Campaign Conductor and Dispatcher separation; the router may
+  recommend a prompt as the next human action but must not invoke it.
+- Require Reviewer App identity for Reviewer issues that inspect PRs, normal
+  GitHub identity for ordinary repository work, and human-only identity for
+  gates or human-only lanes.
+
 ## Model Hints
 
 Use one explicit `model_hint` value in campaign and issue context packs:
