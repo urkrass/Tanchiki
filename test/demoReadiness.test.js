@@ -7,6 +7,8 @@ import { damageTarget } from "../src/game/targets.js";
 import { describeUpgradePanelContext } from "../src/upgradePanel.js";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const mainSource = readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
+const stylesSource = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 const step = 1 / 60;
 
 test("first public demo page keeps objective, controls, and live status visible", () => {
@@ -67,6 +69,35 @@ test("demo campaign exposes readable mission status for the opening minute", () 
   assert.match(status, /Space fires in the direction you face/);
   assert.match(status, /Enemy base HP 6\/6/);
   assert.match(status, /Collect \+, A, and S pickups when safe/);
+});
+
+test("HUD renderer keeps mission status in compact panel semantics", () => {
+  assert.match(mainSource, /function renderMissionStatus\(snapshot, statusText\)/);
+  assert.match(mainSource, /status\.replaceChildren\(/);
+  assert.match(mainSource, /createElement\("span", "status__summary", statusText\)/);
+  assert.match(mainSource, /createElement\("div", "status__header"/);
+  assert.match(mainSource, /createElement\("span", "status__kicker", `Mission \$\{missionNumber\}\/\$\{levelCount\}`\)/);
+  assert.match(mainSource, /createElement\("strong", "status__title", missionLabel\)/);
+  assert.match(mainSource, /createElement\("span", "status__objective", "Destroy enemy base"\)/);
+  assert.match(mainSource, /createElement\("div", "status__chips"/);
+  assert.match(mainSource, /createStatusChip\("hp", "HP", `\$\{snapshot\.player\.hp\}\/\$\{snapshot\.player\.maxHp\}`\)/);
+  assert.match(mainSource, /createStatusChip\("enemy", "Enemies", String\(liveEnemyTanks\)\)/);
+  assert.match(mainSource, /createStatusChip\(\s*"base",\s*"Base"/);
+  assert.match(mainSource, /createStatusChip\("mission", "Level", `\$\{missionNumber\}\/\$\{levelCount\}`\)/);
+  assert.match(mainSource, /cooldownMs > 0 \? `Reload \$\{cooldownMs\}ms` : "Space to fire"/);
+  assert.match(mainSource, /createElement\("div", "status__badges"/);
+});
+
+test("HUD styles preserve chip layout and narrow-screen readability hooks", () => {
+  assert.match(stylesSource, /\.status__summary\s*\{[\s\S]*position: absolute;[\s\S]*width: 1px;/);
+  assert.match(stylesSource, /\.status__header\s*\{[\s\S]*grid-template-columns: auto minmax\(0, 1fr\) auto;/);
+  assert.match(stylesSource, /\.status__chips\s*\{[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
+  assert.match(stylesSource, /\.status-chip\s*\{[\s\S]*grid-template-columns: 22px 1fr;/);
+  assert.match(stylesSource, /\.status-chip--hp \.status-chip__icon/);
+  assert.match(stylesSource, /\.status-chip--enemy \.status-chip__icon/);
+  assert.match(stylesSource, /\.status-chip--base \.status-chip__icon/);
+  assert.match(stylesSource, /\.status__badges\s*\{[\s\S]*flex-wrap: wrap;/);
+  assert.match(stylesSource, /@media \(max-width: 560px\) \{[\s\S]*\.status__chips\s*\{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
 });
 
 function createCampaignHarness(options = {}) {
