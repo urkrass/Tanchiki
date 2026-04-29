@@ -599,6 +599,56 @@ test("Reviewer App token helper documents local-only temporary GitHub App identi
   }
 });
 
+test("daily identity ritual keeps coder reviewer and human merge identities separate", () => {
+  const readme = readRepoFile("README.md");
+
+  for (const expected of [
+    "Coder session:",
+    "use the normal GitHub identity",
+    "Do not load the Reviewer",
+    "do not use a Reviewer App `GH_TOKEN` while coding",
+    "pushing branches",
+    "opening PRs",
+    "Reviewer session:",
+    "only for Reviewer-agent PR inspection, comments, and reviews",
+    "Cleanup after review:",
+    "Remove-Item Env:\\GH_TOKEN -ErrorAction SilentlyContinue",
+    "Human merge-label session:",
+    "return to the normal GitHub identity before",
+    "applying `merge:auto-eligible`",
+    "merging",
+  ]) {
+    assert.match(readme, new RegExp(escapeRegExp(expected)));
+  }
+});
+
+test("reviewer app routine statically guards forbidden merge and secret handling actions", () => {
+  const script = readRepoFile("scripts", "reviewer-app-token.js");
+  const readme = readRepoFile("README.md");
+  const safety = readRepoFile("SAFETY_BOUNDARIES.md");
+  const combinedRoutineText = `${script}\n${readme}\n${safety}`;
+
+  for (const expected of [
+    "Forbidden with this Reviewer App token:",
+    "merging PRs",
+    "applying merge:auto-eligible",
+    "removing stop labels",
+    "changing workflows, repo settings, branch protection, or secrets",
+    "must not push code",
+    "merge PRs",
+    "apply `merge:auto-eligible`",
+    "remove stop labels",
+    "Secrets, `.pem` files, local env files, and generated installation tokens stay",
+    "private key stay outside the repository",
+    "private key contents will not be printed",
+    "never writes the token or private key to disk",
+    "generated installation tokens must stay temporary in the current shell through",
+    "`GH_TOKEN`",
+  ]) {
+    assert.match(combinedRoutineText, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
