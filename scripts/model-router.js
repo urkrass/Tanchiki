@@ -79,12 +79,10 @@ export function routeIssue(metadata) {
     validateReviewerPr(stopConditions, issue);
   }
 
-  const recommendedModelClass = chooseModelClass(issue, {
-    role,
-    type,
-    risk,
-    validation,
-  });
+  const routingLabels = { role, type, risk, validation };
+  addModelHintConflict(stopConditions, issue, routingLabels);
+
+  const recommendedModelClass = chooseModelClass(issue, routingLabels);
   const requiredIdentity = chooseIdentity(issue, role);
   const recommendedPrompt = choosePrompt(issue, role);
 
@@ -162,15 +160,7 @@ function chooseModelClass(issue, labels) {
   if (issue.modelHint === "human-only" || labels.risk === "human-only") {
     return "human-only";
   }
-  if (
-    issue.modelHint === "frontier" ||
-    labels.risk === "medium" ||
-    labels.risk === "high" ||
-    labels.type === "movement" ||
-    labels.role === "architect" ||
-    labels.role === "reviewer" ||
-    isTrustBoundary(issue, labels)
-  ) {
+  if (issue.modelHint === "frontier" || requiresFrontier(issue, labels)) {
     return "frontier";
   }
   if (issue.modelHint === "local-ok" && labels.risk === "low" && isLowCostLane(labels)) {
@@ -180,6 +170,26 @@ function chooseModelClass(issue, labels) {
     return "cheap";
   }
   return "frontier";
+}
+
+function addModelHintConflict(stopConditions, issue, labels) {
+  if (!["cheap", "local-ok"].includes(issue.modelHint)) {
+    return;
+  }
+  if (labels.risk !== "low" || !isLowCostLane(labels) || requiresFrontier(issue, labels)) {
+    stopConditions.push("model_hint conflicts with role/type/risk/validation");
+  }
+}
+
+function requiresFrontier(issue, labels) {
+  return (
+    labels.risk === "medium" ||
+    labels.risk === "high" ||
+    labels.type === "movement" ||
+    labels.role === "architect" ||
+    labels.role === "reviewer" ||
+    isTrustBoundary(issue, labels)
+  );
 }
 
 function choosePrompt(issue, role) {
