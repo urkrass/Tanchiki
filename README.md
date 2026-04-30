@@ -146,43 +146,56 @@ The local Reviewer App environment and private key stay outside the repository:
 C:\Users\Legion\.config\tanchiki-reviewer-app\
 ```
 
-Load the local environment, then start the v3 Reviewer App session helper:
+Load the local environment, then run each Reviewer App GitHub command through
+the token-scoped runner:
 
 ```powershell
 . "$env:USERPROFILE\.config\tanchiki-reviewer-app\reviewer-env.ps1"
-npm run reviewer:session
+npm run reviewer:with-token -- gh api installation/repositories --jq ".repositories[].full_name"
 ```
 
 Equivalent direct command:
 
 ```powershell
-node scripts/reviewer-session.js
+node scripts/reviewer-with-token.js gh api installation/repositories --jq ".repositories[].full_name"
 ```
 
-The helper prints a numbered one-command prep flow. It verifies
+The runner verifies
 `GITHUB_REVIEWER_APP_ID`, `GITHUB_REVIEWER_INSTALLATION_ID`, and
-`GITHUB_REVIEWER_PRIVATE_KEY_PATH`, confirms the private key path exists, stops
-if the key resolves inside the repository checkout, warns if `GH_TOKEN` is
-already set, generates a short-lived installation token, prints the exact
-current-shell PowerShell assignment for `GH_TOKEN`, prints safe verification
-commands, prints the Reviewer App Dispatcher short prompt, prints forbidden
-authority boundaries, and prints cleanup. It never writes the token or private key to disk.
+`GITHUB_REVIEWER_PRIVATE_KEY_PATH`, confirms the private key path exists,
+generates a short-lived installation token, and spawns the requested `gh`
+command with `GH_TOKEN` set only in that child process. It does not export
+`GH_TOKEN` into the parent shell, print the token, print the private key, or
+write the token to disk.
 
-Copy and paste the printed command into the same PowerShell session:
+Target command shape:
 
 ```powershell
-$env:GH_TOKEN = '<short-lived-token>'
+npm run reviewer:with-token -- <command>
 ```
 
-`GH_TOKEN` is temporary for the current shell. GitHub App installation access
-tokens expire after one hour, so rerun the helper for future Reviewer sessions.
-
-Run the safe verification commands before Reviewer-agent GitHub operations:
+Allowed examples:
 
 ```powershell
-gh api installation/repositories --jq '.repositories[].full_name'
-gh api repos/urkrass/Tanchiki --jq '.full_name'
-gh pr view <PR_NUMBER> --repo urkrass/Tanchiki --json number,title,state,isDraft,baseRefName,headRefName
+npm run reviewer:with-token -- gh auth status
+npm run reviewer:with-token -- gh api installation/repositories --jq ".repositories[].full_name"
+npm run reviewer:with-token -- gh pr view <PR_NUMBER> --repo urkrass/Tanchiki
+npm run reviewer:with-token -- gh pr diff <PR_NUMBER> --repo urkrass/Tanchiki
+npm run reviewer:with-token -- gh pr checks <PR_NUMBER> --repo urkrass/Tanchiki
+npm run reviewer:with-token -- gh pr review <PR_NUMBER> --comment --body "Reviewer App smoke test"
+```
+
+`gh pr review <PR_NUMBER> --approve ...` is allowed only when the Reviewer
+policy allows approval. The runner refuses obvious forbidden command patterns,
+including `gh pr merge`, `gh pr edit`, `gh issue edit`, `gh label`, `git push`,
+`git commit`, `git tag`, `git reset`, and commands containing
+`merge:auto-eligible`. It also refuses non-`gh` commands and write-shaped
+`gh api` invocations so it does not become a general automation bypass.
+
+Manual smoke test before Reviewer-agent GitHub operations:
+
+```powershell
+npm run reviewer:with-token -- gh api installation/repositories --jq ".repositories[].full_name"
 ```
 
 `gh api user` may fail or report no user identity because an installation token
@@ -190,9 +203,22 @@ represents the GitHub App installation, not the normal `urkrass` user account.
 Use `gh auth status` as a diagnostic or after-cleanup check, not as the primary
 proof of Reviewer App installation access.
 
-Use the Reviewer App Dispatcher prompt printed by the helper for paired-review
-PR acceptance sessions. The helper only prints the prompt; it does not call
-Dispatcher automatically.
+The session helper remains available as a prompt/checklist helper:
+
+```powershell
+npm run reviewer:session
+```
+
+Equivalent direct prompt helper:
+
+```powershell
+node scripts/reviewer-session.js
+```
+
+It prints the token-scoped command examples, safe verification commands,
+Reviewer App Dispatcher short prompt, forbidden authority boundaries, and
+cleanup guidance. It does not generate or print a token, export `GH_TOKEN`, call
+Dispatcher automatically, run `gh`, push, label, or merge.
 
 The lower-level token helper remains available for diagnostics:
 
@@ -200,13 +226,16 @@ The lower-level token helper remains available for diagnostics:
 node scripts/reviewer-app-token.js
 ```
 
+It can verify the token exchange, but it does not print the token or a
+PowerShell assignment.
+
 Real acceptance test:
 
 1. Create or use a tiny open PR.
-2. Load `reviewer-env.ps1`, run `npm run reviewer:session`, and set `GH_TOKEN`
-   from the printed PowerShell command.
-3. Submit a PR review or comment using `gh` with that `GH_TOKEN`.
-4. Confirm GitHub shows the review or comment as the Tanchiki Reviewer GitHub
+2. Load `reviewer-env.ps1`.
+3. Run the manual smoke test through `npm run reviewer:with-token --`.
+4. Submit a PR review or comment using `npm run reviewer:with-token -- gh pr review ...`.
+5. Confirm GitHub shows the review or comment as the Tanchiki Reviewer GitHub
    App identity, not the normal `urkrass` user.
 
 The Reviewer App may read PRs, inspect changed files, submit PR reviews,
@@ -237,15 +266,17 @@ gh auth status
 ```
 
 2. **Reviewer session:** load `reviewer-env.ps1`, run
-   `npm run reviewer:session` or `node scripts/reviewer-session.js`, and use
-   the printed `GH_TOKEN` command only for Reviewer-agent PR inspection, comments, and reviews.
+   `npm run reviewer:session` if you need the prompt checklist, then run
+   Reviewer App GitHub operations through `npm run reviewer:with-token --`.
+   Use it only for Reviewer-agent PR inspection, comments, and reviews.
    Verify access with the safe commands printed by the helper before review
    work. At minimum, run
-   `gh api installation/repositories --jq '.repositories[].full_name'` before
-   review work, then use the printed Reviewer App Dispatcher short prompt for
+   `npm run reviewer:with-token -- gh api installation/repositories --jq ".repositories[].full_name"`
+   before review work, then use the printed Reviewer App Dispatcher short prompt for
    one linked paired-review PR.
-3. **Cleanup after review:** clear the token from the current shell before
-   doing any Coder or human merge-label work:
+3. **Cleanup after review:** the token-scoped runner does not set `GH_TOKEN` in
+   the parent shell. If `GH_TOKEN` was set manually or by an older helper flow,
+   clear it before any Coder or human merge-label work:
 
 ```powershell
 Remove-Item Env:\GH_TOKEN -ErrorAction SilentlyContinue

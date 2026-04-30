@@ -51,12 +51,13 @@ comments, but must not remove stop labels from active PRs. A human operator must
 remove PR stop labels manually unless a future gate-management automation is
 explicitly approved.
 
-The local Tanchiki Reviewer GitHub App token helper is only for Reviewer-agent
-identity during PR inspection and comments. Its private key and environment file
-must remain outside the repo under the operator's local config directory, and
-generated installation tokens must stay temporary in the current shell through
-`GH_TOKEN`. Reviewer App credentials must not be committed, printed, written to
-repo files, or reused for pushing code, merging PRs, applying
+The local Tanchiki Reviewer GitHub App token-scoped runner is only for
+Reviewer-agent identity during PR inspection and comments. Its private key and
+environment file must remain outside the repo under the operator's local config
+directory, and generated installation tokens must stay temporary in the child
+process environment through `GH_TOKEN`. Reviewer App credentials must not be
+committed, printed, written to repo files, exported into the operator shell, or
+reused for pushing code, merging PRs, applying
 `merge:auto-eligible`, removing stop labels, changing workflows, changing repo
 settings, changing branch protection, or modifying secrets.
 
