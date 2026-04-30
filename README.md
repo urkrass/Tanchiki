@@ -146,7 +146,7 @@ The local Reviewer App environment and private key stay outside the repository:
 C:\Users\Legion\.config\tanchiki-reviewer-app\
 ```
 
-Load the local environment, then start the v2 Reviewer App session helper:
+Load the local environment, then start the v3 Reviewer App session helper:
 
 ```powershell
 . "$env:USERPROFILE\.config\tanchiki-reviewer-app\reviewer-env.ps1"
@@ -159,14 +159,14 @@ Equivalent direct command:
 node scripts/reviewer-session.js
 ```
 
-The helper verifies `GITHUB_REVIEWER_APP_ID`,
-`GITHUB_REVIEWER_INSTALLATION_ID`, and
-`GITHUB_REVIEWER_PRIVATE_KEY_PATH`, confirms the private key path exists, and
-stops if the key resolves inside the repository checkout. It generates a
-short-lived installation token, prints the current-shell PowerShell assignment
-for `GH_TOKEN`, prints safe verification commands, prints the Reviewer App
-Dispatcher short prompt, and reminds the operator to clear `GH_TOKEN` after
-review. It never writes the token or private key to disk.
+The helper prints a numbered one-command prep flow. It verifies
+`GITHUB_REVIEWER_APP_ID`, `GITHUB_REVIEWER_INSTALLATION_ID`, and
+`GITHUB_REVIEWER_PRIVATE_KEY_PATH`, confirms the private key path exists, stops
+if the key resolves inside the repository checkout, warns if `GH_TOKEN` is
+already set, generates a short-lived installation token, prints the exact
+current-shell PowerShell assignment for `GH_TOKEN`, prints safe verification
+commands, prints the Reviewer App Dispatcher short prompt, prints forbidden
+authority boundaries, and prints cleanup. It never writes the token or private key to disk.
 
 Copy and paste the printed command into the same PowerShell session:
 
@@ -180,14 +180,15 @@ tokens expire after one hour, so rerun the helper for future Reviewer sessions.
 Run the safe verification commands before Reviewer-agent GitHub operations:
 
 ```powershell
-gh auth status
-gh api installation/repositories
+gh api installation/repositories --jq '.repositories[].full_name'
 gh api repos/urkrass/Tanchiki --jq '.full_name'
 gh pr view <PR_NUMBER> --repo urkrass/Tanchiki --json number,title,state,isDraft,baseRefName,headRefName
 ```
 
 `gh api user` may fail or report no user identity because an installation token
 represents the GitHub App installation, not the normal `urkrass` user account.
+Use `gh auth status` as a diagnostic or after-cleanup check, not as the primary
+proof of Reviewer App installation access.
 
 Use the Reviewer App Dispatcher prompt printed by the helper for paired-review
 PR acceptance sessions. The helper only prints the prompt; it does not call
@@ -239,9 +240,10 @@ gh auth status
    `npm run reviewer:session` or `node scripts/reviewer-session.js`, and use
    the printed `GH_TOKEN` command only for Reviewer-agent PR inspection, comments, and reviews.
    Verify access with the safe commands printed by the helper before review
-   work. At minimum, run `gh api installation/repositories` before review work,
-   then use the printed Reviewer App Dispatcher short prompt for one linked
-   paired-review PR.
+   work. At minimum, run
+   `gh api installation/repositories --jq '.repositories[].full_name'` before
+   review work, then use the printed Reviewer App Dispatcher short prompt for
+   one linked paired-review PR.
 3. **Cleanup after review:** clear the token from the current shell before
    doing any Coder or human merge-label work:
 
