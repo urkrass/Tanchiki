@@ -1,32 +1,21 @@
 import { createSign } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const appId = process.env.GITHUB_REVIEWER_APP_ID;
-const installationId = process.env.GITHUB_REVIEWER_INSTALLATION_ID;
-const privateKeyPath = process.env.GITHUB_REVIEWER_PRIVATE_KEY_PATH;
-const currentGhToken = process.env.GH_TOKEN;
+if (isDirectRun(import.meta.url)) {
+  main().catch((error) => {
+    console.error(`Reviewer App token helper failed: ${error.message}`);
+    process.exitCode = 1;
+  });
+}
 
-main().catch((error) => {
-  console.error(`Reviewer App token helper failed: ${error.message}`);
-  process.exitCode = 1;
-});
-
-async function main() {
-  requireEnv("GITHUB_REVIEWER_APP_ID", appId);
-  requireEnv("GITHUB_REVIEWER_INSTALLATION_ID", installationId);
-  requireEnv("GITHUB_REVIEWER_PRIVATE_KEY_PATH", privateKeyPath);
-
-  if (!existsSync(privateKeyPath)) {
-    throw new Error(
-      "GITHUB_REVIEWER_PRIVATE_KEY_PATH does not point to an existing file.",
-    );
-  }
-  if (!statSync(privateKeyPath).isFile()) {
-    throw new Error("GITHUB_REVIEWER_PRIVATE_KEY_PATH must point to a file.");
-  }
+export async function main({ env = process.env, fetchImpl = fetch } = {}) {
+  const context = readReviewerAppEnvironment(env);
+  validatePrivateKeyPath(context.privateKeyPath);
   console.log("Reviewer App environment check passed.");
   console.log("Private key path exists; private key contents will not be printed.");
-  if (currentGhToken) {
+  if (context.currentGhToken) {
     console.log("");
     console.log(
       "Existing GH_TOKEN detected. It will not be read, replaced on disk, or cleared automatically.",
@@ -36,9 +25,7 @@ async function main() {
     );
   }
 
-  const privateKey = readFileSync(privateKeyPath, "utf8");
-  const jwt = createGitHubAppJwt(appId, privateKey);
-  const token = await createInstallationToken(jwt, installationId);
+  const token = await createReviewerAppInstallationToken(context, { fetchImpl });
 
   console.log("Tanchiki Reviewer GitHub App installation token created.");
   if (token.expires_at) {
@@ -50,7 +37,46 @@ async function main() {
   printReviewerSafetyInstructions();
 }
 
-function printReviewerSafetyInstructions() {
+export function readReviewerAppEnvironment(env = process.env) {
+  const appId = env.GITHUB_REVIEWER_APP_ID;
+  const installationId = env.GITHUB_REVIEWER_INSTALLATION_ID;
+  const privateKeyPath = env.GITHUB_REVIEWER_PRIVATE_KEY_PATH;
+  const currentGhToken = env.GH_TOKEN;
+
+  requireEnv("GITHUB_REVIEWER_APP_ID", appId);
+  requireEnv("GITHUB_REVIEWER_INSTALLATION_ID", installationId);
+  requireEnv("GITHUB_REVIEWER_PRIVATE_KEY_PATH", privateKeyPath);
+
+  return {
+    appId,
+    installationId,
+    privateKeyPath,
+    currentGhToken,
+  };
+}
+
+export function validatePrivateKeyPath(privateKeyPath) {
+  if (!existsSync(privateKeyPath)) {
+    throw new Error(
+      "GITHUB_REVIEWER_PRIVATE_KEY_PATH does not point to an existing file.",
+    );
+  }
+  if (!statSync(privateKeyPath).isFile()) {
+    throw new Error("GITHUB_REVIEWER_PRIVATE_KEY_PATH must point to a file.");
+  }
+}
+
+export async function createReviewerAppInstallationToken(
+  context = readReviewerAppEnvironment(),
+  { fetchImpl = fetch } = {},
+) {
+  validatePrivateKeyPath(context.privateKeyPath);
+  const privateKey = readFileSync(context.privateKeyPath, "utf8");
+  const jwt = createGitHubAppJwt(context.appId, privateKey);
+  return createInstallationToken(jwt, context.installationId, fetchImpl);
+}
+
+export function printReviewerSafetyInstructions() {
   console.log("Verify Reviewer App installation access before reviewer work:");
   console.log("gh api installation/repositories --jq '.repositories[].full_name'");
   console.log("Expected repository access includes: urkrass/Tanchiki");
@@ -86,13 +112,13 @@ function printReviewerSafetyInstructions() {
   console.log("This token is short-lived and was not written to disk.");
 }
 
-function requireEnv(name, value) {
+export function requireEnv(name, value) {
   if (!value) {
     throw new Error(`${name} is required.`);
   }
 }
 
-function createGitHubAppJwt(issuer, privateKey) {
+export function createGitHubAppJwt(issuer, privateKey) {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const payload = {
@@ -109,8 +135,8 @@ function createGitHubAppJwt(issuer, privateKey) {
   return `${unsignedToken}.${signature}`;
 }
 
-async function createInstallationToken(jwt, id) {
-  const response = await fetch(
+export async function createInstallationToken(jwt, id, fetchImpl = fetch) {
+  const response = await fetchImpl(
     `https://api.github.com/app/installations/${id}/access_tokens`,
     {
       method: "POST",
@@ -138,10 +164,17 @@ async function createInstallationToken(jwt, id) {
   return token;
 }
 
-function base64UrlJson(value) {
+export function base64UrlJson(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
-function formatPowerShellString(value) {
+export function formatPowerShellString(value) {
   return `'${value.replaceAll("'", "''")}'`;
+}
+
+function isDirectRun(importMetaUrl) {
+  return (
+    process.argv[1] &&
+    resolve(fileURLToPath(importMetaUrl)) === resolve(process.argv[1])
+  );
 }
