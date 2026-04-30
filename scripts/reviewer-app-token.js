@@ -21,7 +21,7 @@ export async function main({ env = process.env, fetchImpl = fetch } = {}) {
       "Existing GH_TOKEN detected. It will not be read, replaced on disk, or cleared automatically.",
     );
     console.log(
-      "Confirm this shell is a Reviewer session before overwriting GH_TOKEN with the app token.",
+      "The token-scoped runner will override GH_TOKEN only inside the child process.",
     );
   }
 
@@ -31,9 +31,7 @@ export async function main({ env = process.env, fetchImpl = fetch } = {}) {
   if (token.expires_at) {
     console.log(`Expires at: ${token.expires_at}`);
   }
-  console.log("Run this in the current PowerShell session:");
-  console.log(`$env:GH_TOKEN = ${formatPowerShellString(token.token)}`);
-  console.log("");
+  console.log("The token was not printed, exported, or written to disk.");
   printReviewerSafetyInstructions();
 }
 
@@ -77,8 +75,13 @@ export async function createReviewerAppInstallationToken(
 }
 
 export function printReviewerSafetyInstructions() {
+  console.log("Run Reviewer App gh commands through the token-scoped runner:");
+  console.log("npm run reviewer:with-token -- <command>");
+  console.log("");
   console.log("Verify Reviewer App installation access before reviewer work:");
-  console.log("gh api installation/repositories --jq '.repositories[].full_name'");
+  console.log(
+    "npm run reviewer:with-token -- gh api installation/repositories --jq '.repositories[].full_name'",
+  );
   console.log("Expected repository access includes: urkrass/Tanchiki");
   console.log("");
   console.log("Record the verified Reviewer App identity/access in review notes.");
@@ -87,13 +90,13 @@ export function printReviewerSafetyInstructions() {
     "Identity warning: this GH_TOKEN is a GitHub App installation token, not a normal user token.",
   );
   console.log(
-    "Use it only for Reviewer-agent PR inspection, comments, and reviews as Tanchiki Reviewer.",
+    "Use it only through the token-scoped runner for Reviewer-agent PR inspection, comments, and reviews as Tanchiki Reviewer.",
   );
   console.log(
-    "Do not use this Reviewer App GH_TOKEN in Coder sessions or human merge-label sessions.",
+    "Do not export this Reviewer App GH_TOKEN into Coder sessions or human merge-label sessions.",
   );
   console.log(
-    "Coder sessions and human merge-label sessions must use the normal GitHub identity after GH_TOKEN is cleared.",
+    "Coder sessions and human merge-label sessions must use the normal GitHub identity.",
   );
   console.log("");
   console.log("Forbidden with this Reviewer App token:");
@@ -104,12 +107,13 @@ export function printReviewerSafetyInstructions() {
   console.log("- enabling auto-merge");
   console.log("- changing workflows, repo settings, branch protection, or secrets");
   console.log("");
-  console.log("Clear the token after reviewer work:");
+  console.log("The token-scoped runner does not set GH_TOKEN in the parent shell.");
+  console.log("If GH_TOKEN was set manually or by an older flow, clear it before coding or human label work:");
   console.log("Remove-Item Env:\\GH_TOKEN -ErrorAction SilentlyContinue");
-  console.log("Then verify the normal identity before coding or human label work:");
+  console.log("Then verify the normal identity:");
   console.log("gh auth status");
   console.log("");
-  console.log("This token is short-lived and was not written to disk.");
+  console.log("Reviewer App tokens are short-lived and must not be written to disk.");
 }
 
 export function requireEnv(name, value) {

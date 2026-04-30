@@ -3,16 +3,11 @@ import { isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  createReviewerAppInstallationToken,
-  formatPowerShellString,
   readReviewerAppEnvironment,
   validatePrivateKeyPath,
 } from "./reviewer-app-token.js";
 
 const activeProject = "Tanchiki — Playable Tank RPG Prototype";
-const repositoryVerificationCommand = "gh api repos/urkrass/Tanchiki --jq '.full_name'";
-const prVerificationCommand =
-  "gh pr view <PR_NUMBER> --repo urkrass/Tanchiki --json number,title,state,isDraft,baseRefName,headRefName";
 const repoRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const dispatcherPromptPath = resolve(
   repoRoot,
@@ -28,8 +23,9 @@ main().catch((error) => {
 
 async function main() {
   console.log("Reviewer App session helper");
-  console.log("Prepares a Reviewer App review shell. It prints manual commands and prompts only.");
+  console.log("Prepares Reviewer App review commands and prompts only.");
   console.log("It does not call Dispatcher, run gh verification, push, label, or merge.");
+  console.log("It does not print tokens or export GH_TOKEN into this shell.");
   console.log("");
 
   printStep("1. Verify required reviewer environment variables");
@@ -50,15 +46,7 @@ async function main() {
   printGhTokenStatus(context.currentGhToken);
   console.log("");
 
-  printStep("4. Generate short-lived Reviewer App installation token");
-  const token = await createReviewerAppInstallationToken(context);
-  console.log("- Tanchiki Reviewer GitHub App installation token created.");
-  if (token.expires_at) {
-    console.log(`- Expires at: ${token.expires_at}`);
-  }
-  console.log("");
-
-  printGhTokenCommand(token.token);
+  printTokenScopedRunnerCommands();
   printVerificationCommands();
   printReviewerDispatcherPrompt();
   printForbiddenActions();
@@ -73,21 +61,31 @@ function printGhTokenStatus(currentGhToken) {
   printStep("3. Check existing GH_TOKEN");
   if (!currentGhToken) {
     console.log("- GH_TOKEN is not currently set in this shell.");
-    console.log("- The helper will not persist tokens or change shell state automatically.");
+    console.log("- The token-scoped runner will not persist tokens or change shell state automatically.");
     return;
   }
 
   console.log("- Existing GH_TOKEN detected.");
   console.log("- The existing value will not be printed, cleared, persisted, or written to disk.");
-  console.log("- Confirm this shell is a Reviewer App session before overwriting GH_TOKEN.");
+  console.log("- The token-scoped runner will override it only inside the child process.");
+  console.log("- Clear the parent-shell GH_TOKEN before coding or human merge-label work.");
 }
 
-function printGhTokenCommand(token) {
-  printStep("5. Set GH_TOKEN in this PowerShell session");
-  console.log("Copy this exact command into the current PowerShell shell:");
-  console.log(`$env:GH_TOKEN = ${formatPowerShellString(token)}`);
+function printTokenScopedRunnerCommands() {
+  printStep("4. Use the token-scoped Reviewer App command runner");
+  console.log("Run Reviewer App gh commands through:");
+  console.log("npm run reviewer:with-token -- <command>");
   console.log("");
-  console.log("This GH_TOKEN is a GitHub App installation token, not the normal GitHub user identity.");
+  console.log("Examples:");
+  console.log("npm run reviewer:with-token -- gh auth status");
+  console.log(
+    "npm run reviewer:with-token -- gh api installation/repositories --jq '.repositories[].full_name'",
+  );
+  console.log("npm run reviewer:with-token -- gh pr view <PR_NUMBER> --repo urkrass/Tanchiki");
+  console.log("");
+  console.log("The runner generates a short-lived Reviewer App installation token per child command.");
+  console.log("GH_TOKEN is set only inside the child process.");
+  console.log("The token is not printed, exported to this shell, or written to disk.");
   console.log("Use it only for Reviewer-agent PR inspection, review comments, and review submission.");
   console.log("");
 }
@@ -104,18 +102,22 @@ function assertPrivateKeyIsOutsideRepo(privateKeyPath) {
 }
 
 function printVerificationCommands() {
-  printStep("6. Run safe verification commands manually");
-  console.log("Run these after setting GH_TOKEN:");
-  console.log("gh api installation/repositories --jq '.repositories[].full_name'");
-  console.log(repositoryVerificationCommand);
-  console.log(prVerificationCommand);
+  printStep("5. Run safe verification commands through the runner");
+  console.log("Run these before Reviewer-agent GitHub operations:");
+  console.log(
+    "npm run reviewer:with-token -- gh api installation/repositories --jq '.repositories[].full_name'",
+  );
+  console.log("npm run reviewer:with-token -- gh api repos/urkrass/Tanchiki --jq '.full_name'");
+  console.log(
+    "npm run reviewer:with-token -- gh pr view <PR_NUMBER> --repo urkrass/Tanchiki --json number,title,state,isDraft,baseRefName,headRefName",
+  );
   console.log("");
   console.log("Do not use `gh api user` as proof of Reviewer App identity.");
   console.log("");
 }
 
 function printReviewerDispatcherPrompt() {
-  printStep("7. Paste the Reviewer App Dispatcher prompt manually");
+  printStep("6. Paste the Reviewer App Dispatcher prompt manually");
   console.log("Reviewer App Dispatcher short prompt:");
   console.log("");
   console.log(readReviewerDispatcherPrompt());
@@ -131,7 +133,7 @@ function readReviewerDispatcherPrompt() {
 }
 
 function printForbiddenActions() {
-  printStep("8. Respect Reviewer App authority boundaries");
+  printStep("7. Respect Reviewer App authority boundaries");
   console.log("Reviewer App cannot:");
   console.log("- merge PRs");
   console.log("- apply merge:auto-eligible");
@@ -146,12 +148,14 @@ function printForbiddenActions() {
 }
 
 function printCleanupCommands() {
-  printStep("9. Clear GH_TOKEN after Reviewer App review work");
+  printStep("8. Leave the parent shell clean");
+  console.log("The token-scoped runner does not set GH_TOKEN in this shell.");
+  console.log("If GH_TOKEN was set manually or by an older helper flow, clear it:");
   console.log("Remove-Item Env:\\GH_TOKEN -ErrorAction SilentlyContinue");
   console.log("Then verify the normal identity before coding or human label work:");
   console.log("gh auth status");
   console.log("");
-  console.log("This token is short-lived and was not written to disk.");
+  console.log("Reviewer App tokens are short-lived and are not written to disk.");
 }
 
 function isPathInside(childPath, parentPath) {

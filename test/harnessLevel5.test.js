@@ -791,9 +791,11 @@ test("short dispatcher and PR-producing role context preserve exact PR headings"
 
 test("Reviewer App token helper documents local-only temporary GitHub App identity", () => {
   const script = readRepoFile("scripts", "reviewer-app-token.js");
+  const runner = readRepoFile("scripts", "reviewer-with-token.js");
   const readme = readRepoFile("README.md");
   const safety = readRepoFile("SAFETY_BOUNDARIES.md");
   const gitignore = readRepoFile(".gitignore");
+  const combinedHelperText = `${script}\n${runner}`;
 
   for (const expected of [
     "GITHUB_REVIEWER_APP_ID",
@@ -802,17 +804,17 @@ test("Reviewer App token helper documents local-only temporary GitHub App identi
     "GITHUB_REVIEWER_PRIVATE_KEY_PATH must point to a file.",
     "Private key path exists; private key contents will not be printed.",
     "Existing GH_TOKEN detected.",
-    "Confirm this shell is a Reviewer session before overwriting GH_TOKEN with the app token.",
+    "The token-scoped runner will override GH_TOKEN only inside the child process.",
     "https://api.github.com/app/installations/",
     "access_tokens",
-    "$env:GH_TOKEN =",
-    "gh api installation/repositories --jq '.repositories[].full_name'",
+    "npm run reviewer:with-token -- <command>",
+    "npm run reviewer:with-token -- gh api installation/repositories --jq '.repositories[].full_name'",
     "Expected repository access includes: urkrass/Tanchiki",
     "Record the verified Reviewer App identity/access in review notes.",
     "GitHub App installation token, not a normal user token",
     "Reviewer-agent PR inspection, comments, and reviews",
-    "Do not use this Reviewer App GH_TOKEN in Coder sessions or human merge-label sessions.",
-    "Coder sessions and human merge-label sessions must use the normal GitHub identity after GH_TOKEN is cleared.",
+    "Do not export this Reviewer App GH_TOKEN into Coder sessions or human merge-label sessions.",
+    "Coder sessions and human merge-label sessions must use the normal GitHub identity.",
     "pushing code or updating PR branches",
     "merging PRs",
     "applying merge:auto-eligible",
@@ -820,18 +822,18 @@ test("Reviewer App token helper documents local-only temporary GitHub App identi
     "enabling auto-merge",
     "changing workflows, repo settings, branch protection, or secrets",
     "Remove-Item Env:\\\\GH_TOKEN -ErrorAction SilentlyContinue",
-    "Then verify the normal identity before coding or human label work:",
+    "Then verify the normal identity:",
     "gh auth status",
-    "This token is short-lived and was not written to disk.",
+    "Reviewer App tokens are short-lived and must not be written to disk.",
   ]) {
-    assert.match(script, new RegExp(escapeRegExp(expected)));
+    assert.match(combinedHelperText, new RegExp(escapeRegExp(expected)));
   }
 
   for (const expected of [
     "C:\\Users\\Legion\\.config\\tanchiki-reviewer-app\\",
     "private key stay outside the repository",
-    "tokens expire after one hour",
-    "`GH_TOKEN` is temporary for the current shell",
+    "token-scoped runner",
+    "GH_TOKEN` into the parent shell",
     "not the normal `urkrass` user",
     "must not push code",
     "merge PRs",
@@ -842,7 +844,7 @@ test("Reviewer App token helper documents local-only temporary GitHub App identi
     "normal GitHub identity",
     "Do not load the Reviewer",
     "Reviewer session:",
-    "only for Reviewer-agent PR inspection, comments, and reviews",
+    "Reviewer App GitHub operations through `npm run reviewer:with-token --`",
     "Cleanup after review:",
     "Remove-Item Env:\\GH_TOKEN -ErrorAction SilentlyContinue",
     "Human merge-label session:",
@@ -855,7 +857,8 @@ test("Reviewer App token helper documents local-only temporary GitHub App identi
 
   for (const expected of [
     "must remain outside the repo",
-    "generated installation tokens must stay temporary in the current shell through",
+    "generated installation tokens must stay temporary in the child",
+    "process environment through",
     "`GH_TOKEN`",
     "pushing code",
     "merging PRs",
@@ -874,19 +877,32 @@ test("Reviewer App token helper documents local-only temporary GitHub App identi
 test("Reviewer App session helper prints safe wrapper routine and dispatcher handoff", () => {
   const sessionScript = readRepoFile("scripts", "reviewer-session.js");
   const tokenScript = readRepoFile("scripts", "reviewer-app-token.js");
+  const runnerScript = readRepoFile("scripts", "reviewer-with-token.js");
   const packageJson = JSON.parse(readRepoFile("package.json"));
 
   assert.equal(
     packageJson.scripts["reviewer:session"],
     "node scripts/reviewer-session.js",
   );
+  assert.equal(
+    packageJson.scripts["reviewer:with-token"],
+    "node scripts/reviewer-with-token.js",
+  );
   assert.match(
     packageJson.scripts.build,
     /node --check scripts\/reviewer-session\.js/,
   );
   assert.match(
+    packageJson.scripts.build,
+    /node --check scripts\/reviewer-with-token\.js/,
+  );
+  assert.match(
     packageJson.scripts.lint,
     /node --check scripts\/reviewer-session\.js/,
+  );
+  assert.match(
+    packageJson.scripts.lint,
+    /node --check scripts\/reviewer-with-token\.js/,
   );
 
   for (const expected of [
@@ -896,10 +912,10 @@ test("Reviewer App session helper prints safe wrapper routine and dispatcher han
     "GITHUB_REVIEWER_PRIVATE_KEY_PATH",
     "Private key contents will not be printed.",
     "Existing GH_TOKEN detected.",
-    "$env:GH_TOKEN =",
-    "gh api installation/repositories --jq '.repositories[].full_name'",
-    "gh api repos/urkrass/Tanchiki --jq '.full_name'",
-    "gh pr view <PR_NUMBER> --repo",
+    "npm run reviewer:with-token -- <command>",
+    "npm run reviewer:with-token -- gh api installation/repositories --jq '.repositories[].full_name'",
+    "npm run reviewer:with-token -- gh api repos/urkrass/Tanchiki --jq '.full_name'",
+    "npm run reviewer:with-token -- gh pr view <PR_NUMBER> --repo",
     "prompts",
     "reviewer-app-dispatcher.md",
     "Tanchiki — Playable Tank RPG Prototype",
@@ -913,10 +929,12 @@ test("Reviewer App session helper prints safe wrapper routine and dispatcher han
     "apply GitHub labels",
     "change workflows, repo settings, branch protection, secrets, or Reviewer App permissions",
     "Remove-Item Env:\\\\GH_TOKEN -ErrorAction SilentlyContinue",
-    "This token is short-lived and was not written to disk.",
+    "Reviewer App tokens are short-lived and are not written to disk.",
   ]) {
     assert.match(sessionScript, new RegExp(escapeRegExp(expected)));
   }
+
+  assert.equal(sessionScript.includes("$env:GH_TOKEN ="), false);
 
   for (const expected of [
     "export async function createReviewerAppInstallationToken",
@@ -926,6 +944,19 @@ test("Reviewer App session helper prints safe wrapper routine and dispatcher han
     "isDirectRun(import.meta.url)",
   ]) {
     assert.match(tokenScript, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "Reviewer App token-scoped runner",
+    "GH_TOKEN will be set only in the child process",
+    "Refusing forbidden command pattern: gh pr merge.",
+    "Refusing forbidden command pattern: gh pr edit.",
+    "Refusing forbidden command pattern: gh issue edit.",
+    "Refusing forbidden command pattern: gh label.",
+    "Refusing command: only direct gh commands are allowed",
+    "createChildEnvironment",
+  ]) {
+    assert.match(runnerScript, new RegExp(escapeRegExp(expected)));
   }
 });
 
@@ -947,7 +978,7 @@ test("daily identity ritual keeps coder reviewer and human merge identities sepa
     "Reviewer session:",
     "only for Reviewer-agent PR inspection, comments, and reviews",
     "Verify access",
-    "`gh api installation/repositories --jq '.repositories[].full_name'` before",
+    "`npm run reviewer:with-token -- gh api installation/repositories --jq",
     "Cleanup after review:",
     "Remove-Item Env:\\GH_TOKEN -ErrorAction SilentlyContinue",
     "Human merge-label session:",
@@ -964,10 +995,11 @@ test("daily identity ritual keeps coder reviewer and human merge identities sepa
 
 test("reviewer app routine statically guards forbidden merge and secret handling actions", () => {
   const script = readRepoFile("scripts", "reviewer-app-token.js");
+  const runner = readRepoFile("scripts", "reviewer-with-token.js");
   const readme = readRepoFile("README.md");
   const safety = readRepoFile("SAFETY_BOUNDARIES.md");
   const gitignore = readRepoFile(".gitignore");
-  const combinedRoutineText = `${script}\n${readme}\n${safety}`;
+  const combinedRoutineText = `${script}\n${runner}\n${readme}\n${safety}`;
 
   for (const expected of [
     "Forbidden with this Reviewer App token:",
@@ -977,9 +1009,9 @@ test("reviewer app routine statically guards forbidden merge and secret handling
     "removing stop labels",
     "enabling auto-merge",
     "changing workflows, repo settings, branch protection, or secrets",
-    "Do not use this Reviewer App GH_TOKEN in Coder sessions or human merge-label sessions.",
-    "Coder sessions and human merge-label sessions must use the normal GitHub identity after GH_TOKEN is cleared.",
-    "Then verify the normal identity before coding or human label work:",
+    "Do not export this Reviewer App GH_TOKEN into Coder sessions or human merge-label sessions.",
+    "Coder sessions and human merge-label sessions must use the normal GitHub identity.",
+    "Then verify the normal identity:",
     "must not push code",
     "merge PRs",
     "apply `merge:auto-eligible`",
@@ -987,8 +1019,8 @@ test("reviewer app routine statically guards forbidden merge and secret handling
     "Secrets, `.pem` files, local env files, and generated installation tokens stay",
     "private key stay outside the repository",
     "private key contents will not be printed",
-    "never writes the token or private key to disk",
-    "generated installation tokens must stay temporary in the current shell through",
+    "It does not export",
+    "generated installation tokens must stay temporary in the child",
     "`GH_TOKEN`",
   ]) {
     assert.match(combinedRoutineText, new RegExp(escapeRegExp(expected)));

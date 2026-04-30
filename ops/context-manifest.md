@@ -202,7 +202,8 @@ Reviewer App identity need conservative review and should usually use
 Reviewer App identity is only for Reviewer-agent PR inspection, comments, and
 reviews. Credentials, private keys, local env files, and generated tokens must
 stay outside the repository and must not be printed, committed, or written to
-repo files.
+repo files. Reviewer App `GH_TOKEN` should be scoped to the token-runner child
+process, not exported into the operator shell.
 
 Reviewer App credentials must not be used for coding, pushing commits, merging,
 applying `merge:auto-eligible`, removing stop labels, enabling auto-merge,
