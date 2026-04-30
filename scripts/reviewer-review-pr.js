@@ -49,18 +49,6 @@ const decisionEvents = {
   "request-changes": "REQUEST_CHANGES",
 };
 
-if (isDirectRun(import.meta.url)) {
-  main().then(
-    (exitCode) => {
-      process.exitCode = exitCode;
-    },
-    (error) => {
-      console.error(`Reviewer App PR review executor failed: ${error.message}`);
-      process.exitCode = 1;
-    },
-  );
-}
-
 export async function main({
   argv = process.argv.slice(2),
   env = process.env,
@@ -392,6 +380,18 @@ export class ReviewRefusal extends Error {
     this.name = "ReviewRefusal";
     this.details = details;
   }
+}
+
+if (isDirectRun(import.meta.url)) {
+  main().then(
+    (exitCode) => {
+      process.exitCode = exitCode;
+    },
+    (error) => {
+      console.error(`Reviewer App PR review executor failed: ${error.message}`);
+      process.exitCode = 1;
+    },
+  );
 }
 
 function getHardPrRefusalReasons({ options, pullRequest, prBody }) {

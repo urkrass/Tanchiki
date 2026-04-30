@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
 import {
@@ -267,6 +268,55 @@ test("review-pr refuses invalid args before token generation", async () => {
   assert.equal(tokenCalled, false);
   assert.match(stderr.join("\n"), /Reviewer App PR review refused/);
   assert.match(stderr.join("\n"), /No review was submitted/);
+});
+
+test("review-pr direct CLI refusal path does not hit class initialization ordering", () => {
+  const result = spawnSync(process.execPath, [
+    join(root, "scripts", "reviewer-review-pr.js"),
+    "--pr",
+    "117",
+    "--issue",
+    "MAR-296",
+    "--decision",
+    "comment",
+    "--body",
+    "APPROVED FOR MERGE",
+  ], {
+    cwd: root,
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Reviewer App PR review refused/);
+  assert.match(result.stderr, /approval language/);
+  assert.doesNotMatch(result.stderr, /Cannot access 'ReviewRefusal' before initialization/);
+});
+
+test("review-pr direct CLI environment failure does not hit class initialization ordering", () => {
+  const env = { ...process.env };
+  delete env.GITHUB_REVIEWER_APP_ID;
+  delete env.GITHUB_REVIEWER_INSTALLATION_ID;
+  delete env.GITHUB_REVIEWER_PRIVATE_KEY_PATH;
+
+  const result = spawnSync(process.execPath, [
+    join(root, "scripts", "reviewer-review-pr.js"),
+    "--pr",
+    "117",
+    "--issue",
+    "MAR-296",
+    "--decision",
+    "comment",
+    "--body",
+    "HUMAN REVIEW REQUIRED: missing local reviewer environment.",
+  ], {
+    cwd: root,
+    encoding: "utf8",
+    env,
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /GITHUB_REVIEWER_APP_ID is required/);
+  assert.doesNotMatch(result.stderr, /Cannot access 'ReviewRefusal' before initialization/);
 });
 
 test("review-pr package and static surface preserve token and forbidden-action boundaries", () => {
