@@ -82,8 +82,12 @@ function printTokenScopedRunnerCommands() {
     "npm run reviewer:with-token -- gh api installation/repositories --jq '.repositories[].full_name'",
   );
   console.log("npm run reviewer:with-token -- gh pr view <PR_NUMBER> --repo urkrass/Tanchiki");
+  console.log(
+    "npm run reviewer:review-pr -- --pr <PR_NUMBER> --issue <MAR-ID> --decision comment --body 'HUMAN REVIEW REQUIRED: ...'",
+  );
   console.log("");
   console.log("The runner generates a short-lived Reviewer App installation token per child command.");
+  console.log("The review executor generates its own short-lived token for one constructed PR review.");
   console.log("GH_TOKEN is set only inside the child process.");
   console.log("The token is not printed, exported to this shell, or written to disk.");
   console.log("Use it only for Reviewer-agent PR inspection, review comments, and review submission.");

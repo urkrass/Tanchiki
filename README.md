@@ -168,6 +168,24 @@ command with `GH_TOKEN` set only in that child process. It does not export
 `GH_TOKEN` into the parent shell, print the token, print the private key, or
 write the token to disk.
 
+For paired-review PR work, prefer the higher-level review executor after the
+human gate has approved the Reviewer App v4 boundary:
+
+```powershell
+npm run reviewer:review-pr -- --pr <PR_NUMBER> --issue <MAR-ID> --decision comment --body "HUMAN REVIEW REQUIRED: ..."
+npm run reviewer:review-pr -- --pr <PR_NUMBER> --issue <MAR-ID> --decision approve --body-file .\review-body.txt
+npm run reviewer:review-pr -- --pr <PR_NUMBER> --issue <MAR-ID> --decision request-changes --body-file .\review-body.txt
+```
+
+The executor accepts only explicit `comment`, `approve`, and
+`request-changes` decisions. It inspects the target PR, refuses Draft or merged
+PRs, checks the linked issue, PR metadata, changed files, stop labels, and check
+status, and submits only a GitHub PR review. Approval requires passing gates and
+a body containing `APPROVED FOR MERGE` plus reviewer independence basis. It does
+not merge, label, edit issues, push commits, run Dispatcher or Conductor,
+change workflows/settings/branch protection, print tokens, or write credentials
+to disk.
+
 Target command shape:
 
 ```powershell
@@ -234,7 +252,10 @@ Real acceptance test:
 1. Create or use a tiny open PR.
 2. Load `reviewer-env.ps1`.
 3. Run the manual smoke test through `npm run reviewer:with-token --`.
-4. Submit a PR review or comment using `npm run reviewer:with-token -- gh pr review ...`.
+4. Submit a paired-review PR review through `npm run reviewer:review-pr -- ...`
+   when the v4 executor gates allow it, or use
+   `npm run reviewer:with-token -- gh pr review ...` only for lower-level
+   manual review commands.
 5. Confirm GitHub shows the review or comment as the Tanchiki Reviewer GitHub
    App identity, not the normal `urkrass` user.
 

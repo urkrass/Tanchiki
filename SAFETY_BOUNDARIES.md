@@ -61,6 +61,11 @@ reused for pushing code, merging PRs, applying
 `merge:auto-eligible`, removing stop labels, changing workflows, changing repo
 settings, changing branch protection, or modifying secrets.
 
+The higher-level Reviewer App PR-review executor may submit only constructed
+GitHub PR reviews for explicit `comment`, `approve`, or `request-changes`
+decisions after its fail-closed gates pass. It is not a command runner, merge
+tool, label tool, issue editor, Dispatcher/Conductor wrapper, or policy bypass.
+
 Auto-merge must not be available for movement or collision work, `risk:high`,
 `risk:human-only`, deployment, dependencies, CI workflow changes, broad gameplay
 changes, save or persistence behavior, security-sensitive changes, or
