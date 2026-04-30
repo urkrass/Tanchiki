@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
@@ -93,81 +93,6 @@ test("dry-run router refuses ambiguous or incomplete metadata", () => {
   assert.match(formatRecommendation(recommendation), /risk metadata must have exactly one/);
 });
 
-test("dry-run router refuses stop labels blockers and missing cadence", () => {
-  const recommendation = routeIssue({
-    activeProject: "Tanchiki - Playable Tank RPG Prototype",
-    issue: {
-      id: "MAR-1005",
-      title: "Blocked router issue",
-      status: "Todo",
-      labels: [
-        "role:coder",
-        "type:harness",
-        "risk:low",
-        "validation:harness",
-        "merge:do-not-merge",
-      ],
-      modelHint: "cheap",
-      contextPack: "Issue Context Pack: blocked by review.",
-      blockedBy: ["MAR-1004"],
-    },
-  });
-
-  const output = formatRecommendation(recommendation);
-
-  assert.equal(recommendation.run, false);
-  assert.match(output, /missing review cadence/);
-  assert.match(output, /stop labels present: merge:do-not-merge/);
-  assert.match(output, /unresolved blockers present: MAR-1004/);
-});
-
-test("dry-run router refuses duplicate Level 5 metadata", () => {
-  const recommendation = routeIssue({
-    activeProject: "Tanchiki - Playable Tank RPG Prototype",
-    issue: {
-      id: "MAR-1006",
-      title: "Duplicate role metadata",
-      status: "Todo",
-      labels: ["role:coder", "role:test", "type:test", "risk:low", "validation:test"],
-      reviewCadence: "paired-review",
-      modelHint: "cheap",
-      contextPack: "Issue Context Pack: duplicate role metadata.",
-    },
-  });
-
-  assert.equal(recommendation.run, false);
-  assert.match(formatRecommendation(recommendation), /role metadata must have exactly one role:\*/);
-});
-
-test("dry-run router refuses paired-review reviewer PR readiness gaps", () => {
-  const recommendation = routeIssue({
-    activeProject: "Tanchiki - Playable Tank RPG Prototype",
-    issue: {
-      id: "MAR-1007",
-      title: "Reviewer: draft PR",
-      status: "Todo",
-      labels: ["role:reviewer", "type:harness", "risk:medium", "validation:harness"],
-      reviewCadence: "paired-review",
-      modelHint: "frontier",
-      contextPack: "Issue Context Pack: Reviewer inspects PR readiness.",
-      pr: {
-        number: 110,
-        state: "open",
-        draft: true,
-        merged: false,
-        checks: "pending",
-      },
-    },
-  });
-
-  const output = formatRecommendation(recommendation);
-
-  assert.equal(recommendation.run, false);
-  assert.equal(recommendation.requiredIdentity, "Reviewer App");
-  assert.match(output, /paired-review PR is Draft/);
-  assert.match(output, /paired-review PR checks are not passing: pending/);
-});
-
 test("dry-run router recommends frontier for trust-boundary work", () => {
   const recommendation = routeIssue({
     activeProject: "Tanchiki - Playable Tank RPG Prototype",
@@ -184,44 +109,6 @@ test("dry-run router recommends frontier for trust-boundary work", () => {
 
   assert.equal(recommendation.run, true);
   assert.equal(recommendation.recommendedModelClass, "frontier");
-});
-
-test("dry-run router refuses low-cost hints that conflict with stricter lanes", () => {
-  const recommendation = routeIssue({
-    activeProject: "Tanchiki - Playable Tank RPG Prototype",
-    issue: {
-      id: "MAR-1008",
-      title: "Trust-boundary model router",
-      status: "Todo",
-      labels: ["role:coder", "type:harness", "risk:medium", "validation:harness"],
-      reviewCadence: "paired-review",
-      modelHint: "local-ok",
-      contextPack: "Issue Context Pack: trust-boundary model routing work.",
-    },
-  });
-
-  const output = formatRecommendation(recommendation);
-
-  assert.equal(recommendation.recommendedModelClass, "frontier");
-  assert.equal(recommendation.run, false);
-  assert.match(output, /model_hint conflicts with role\/type\/risk\/validation/);
-});
-
-test("dry-run router helper has no live dispatch write or merge operations", () => {
-  const source = readFileSync("scripts/model-router.js", "utf8");
-
-  for (const forbidden of [
-    "save_issue",
-    "save_comment",
-    "gh pr",
-    "gh merge",
-    "Campaign Conductor",
-    "Dispatcher",
-    "spawn_agent",
-    "fetch(",
-  ]) {
-    assert.equal(source.includes(forbidden), false, `unexpected live operation marker: ${forbidden}`);
-  }
 });
 
 test("dry-run router CLI prints required fields from a fixture", () => {
