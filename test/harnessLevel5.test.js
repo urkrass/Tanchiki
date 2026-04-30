@@ -871,6 +871,64 @@ test("Reviewer App token helper documents local-only temporary GitHub App identi
   }
 });
 
+test("Reviewer App session helper prints safe wrapper routine and dispatcher handoff", () => {
+  const sessionScript = readRepoFile("scripts", "reviewer-session.js");
+  const tokenScript = readRepoFile("scripts", "reviewer-app-token.js");
+  const packageJson = JSON.parse(readRepoFile("package.json"));
+
+  assert.equal(
+    packageJson.scripts["reviewer:session"],
+    "node scripts/reviewer-session.js",
+  );
+  assert.match(
+    packageJson.scripts.build,
+    /node --check scripts\/reviewer-session\.js/,
+  );
+  assert.match(
+    packageJson.scripts.lint,
+    /node --check scripts\/reviewer-session\.js/,
+  );
+
+  for (const expected of [
+    "Reviewer App session helper",
+    "GITHUB_REVIEWER_APP_ID",
+    "GITHUB_REVIEWER_INSTALLATION_ID",
+    "GITHUB_REVIEWER_PRIVATE_KEY_PATH",
+    "Private key contents will not be printed.",
+    "Existing GH_TOKEN detected.",
+    "$env:GH_TOKEN =",
+    "gh api installation/repositories --jq '.repositories[].full_name'",
+    "gh api repos/urkrass/Tanchiki --jq '.full_name'",
+    "gh pr view <PR_NUMBER> --repo",
+    "prompts",
+    "reviewer-app-dispatcher.md",
+    "Tanchiki — Playable Tank RPG Prototype",
+    "Do not run Dispatcher automatically.",
+    "pushing code or updating PR branches",
+    "running Coder work",
+    "running Test work",
+    "merging PRs",
+    "applying merge:auto-eligible",
+    "removing stop labels",
+    "applying GitHub labels",
+    "changing workflows, repo settings, branch protection, secrets, or Reviewer App permissions",
+    "Remove-Item Env:\\\\GH_TOKEN -ErrorAction SilentlyContinue",
+    "This token is short-lived and was not written to disk.",
+  ]) {
+    assert.match(sessionScript, new RegExp(escapeRegExp(expected)));
+  }
+
+  for (const expected of [
+    "export async function createReviewerAppInstallationToken",
+    "export function readReviewerAppEnvironment",
+    "export function validatePrivateKeyPath",
+    "export function formatPowerShellString",
+    "isDirectRun(import.meta.url)",
+  ]) {
+    assert.match(tokenScript, new RegExp(escapeRegExp(expected)));
+  }
+});
+
 test("daily identity ritual keeps coder reviewer and human merge identities separate", () => {
   const readme = readRepoFile("README.md");
 
