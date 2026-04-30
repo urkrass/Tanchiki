@@ -8,30 +8,37 @@
   </head>
   <body>
     <main class="shell">
-      <section class="game-view" aria-labelledby="title">
-        <div class="game-copy">
+      <section class="game-screen" aria-labelledby="title">
+        <aside class="side-panel controls-panel game-copy" aria-label="Controls and quick start">
           <p class="eyebrow">Prototype</p>
           <h1 id="title">Tanchiki</h1>
-          <p>Level 1 starts with a single job: reach and destroy the enemy base, then choose one upgrade before the next fight.</p>
+          <p>Destroy the enemy base, then choose one upgrade before the next fight.</p>
           <div class="demo-brief" aria-label="Demo quick start">
             <p><strong>Move</strong> WASD or Arrow keys</p>
             <p><strong>Fire</strong> Space</p>
             <p><strong>Continue</strong> N or Enter</p>
             <p><strong>Restart</strong> R</p>
           </div>
-        </div>
-        <div class="status-bar" aria-label="Live mission status">
-          <div id="status" class="status" aria-live="polite"></div>
-        </div>
-        <canvas id="game" width="720" height="528" aria-label="Playable Tanchiki canvas"></canvas>
-        <section id="upgrade-panel" class="upgrade-panel" aria-labelledby="upgrade-title" hidden>
-          <div class="upgrade-panel__copy">
-            <p class="eyebrow">Upgrade ready</p>
-            <h2 id="upgrade-title">Choose one upgrade</h2>
-            <p id="upgrade-context" class="upgrade-panel__context"></p>
+        </aside>
+
+        <section class="play-panel" aria-label="Mission playfield">
+          <div class="status-bar" aria-label="Live mission status">
+            <div id="status" class="status" aria-live="polite"></div>
           </div>
-          <div id="upgrade-choices" class="upgrade-choices"></div>
+          <canvas id="game" width="720" height="528" aria-label="Playable Tanchiki canvas"></canvas>
         </section>
+
+        <aside class="side-panel progression-panel" aria-label="Upgrades and rewards">
+          <section id="upgrade-panel" class="upgrade-panel" aria-labelledby="upgrade-title" hidden>
+            <div class="upgrade-panel__copy">
+              <p class="eyebrow">Upgrade ready</p>
+              <h2 id="upgrade-title">Choose one upgrade</h2>
+              <p id="upgrade-context" class="upgrade-panel__context"></p>
+            </div>
+            <div id="upgrade-choices" class="upgrade-choices"></div>
+          </section>
+          <p class="progression-panel__empty">Win the mission to choose an upgrade.</p>
+        </aside>
       </section>
     </main>
     <script type="module" src="./src/main.js"></script>
