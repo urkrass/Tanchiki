@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
 import {
+  createGitHubClient,
   evaluateReviewGates,
   getReviewBodyRefusalReason,
   main,
@@ -134,6 +135,43 @@ test("review-pr parser requires explicit PR issue decision and body source", () 
   );
 });
 
+test("review-pr parser accepts only the three review decisions and fixed repo", () => {
+  const decisions = [
+    ["comment", "HUMAN REVIEW REQUIRED: checking metadata."],
+    ["approve", "APPROVED FOR MERGE\n\nIndependence: separate reviewer session."],
+    ["request-changes", "CHANGES REQUESTED: blocking finding."],
+  ];
+
+  for (const [decision, body] of decisions) {
+    assert.equal(
+      parseArgs([
+        "--pr=123",
+        "--issue=MAR-298",
+        `--decision=${decision}`,
+        "--body",
+        body,
+      ]).decision,
+      decision,
+    );
+  }
+
+  assert.throws(
+    () => parseArgs([
+      "--pr",
+      "123",
+      "--issue",
+      "MAR-298",
+      "--decision",
+      "comment",
+      "--repo",
+      "other/repo",
+      "--body",
+      "HUMAN REVIEW REQUIRED: wrong repo.",
+    ]),
+    /--repo must be urkrass\/Tanchiki/,
+  );
+});
+
 test("review-pr body rules prevent unsafe or mismatched decisions", () => {
   assert.equal(
     getReviewBodyRefusalReason("approve", "APPROVED FOR MERGE\n\nIndependence: distinct run."),
@@ -162,6 +200,39 @@ test("review-pr body rules prevent unsafe or mismatched decisions", () => {
   assert.match(
     getReviewBodyRefusalReason("comment", "apply merge:auto-eligible"),
     /forbidden/,
+  );
+});
+
+test("review-pr body rules cover every forbidden operation family", () => {
+  for (const body of [
+    "run gh pr merge 123",
+    "run gh pr edit 123 --title x",
+    "run gh issue edit 123 --add-label x",
+    "run gh label create x",
+    "run git push origin branch",
+    "run git commit -m x",
+    "run git tag v1",
+    "run git reset --hard",
+    "apply merge:auto-eligible after review",
+  ]) {
+    assert.match(
+      getReviewBodyRefusalReason("comment", body),
+      /forbidden merge, label, issue-edit, branch, or auto-merge intent/,
+      body,
+    );
+  }
+
+  assert.equal(
+    getReviewBodyRefusalReason("request-changes", "CHANGES REQUESTED: fix token leak."),
+    null,
+  );
+  assert.equal(
+    getReviewBodyRefusalReason("request-changes", "BLOCKED: checks are failing."),
+    null,
+  );
+  assert.match(
+    getReviewBodyRefusalReason("request-changes", "CHANGES REQUESTED but APPROVED FOR MERGE"),
+    /approval language/,
   );
 });
 
@@ -228,6 +299,113 @@ test("review-pr approval gates require safe PR state metadata files labels and c
   assert.match(stopLabel.refusalReasons.join("\n"), /stop label/);
 });
 
+test("review-pr hard PR gates refuse closed merged non-main and unlinked PRs", () => {
+  const cases = [
+    {
+      expected: /PR is not open/,
+      pullRequest: { state: "closed" },
+    },
+    {
+      expected: /already merged/,
+      pullRequest: { merged: true, merged_at: "2026-04-30T00:00:00Z" },
+    },
+    {
+      expected: /base branch is not main/,
+      pullRequest: { base: { ref: "release" } },
+    },
+    {
+      expected: /does not mention linked issue MAR-298/,
+      options: { issue: "MAR-298" },
+      pullRequest: { body: "Closes: MAR-296" },
+    },
+  ];
+
+  for (const { expected, options, pullRequest } of cases) {
+    const result = evaluateReviewGates({
+      body: "HUMAN REVIEW REQUIRED: hard PR gate.",
+      inspection: makeInspection({
+        pullRequest: {
+          ...makeInspection().pullRequest,
+          ...pullRequest,
+        },
+      }),
+      options: makeOptions({
+        body: "HUMAN REVIEW REQUIRED: hard PR gate.",
+        decision: "comment",
+        ...options,
+      }),
+    });
+
+    assert.match(result.refusalReasons.join("\n"), expected);
+  }
+});
+
+test("review-pr approval gates fail closed for sensitive files and source scope drift", () => {
+  const result = evaluateReviewGates({
+    body: "APPROVED FOR MERGE\n\nIndependence: separate Reviewer App session.",
+    inspection: makeInspection({
+      files: [
+        { filename: ".env" },
+        { filename: "secrets/reviewer.pem" },
+        { filename: "ops/reviewer-env.ps1" },
+        { filename: ".github/workflows/ci.yml" },
+        { filename: "src/game.js" },
+        { filename: "src\\game\\movement.js" },
+      ],
+      pullRequest: {
+        ...makeInspection().pullRequest,
+        body: makeInspection().pullRequest.body.replace("- Type: type:harness", "- Type: type:test"),
+      },
+    }),
+    options: makeOptions(),
+  });
+
+  const refusals = result.refusalReasons.join("\n");
+  assert.match(refusals, /local env file/);
+  assert.match(refusals, /private key file/);
+  assert.match(refusals, /local reviewer env file/);
+  assert.match(refusals, /GitHub workflow file/);
+  assert.match(refusals, /outside docs\/harness\/test issue scope/);
+  assert.match(refusals, /protected movement core/);
+});
+
+test("review-pr approval gates fail closed for missing pending failed and unreadable checks", () => {
+  const cases = [
+    {
+      checks: { checkRuns: [], status: { statuses: [] } },
+      expected: /Required checks could not be determined/,
+    },
+    {
+      checks: {
+        checkRuns: [{ conclusion: null, name: "CI", status: "in_progress" }],
+        status: { statuses: [] },
+      },
+      expected: /Check run CI is in_progress/,
+    },
+    {
+      checks: {
+        checkRuns: [{ conclusion: "success", name: "CI", status: "completed" }],
+        status: { statuses: [{ context: "legacy", state: "pending" }], state: "pending" },
+      },
+      expected: /Commit status legacy is pending/,
+    },
+    {
+      checks: { unavailableReason: "403 forbidden" },
+      expected: /Check status could not be read/,
+    },
+  ];
+
+  for (const { checks, expected } of cases) {
+    const result = evaluateReviewGates({
+      body: "APPROVED FOR MERGE\n\nIndependence: separate Reviewer App session.",
+      inspection: makeInspection({ checks }),
+      options: makeOptions(),
+    });
+
+    assert.match(result.refusalReasons.join("\n"), expected);
+  }
+});
+
 test("review-pr comment can report metadata and check blockers without approving", () => {
   const result = evaluateReviewGates({
     body: "HUMAN REVIEW REQUIRED: PR metadata and checks need human inspection.",
@@ -250,6 +428,78 @@ test("review-pr comment can report metadata and check blockers without approving
   assert.deepEqual(result.refusalReasons, []);
   assert.match(result.approvalOnlyRefusals.join("\n"), /required heading/);
   assert.match(result.approvalOnlyRefusals.join("\n"), /Required checks/);
+});
+
+test("review-pr constructed GitHub client is limited to PR inspection and review submission", async () => {
+  const requests = [];
+  const fetchImpl = async (url, init = {}) => {
+    const parsedUrl = new URL(url);
+    requests.push({
+      body: init.body ? JSON.parse(init.body) : null,
+      method: init.method || "GET",
+      path: parsedUrl.pathname + parsedUrl.search,
+    });
+
+    if (parsedUrl.pathname.endsWith("/pulls/7")) {
+      return jsonResponse({ head: { sha: "abc123" }, number: 7 });
+    }
+    if (parsedUrl.pathname.endsWith("/issues/7")) {
+      return jsonResponse({ labels: [] });
+    }
+    if (parsedUrl.pathname.endsWith("/pulls/7/files")) {
+      return jsonResponse([{ filename: "test/reviewerReviewPr.test.js" }]);
+    }
+    if (parsedUrl.pathname.endsWith("/commits/abc123/check-runs")) {
+      return jsonResponse({ check_runs: [] });
+    }
+    if (parsedUrl.pathname.endsWith("/commits/abc123/status")) {
+      return jsonResponse({ statuses: [] });
+    }
+    if (parsedUrl.pathname.endsWith("/pulls/7/reviews")) {
+      return jsonResponse({ id: 1 });
+    }
+
+    return {
+      ok: false,
+      status: 404,
+      text: async () => "unexpected path",
+    };
+  };
+
+  const client = createGitHubClient({
+    fetchImpl,
+    repo: "urkrass/Tanchiki",
+    token: "fake-token",
+  });
+
+  await client.getPullRequest(7);
+  await client.getIssue(7);
+  await client.listPullRequestFiles(7);
+  await client.getChecks("abc123");
+  await client.submitReview(7, {
+    body: "CHANGES REQUESTED: focused finding.",
+    event: "REQUEST_CHANGES",
+  });
+
+  assert.deepEqual(requests, [
+    { body: null, method: "GET", path: "/repos/urkrass/Tanchiki/pulls/7" },
+    { body: null, method: "GET", path: "/repos/urkrass/Tanchiki/issues/7" },
+    { body: null, method: "GET", path: "/repos/urkrass/Tanchiki/pulls/7/files?per_page=100&page=1" },
+    { body: null, method: "GET", path: "/repos/urkrass/Tanchiki/commits/abc123/check-runs?per_page=100" },
+    { body: null, method: "GET", path: "/repos/urkrass/Tanchiki/commits/abc123/status" },
+    {
+      body: {
+        body: "CHANGES REQUESTED: focused finding.",
+        event: "REQUEST_CHANGES",
+      },
+      method: "POST",
+      path: "/repos/urkrass/Tanchiki/pulls/7/reviews",
+    },
+  ]);
+
+  for (const request of requests) {
+    assert.doesNotMatch(request.path, /merge|labels|dispatches|actions|hooks|branches|git\/refs/i);
+  }
 });
 
 test("review-pr refuses invalid args before token generation", async () => {
@@ -366,3 +616,11 @@ test("review-pr package and static surface preserve token and forbidden-action b
     );
   }
 });
+
+function jsonResponse(body) {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => body,
+  };
+}
