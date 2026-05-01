@@ -1,0 +1,126 @@
+{
+  "schema_version": "tanchiki.reviewer_agent.evidence.v1",
+  "repo": "urkrass/Tanchiki",
+  "active_linear_project": "Tanchiki - Playable Tank RPG Prototype",
+  "review_cadence": "paired-review",
+  "linked_issue": {
+    "id": "MAR-318",
+    "summary_available": false,
+    "unavailable_reason": "Fixture evidence for mocked regression tests."
+  },
+  "pr": {
+    "number": 125,
+    "url": "https://github.com/urkrass/Tanchiki/pull/125",
+    "title": "MAR-318 reviewer agent regression tests",
+    "body": "## Linked Linear Issue\n\nCloses: MAR-318\n\n## Role / Type / Risk / Validation\n\n- Role: role:test\n- Type: type:test\n- Risk: risk:low\n- Validation profile: validation:test\n\n## Summary\n\n- Adds mocked regression coverage.\n\n## Files Changed\n\n- test/reviewerEvidence.test.js\n\n## Tests Run\n\n- node --test test/reviewerEvidence.test.js\n- npm test\n- npm run build\n- npm run lint\n\n## Manual QA\n\n- Confirmed tests use mocks and fixtures only.\n\n## Broad Scan Reason\n\n- No broad scan was used.\n\n## Conflict Risk\n\n- Low; test-only changes.\n\n## Acceptance Labels\n\n- Merge label: none\n- Reviewer label: none\n- Human gate: approved in MAR-311\n\n## PR Readiness\n\n- Draft allowed reason, if Draft: n/a\n- Paired-review candidate: yes\n- Auto-merge candidate: no\n\n## Visible UI Expectation\n\n- No visible UI changes.\n\n## Known Limitations\n\n- Live OpenAI and GitHub credentials are not used in CI.",
+    "base_branch": "main",
+    "head_branch": "mar-318-reviewer-agent-regression-tests",
+    "head_sha": "abc123fixture",
+    "state": {
+      "value": "open",
+      "open": true,
+      "draft": false,
+      "merged": false
+    }
+  },
+  "changed_files": {
+    "count": 1,
+    "files": [
+      {
+        "filename": "test/reviewerEvidence.test.js",
+        "status": "modified",
+        "additions": 80,
+        "deletions": 0,
+        "changes": 80,
+        "patch_available": true
+      }
+    ]
+  },
+  "diff": {
+    "text": "diff --git a/test/reviewerEvidence.test.js b/test/reviewerEvidence.test.js\n@@ mocked fixture diff @@",
+    "truncated": false,
+    "chars_original": 94,
+    "chars_included": 94,
+    "max_diff_chars": 60000
+  },
+  "checks": {
+    "state": "passing",
+    "check_run_count": 1,
+    "commit_status_count": 0,
+    "check_runs": [
+      {
+        "name": "CI",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "commit_statuses": [],
+    "findings": []
+  },
+  "labels": {
+    "names": [
+      "testing",
+      "risk:low"
+    ]
+  },
+  "pr_metadata": {
+    "mentions_linked_issue": true,
+    "required_headings_ok": true,
+    "missing_headings": [],
+    "role": "role:test",
+    "type": "type:test",
+    "risk": "risk:low",
+    "validation": "validation:test",
+    "role_type_risk_validation_ok": true,
+    "validation_evidence": {
+      "tests_run": "- node --test test/reviewerEvidence.test.js\n- npm test\n- npm run build\n- npm run lint",
+      "manual_qa": "- Confirmed tests use mocks and fixtures only.",
+      "broad_scan_reason": "- No broad scan was used.",
+      "conflict_risk": "- Low; test-only changes.",
+      "visible_ui_expectation": "- No visible UI changes.",
+      "known_limitations": "- Live OpenAI and GitHub credentials are not used in CI."
+    }
+  },
+  "role_type_risk_validation": {
+    "role": "role:test",
+    "type": "type:test",
+    "risk": "risk:low",
+    "validation": "validation:test"
+  },
+  "policy_snippets": {
+    "pr_acceptance": [
+      "Paired-review PRs must be open, non-draft, unmerged, and have required checks and metadata ready before reviewer approval."
+    ],
+    "reviewer_app_authority": [
+      "Reviewer App identity is limited to PR inspection, PR comments, and PR review submission."
+    ],
+    "context_economy": [
+      "Do not send or collect the whole repo by default."
+    ],
+    "validation": [
+      "validation:test requires targeted test command if relevant, npm test, npm run build, and npm run lint."
+    ]
+  },
+  "protected_surfaces": {
+    "forbidden_files": [
+      {
+        "pattern": "^src/game/movement\\.js$",
+        "reason": "protected movement core"
+      }
+    ],
+    "forbidden_file_findings": [],
+    "protected_files": [
+      "src/game/movement.js"
+    ]
+  },
+  "broad_scan": {
+    "included": false,
+    "reason": null
+  },
+  "safety": {
+    "openai_call_made": false,
+    "github_review_submitted": false,
+    "reviewer_app_token_requested": false,
+    "secrets_printed": false
+  }
+}
