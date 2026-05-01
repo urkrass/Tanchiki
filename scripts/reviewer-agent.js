@@ -282,7 +282,8 @@ export function parseArgs(argv) {
 }
 
 export function readGitHubToken(env = process.env) {
-  return env.GH_TOKEN || env.GITHUB_TOKEN || null;
+  const token = env.GH_TOKEN || env.GITHUB_TOKEN || null;
+  return typeof token === "string" && token.trim() ? token.trim() : null;
 }
 
 export function readOpenAiApiKey(env = process.env) {
@@ -731,23 +732,14 @@ export function normalizeReviewBodyForDecision(decision) {
     return decision;
   }
 
-  const sections = [];
-  if (!decision.review_body_markdown.includes(approvedForMergeMarker)) {
-    sections.push(approvedForMergeMarker);
-  }
-  if (!hasReviewerAgentIndependenceBasis(decision.review_body_markdown)) {
-    sections.push(reviewerAgentIndependenceBasisMarkdown);
-  }
-
-  if (sections.length === 0) {
+  const normalizedBody = normalizeApprovedReviewBody(decision.review_body_markdown);
+  if (normalizedBody === decision.review_body_markdown) {
     return decision;
   }
 
-  sections.push(decision.review_body_markdown);
-
   return {
     ...decision,
-    review_body_markdown: sections.join("\n\n"),
+    review_body_markdown: normalizedBody,
   };
 }
 
@@ -953,10 +945,33 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function hasReviewerAgentIndependenceBasis(body) {
-  return reviewerAgentIndependenceBasisMarkdown
+function normalizeApprovedReviewBody(body) {
+  const content = stripGeneratedApprovalBoilerplate(body);
+  return [
+    approvedForMergeMarker,
+    reviewerAgentIndependenceBasisMarkdown,
+    content,
+  ].filter(Boolean).join("\n\n");
+}
+
+function stripGeneratedApprovalBoilerplate(body) {
+  return String(body || "")
+    .replaceAll("\r\n", "\n")
+    .split(/\n{2,}/)
+    .map((paragraph) => stripApprovedForMergeMarkerLines(paragraph).trim())
+    .filter((paragraph) => paragraph && !isGeneratedIndependenceParagraph(paragraph))
+    .join("\n\n");
+}
+
+function stripApprovedForMergeMarkerLines(paragraph) {
+  return paragraph
     .split("\n")
-    .every((line) => body.includes(line));
+    .filter((line) => line.trim() !== approvedForMergeMarker)
+    .join("\n");
+}
+
+function isGeneratedIndependenceParagraph(paragraph) {
+  return /^independence(?:\s+basis)?:/i.test(paragraph.trim());
 }
 
 function findApprovalVetoReasons(evidence) {

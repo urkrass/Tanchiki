@@ -8,6 +8,7 @@ import {
   collectPrEvidence,
   createGitHubEvidenceClient,
   defaultMaxDiffChars,
+  gitHubEvidenceAuthGuidance,
   summarizeChecks,
   trimDiff,
   validateMaxDiffChars,
@@ -29,6 +30,12 @@ import {
 import { getReviewBodyRefusalReason } from "../scripts/reviewer-review-pr.js";
 
 const root = process.cwd();
+
+function countExactLine(text, line) {
+  return String(text)
+    .split("\n")
+    .filter((value) => value.trim() === line).length;
+}
 
 function makePrBody(overrides = {}) {
   return [
@@ -241,6 +248,7 @@ test("reviewer-agent normalizes approval body before review-pr validation", asyn
   const exitCode = await main({
     argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
     env: {
+      GH_TOKEN: "secret-gh-token",
       OPENAI_API_KEY: "secret-openai-key",
     },
     fetchImpl,
@@ -288,6 +296,7 @@ test("reviewer-agent approval normalization preserves forbidden output refusal",
   const exitCode = await main({
     argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
     env: {
+      GH_TOKEN: "secret-gh-token",
       OPENAI_API_KEY: "secret-openai-key",
     },
     fetchImpl,
@@ -348,6 +357,34 @@ test("reviewer-agent approval normalization does not duplicate complete approval
   });
 
   assert.equal(normalizeReviewBodyForDecision(approval), approval);
+});
+
+test("reviewer-agent approval normalization collapses duplicate approval and independence sections", () => {
+  const approval = makeReviewerDecision({
+    decision: "APPROVED_FOR_MERGE",
+    review_body_markdown: [
+      "APPROVED FOR MERGE",
+      "",
+      "Independence basis:",
+      "- Older generated basis line.",
+      "",
+      "APPROVED FOR MERGE",
+      "",
+      "Independence: separate Reviewer App session.",
+      "",
+      "Approved for merge.",
+    ].join("\n"),
+  });
+
+  const normalized = normalizeReviewBodyForDecision(approval);
+  const body = normalized.review_body_markdown;
+
+  assert.equal(countExactLine(body, "APPROVED FOR MERGE"), 1);
+  assert.equal(countExactLine(body, "Independence basis:"), 1);
+  assert.match(body, /^APPROVED FOR MERGE\n\nIndependence basis:/);
+  assert.match(body, /Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent\./);
+  assert.match(body, /\n\nApproved for merge\.$/);
+  assert.doesNotMatch(body, /Older generated basis line|Independence: separate Reviewer App session/);
 });
 
 test("reviewer-agent normalized approval body avoids forbidden output false positives", () => {
@@ -562,6 +599,7 @@ test("GitHub evidence client uses read-only PR evidence endpoints", async () => 
     const parsedUrl = new URL(url);
     requests.push({
       accept: init.headers.Accept,
+      authorization: init.headers.Authorization,
       method: init.method,
       path: parsedUrl.pathname + parsedUrl.search,
     });
@@ -621,8 +659,91 @@ test("GitHub evidence client uses read-only PR evidence endpoints", async () => 
   );
 
   for (const request of requests) {
+    assert.equal(request.authorization, "Bearer fake-token");
     assert.doesNotMatch(request.path, /\/reviews|\/merge|\/labels|dispatches|actions|hooks|branches|git\/refs/i);
   }
+});
+
+test("GitHub evidence client requires normal read-only auth before network access", async () => {
+  assert.match(gitHubEvidenceAuthGuidance, /normal read-only GitHub auth/);
+
+  assert.throws(
+    () => createGitHubEvidenceClient({
+      fetchImpl: async () => {
+        throw new Error("network should not be reached");
+      },
+    }),
+    (error) => {
+      assert.match(error.message, /GitHub evidence collection requires normal read-only GitHub auth/);
+      assert.match(error.message, /\$env:GH_TOKEN = gh auth token/);
+      assert.match(error.message, /not the Reviewer App submission token/);
+      assert.equal(error.githubEvidenceAuthError, true);
+      return true;
+    },
+  );
+});
+
+test("reviewer-agent fails closed with clear GitHub evidence auth guidance", async () => {
+  const stdout = [];
+  const stderr = [];
+  let openAiCalled = false;
+  let reviewerTokenRequested = false;
+  const fetchImpl = await makeReviewerAgentFetch({
+    onOpenAiRequest: () => {
+      openAiCalled = true;
+    },
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+    env: {
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    createTokenImpl: () => {
+      reviewerTokenRequested = true;
+      return { token: "secret-reviewer-token" };
+    },
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  const errorText = stderr.join("\n");
+  assert.equal(exitCode, 1);
+  assert.deepEqual(stdout, []);
+  assert.equal(openAiCalled, false);
+  assert.equal(reviewerTokenRequested, false);
+  assert.match(errorText, /GitHub evidence collection requires normal read-only GitHub auth/);
+  assert.match(errorText, /\$env:GH_TOKEN = gh auth token/);
+  assert.match(errorText, /not the Reviewer App submission token/);
+  assert.match(errorText, /No OpenAI API call was made/);
+  assert.match(errorText, /Reviewer App token path was not reached/);
+  assert.match(errorText, /No GitHub review was submitted/);
+  assert.doesNotMatch(errorText, /secret-openai-key|secret-reviewer-token/);
+});
+
+test("GitHub evidence client reports rate-limited evidence auth with operator guidance", async () => {
+  const client = createGitHubEvidenceClient({
+    fetchImpl: async () => ({
+      headers: new Map([["x-ratelimit-remaining", "0"]]),
+      ok: false,
+      status: 403,
+      text: async () => "API rate limit exceeded",
+    }),
+    token: "secret-gh-token",
+  });
+
+  await assert.rejects(
+    () => client.getPullRequest(7),
+    (error) => {
+      assert.match(error.message, /GitHub API GET \/pulls\/7 failed with HTTP 403/);
+      assert.match(error.message, /GitHub evidence collection requires normal read-only GitHub auth/);
+      assert.match(error.message, /\$env:GH_TOKEN = gh auth token/);
+      assert.match(error.message, /not the Reviewer App submission token/);
+      assert.equal(error.githubEvidenceAuthError, true);
+      return true;
+    },
+  );
 });
 
 test("reviewer-agent dry-run calls OpenAI with strict structured output and submits no review", async () => {
@@ -764,6 +885,7 @@ test("reviewer-agent live mode fails closed when Reviewer App env is missing", a
   const exitCode = await main({
     argv: ["--pr", "119", "--issue", "MAR-314"],
     env: {
+      GH_TOKEN: "secret-gh-token",
       OPENAI_API_KEY: "secret-openai-key",
     },
     fetchImpl,
@@ -821,6 +943,7 @@ test("reviewer-agent refuses invalid OpenAI JSON output", async () => {
   const exitCode = await main({
     argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
     env: {
+      GH_TOKEN: "secret-gh-token",
       OPENAI_API_KEY: "secret-openai-key",
     },
     fetchImpl,
@@ -861,6 +984,7 @@ test("reviewer-agent refuses unknown OpenAI decision vocabulary", async () => {
   const exitCode = await main({
     argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
     env: {
+      GH_TOKEN: "secret-gh-token",
       OPENAI_API_KEY: "secret-openai-key",
     },
     fetchImpl,
@@ -889,6 +1013,7 @@ test("reviewer-agent refuses forbidden model output actions", async () => {
   const exitCode = await main({
     argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
     env: {
+      GH_TOKEN: "secret-gh-token",
       OPENAI_API_KEY: "secret-openai-key",
     },
     fetchImpl,
@@ -952,6 +1077,7 @@ for (const scenario of [
     const exitCode = await main({
       argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
       env: {
+        GH_TOKEN: "secret-gh-token",
         OPENAI_API_KEY: "secret-openai-key",
       },
       fetchImpl,
@@ -991,6 +1117,7 @@ for (const label of [
     const exitCode = await main({
       argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
       env: {
+        GH_TOKEN: "secret-gh-token",
         OPENAI_API_KEY: "secret-openai-key",
       },
       fetchImpl,
