@@ -13,7 +13,10 @@ import {
   validateMaxDiffChars,
 } from "../scripts/reviewer-evidence.js";
 import {
+  createOpenAiRequest,
   defaultOpenAiModel,
+  evaluateLocalPreflight,
+  evaluateReviewerDecision,
   mapDecisionToReviewPrDecision,
   main,
   openAiResponsesUrl,
@@ -176,6 +179,40 @@ test("reviewer-agent maps generated decisions to GitHub review decisions", () =>
     })),
     "request-changes",
   );
+});
+
+test("reviewer-agent fixture evidence passes local approval gates and request sanitization", () => {
+  const evidence = readFixtureJson("reviewer-agent-pr-evidence.json");
+  const preflight = evaluateLocalPreflight(evidence);
+
+  assert.deepEqual(preflight.local_checks, {
+    pr_state_ok: true,
+    metadata_ok: true,
+    checks_ok: true,
+    scope_ok: true,
+    forbidden_files_ok: true,
+    review_cadence_ok: true,
+  });
+  assert.deepEqual(preflight.refusal_reasons, []);
+
+  const decision = makeReviewerDecision({
+    decision: "APPROVED_FOR_MERGE",
+    confidence: "high",
+    summary: "Fixture evidence is safe for approval.",
+    review_body_markdown: "APPROVED FOR MERGE\n\nIndependence: fixture evidence regression.",
+  });
+  const evaluation = evaluateReviewerDecision({ decision, evidence });
+
+  assert.deepEqual(evaluation.refusal_reasons, []);
+
+  const request = createOpenAiRequest({ evidence, model: "gpt-5.5" });
+  const requestText = JSON.stringify(request);
+  assert.equal(request.store, false);
+  assert.equal(request.text.format.strict, true);
+  assert.deepEqual(request.text.format.schema, reviewerDecisionSchema);
+  assert.match(requestText, /MAR-318/);
+  assert.match(requestText, /diff --git/);
+  assert.doesNotMatch(requestText, /OPENAI_API_KEY|GH_TOKEN|GITHUB_REVIEWER|secret-/);
 });
 
 test("reviewer evidence validates and trims max diff size", () => {
@@ -557,6 +594,47 @@ test("reviewer-agent refuses invalid OpenAI JSON output", async () => {
   assert.doesNotMatch(stderr.join("\n"), /secret-openai-key/);
 });
 
+test("reviewer-agent refuses unknown OpenAI decision vocabulary", async () => {
+  const stdout = [];
+  const stderr = [];
+  const reviewRequests = [];
+  const fetchImpl = await makeReviewerAgentFetch({
+    onReviewRequest: (request) => reviewRequests.push(request),
+    openAiText: JSON.stringify({
+      decision: "MERGE_NOW",
+      confidence: "high",
+      summary: "Unsafe vocabulary.",
+      findings: [],
+      checks: {
+        pr_state_ok: true,
+        metadata_ok: true,
+        checks_ok: true,
+        scope_ok: true,
+        forbidden_files_ok: true,
+        review_cadence_ok: true,
+      },
+      review_body_markdown: "Looks ready.",
+    }),
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+    env: {
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(stdout, []);
+  assert.deepEqual(reviewRequests, []);
+  assert.match(stderr.join("\n"), /Reviewer decision is unknown/);
+  assert.match(stderr.join("\n"), /No GitHub review was submitted/);
+  assert.doesNotMatch(stderr.join("\n"), /secret-openai-key/);
+});
+
 test("reviewer-agent refuses forbidden model output actions", async () => {
   const stdout = [];
   const stderr = [];
@@ -588,6 +666,16 @@ for (const scenario of [
     name: "draft PR",
     pullRequest: { draft: true },
     expectedGate: "pr_state_ok",
+  },
+  {
+    name: "merged PR in paired-review mode",
+    pullRequest: { merged: true, merged_at: "2026-05-01T11:26:53Z" },
+    expectedGate: "pr_state_ok",
+  },
+  {
+    name: "missing PR metadata",
+    pullRequest: { body: "Closes: MAR-314" },
+    expectedGate: "metadata_ok",
   },
   {
     name: "failing checks",
@@ -740,6 +828,10 @@ test("reviewer-agent package and static surface preserve submission boundaries",
 
 function readRepoFile(...pathParts) {
   return readFileSync(join(root, ...pathParts), "utf8");
+}
+
+function readFixtureJson(fileName) {
+  return JSON.parse(readRepoFile("test", "fixtures", fileName));
 }
 
 async function makeReviewerAgentFetch({
