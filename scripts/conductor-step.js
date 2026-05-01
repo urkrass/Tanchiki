@@ -198,6 +198,7 @@ export function decideCandidateReport(input = {}) {
     .sort(compareIssuesById)
     .map((issue) => classifyCandidateIssue(issue, state.activeProject));
   const activeCandidates = candidates.filter((candidate) => candidate.classification === "active");
+  const candidateCounts = countCandidateClassifications(candidates);
 
   if (activeCandidates.length === 1) {
     const active = activeCandidates[0];
@@ -206,10 +207,9 @@ export function decideCandidateReport(input = {}) {
       candidates,
       decision: "report",
       evidence: [
-        `Found ${candidates.length} automation-ready issue(s) in the active project.`,
         `${active.id} is the only active automation-ready candidate.`,
       ],
-      nextAction: `Run Dispatcher for ${active.id} (${active.metadata.role}).`,
+      nextAction: buildCandidateReportNextAction({ active, counts: candidateCounts }),
       readOnly: true,
       reason: "one-active-candidate",
     };
@@ -221,10 +221,9 @@ export function decideCandidateReport(input = {}) {
       candidates,
       decision: "report",
       evidence: [
-        `Found ${candidates.length} automation-ready issue(s) in the active project.`,
         `Active candidates: ${activeCandidates.map((candidate) => candidate.id).join(", ")}.`,
       ],
-      nextAction: "Do not run Dispatcher; run Planner/Groomer or human triage so exactly one issue is exposed.",
+      nextAction: buildCandidateReportNextAction({ counts: candidateCounts, multipleActive: true }),
       readOnly: true,
       reason: "multiple-active-candidates",
     };
@@ -235,21 +234,29 @@ export function decideCandidateReport(input = {}) {
     candidates,
     decision: "report",
     evidence: [
-      `Found ${candidates.length} automation-ready issue(s) in the active project.`,
       "No active automation-ready candidate is eligible for Dispatcher.",
     ],
-    nextAction: "Do not run Dispatcher; resolve blockers or queue grooming first.",
+    nextAction: buildCandidateReportNextAction({ counts: candidateCounts }),
     readOnly: true,
     reason: "no-active-candidate",
   };
 }
 
-export function formatCandidateReport(report) {
+export function formatCandidateReport(report, options = {}) {
+  const counts = countCandidateClassifications(report.candidates);
+  const activeCandidates = report.candidates.filter((candidate) => candidate.classification === "active");
+  const blockedCandidates = report.candidates.filter((candidate) => candidate.classification === "blocked");
+  const unsafeCandidates = report.candidates.filter((candidate) => candidate.classification === "unsafe");
+  const historicalCandidates = report.candidates.filter((candidate) => ["completed", "canceled"].includes(candidate.classification));
   const lines = [
     "Conductor candidate report",
     `Active project: ${report.activeProject}`,
-    `Decision: ${report.decision}`,
-    `Reason: ${report.reason}`,
+    `Active candidates: ${counts.active}`,
+    `Blocked candidates: ${counts.blocked}`,
+    `Unsafe candidates: ${counts.unsafe}`,
+    `Historical completed/canceled automation-ready issues: ${counts.historical}`,
+    `Decision: ${report.reason}`,
+    `Next action: ${report.nextAction}`,
   ];
 
   lines.push("Evidence:");
@@ -257,35 +264,103 @@ export function formatCandidateReport(report) {
     lines.push(`- ${item}`);
   }
 
-  if (report.candidates.length === 0) {
-    lines.push("Candidates: none");
-  } else {
-    lines.push("Candidates:");
-    for (const candidate of report.candidates) {
-      lines.push(`- ${candidate.id}: ${candidate.title || "untitled"}`);
-      lines.push(`  classification: ${candidate.classification}`);
-      lines.push(`  status: ${candidate.status || "missing"} (${candidate.statusType || "missing"})`);
-      lines.push(`  role/type/risk/validation: ${candidate.metadata.role || "missing"} / ${candidate.metadata.type || "missing"} / ${candidate.metadata.risk || "missing"} / ${candidate.metadata.validation || "missing"}`);
-      lines.push(`  labels: ${candidate.labels.join(", ") || "none"}`);
-      lines.push(`  blockers: ${candidate.blockers.join(", ") || "none"}`);
-      lines.push(`  reason: ${candidate.reason}`);
-      lines.push(`  next safe action: ${candidate.nextSafeAction}`);
-    }
-  }
+  appendCandidateDetails(lines, "Active candidate details", activeCandidates, { includeReason: false });
+  appendCandidateDetails(lines, "Blocked candidate details", blockedCandidates, { includeBlockers: true });
+  appendCandidateDetails(lines, "Unsafe candidate details", unsafeCandidates, { includeReason: true });
 
-  const ignored = report.candidates.filter((candidate) => ["completed", "canceled"].includes(candidate.classification));
-  if (ignored.length > 0) {
-    lines.push("Ignored historical automation-ready issues:");
-    for (const candidate of ignored) {
-      lines.push(`- ${candidate.id}: ${candidate.classification}; ${candidate.reason}`);
-    }
+  if (options.includeHistorical) {
+    appendCandidateDetails(lines, "Historical completed/canceled automation-ready issue details", historicalCandidates, {
+      includeReason: true,
+      includeStatus: true,
+    });
+  } else if (historicalCandidates.length > 0) {
+    lines.push("Historical details: omitted by default; rerun with --include-historical to list completed/canceled issues.");
   }
 
   if (report.readOnly) {
     lines.push("Read-only: no Linear or GitHub mutation was applied.");
   }
-  lines.push(`Next action: ${report.nextAction}`);
   return lines.join("\n");
+}
+
+function countCandidateClassifications(candidates = []) {
+  return candidates.reduce(
+    (counts, candidate) => {
+      if (candidate.classification === "active") {
+        counts.active += 1;
+      } else if (candidate.classification === "blocked") {
+        counts.blocked += 1;
+      } else if (candidate.classification === "unsafe") {
+        counts.unsafe += 1;
+      } else if (["completed", "canceled"].includes(candidate.classification)) {
+        counts.historical += 1;
+      }
+      return counts;
+    },
+    { active: 0, blocked: 0, historical: 0, unsafe: 0 },
+  );
+}
+
+function buildCandidateReportNextAction({ active = null, counts, multipleActive = false }) {
+  if (active) {
+    const cleanupAction = buildCandidateCleanupAction(counts, { forNonActive: true });
+    const primary = `Run Dispatcher for ${active.id} (${active.metadata.role}).`;
+    return cleanupAction ? `${primary} Separately ${cleanupAction}` : primary;
+  }
+
+  const cleanupAction = buildCandidateCleanupAction(counts);
+
+  if (multipleActive) {
+    const primary = "Do not run Dispatcher; run Planner/Groomer or human triage so exactly one active issue is exposed.";
+    return cleanupAction ? `${primary} Also ${cleanupAction}` : primary;
+  }
+
+  if (counts.blocked === 0 && counts.unsafe === 0) {
+    return "No runnable issue is exposed. Create or groom the next campaign issue.";
+  }
+
+  return `No active candidate is exposed. ${capitalizeSentence(cleanupAction)}`;
+}
+
+function buildCandidateCleanupAction(counts, options = {}) {
+  const suffix = options.forNonActive ? "for non-active candidates." : "before running Dispatcher.";
+  if (counts.blocked > 0 && counts.unsafe > 0) {
+    return `resolve blocked-by relations and clean up unsafe candidate metadata ${suffix}`;
+  }
+  if (counts.blocked > 0) {
+    return `resolve blocked-by relations ${suffix}`;
+  }
+  if (counts.unsafe > 0) {
+    return `clean up unsafe candidate metadata ${suffix}`;
+  }
+  return "";
+}
+
+function capitalizeSentence(value) {
+  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
+}
+
+function appendCandidateDetails(lines, heading, candidates, options = {}) {
+  lines.push(`${heading}:`);
+  if (candidates.length === 0) {
+    lines.push("- none");
+    return;
+  }
+
+  for (const candidate of candidates) {
+    lines.push(`- ${candidate.id}: ${candidate.title || "untitled"}`);
+    if (options.includeStatus) {
+      lines.push(`  status: ${candidate.status || "missing"} (${candidate.statusType || "missing"})`);
+    }
+    lines.push(`  role/type/risk/validation: ${candidate.metadata.role || "missing"} / ${candidate.metadata.type || "missing"} / ${candidate.metadata.risk || "missing"} / ${candidate.metadata.validation || "missing"}`);
+    if (options.includeBlockers) {
+      lines.push(`  blockers: ${candidate.blockers.join(", ") || "none"}`);
+    }
+    if (options.includeReason) {
+      lines.push(`  reason: ${candidate.reason}`);
+    }
+    lines.push(`  next safe action: ${candidate.nextSafeAction}`);
+  }
 }
 
 export function parseArgs(argv) {
@@ -301,6 +376,7 @@ export function parseArgs(argv) {
     repo: "",
     reviewer: "",
     syncReviewOutcome: false,
+    includeHistorical: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -322,6 +398,14 @@ export function parseArgs(argv) {
         throw new ConductorStepError("--report-candidates does not accept a value.");
       }
       options.reportCandidates = true;
+      continue;
+    }
+
+    if (key === "--include-historical") {
+      if (inlineValue !== null) {
+        throw new ConductorStepError("--include-historical does not accept a value.");
+      }
+      options.includeHistorical = true;
       continue;
     }
 
@@ -372,6 +456,9 @@ export function parseArgs(argv) {
   }
   if (options.syncReviewOutcome && options.reportCandidates) {
     throw new ConductorStepError("--sync-review-outcome cannot be combined with --report-candidates.");
+  }
+  if (options.includeHistorical && !options.reportCandidates) {
+    throw new ConductorStepError("--include-historical requires --report-candidates.");
   }
 
   return options;
@@ -430,7 +517,7 @@ export async function main({
       const report = state.liveMode
         ? await runLiveCandidateReport({ env, fetchImpl, state })
         : decideCandidateReport(state);
-      stdout(formatCandidateReport(report));
+      stdout(formatCandidateReport(report, { includeHistorical: options.includeHistorical }));
       return 0;
     }
     const decision = state.liveMode
