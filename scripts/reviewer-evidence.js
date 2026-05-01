@@ -4,6 +4,12 @@ const reviewCadence = "paired-review";
 const defaultMaxDiffChars = 60000;
 const minMaxDiffChars = 2000;
 const maxMaxDiffChars = 200000;
+const gitHubEvidenceAuthGuidance = [
+  "GitHub evidence collection requires normal read-only GitHub auth through GH_TOKEN or GITHUB_TOKEN.",
+  "Set it before running reviewer:agent, for example: $env:GH_TOKEN = gh auth token",
+  "This token is only for read-only PR evidence collection.",
+  "It is not the Reviewer App submission token; live reviewer:agent creates the Reviewer App token internally only after local preflight, OpenAI output validation, and review-body validation pass.",
+].join(" ");
 
 const requiredPrBodyHeadings = [
   "## Linked Linear Issue",
@@ -53,6 +59,7 @@ export {
   defaultMaxDiffChars,
   defaultRepo,
   forbiddenFileMatchers,
+  gitHubEvidenceAuthGuidance,
   maxMaxDiffChars,
   minMaxDiffChars,
   policySnippets,
@@ -78,11 +85,16 @@ export async function collectPrEvidence({
     client.getIssue(pr),
     client.listPullRequestFiles(pr),
     client.getPullRequestDiff(pr),
-    client.getChecks(pullRequest.head?.sha).catch((error) => ({
-      checkRuns: [],
-      status: { statuses: [] },
-      unavailableReason: error.message,
-    })),
+    client.getChecks(pullRequest.head?.sha).catch((error) => {
+      if (error.githubEvidenceAuthError) {
+        throw error;
+      }
+      return {
+        checkRuns: [],
+        status: { statuses: [] },
+        unavailableReason: error.message,
+      };
+    }),
   ]);
 
   const trimmedDiff = trimDiff(diff, maxDiffChars);
@@ -162,17 +174,18 @@ export async function collectPrEvidence({
 
 export function createGitHubEvidenceClient({ fetchImpl = fetch, repo = defaultRepo, token = null } = {}) {
   const [owner, repoName] = parseRepo(repo);
+  const authToken = typeof token === "string" ? token.trim() : "";
+  if (!authToken) {
+    throw createGitHubEvidenceAuthError("GitHub evidence collection refused before network access.");
+  }
 
   async function request(path, { accept = "application/vnd.github+json", responseType = "json" } = {}) {
     const headers = {
       Accept: accept,
+      Authorization: `Bearer ${authToken}`,
       "User-Agent": "tanchiki-reviewer-agent-evidence",
       "X-GitHub-Api-Version": "2022-11-28",
     };
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
 
     const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repoName}${path}`, {
       headers,
@@ -181,6 +194,11 @@ export function createGitHubEvidenceClient({ fetchImpl = fetch, repo = defaultRe
 
     if (!response.ok) {
       const body = await response.text();
+      if (isGitHubEvidenceAuthFailure(response, body)) {
+        throw createGitHubEvidenceAuthError(
+          `GitHub API GET ${path} failed with HTTP ${response.status}.`,
+        );
+      }
       throw new EvidenceError(`GitHub API GET ${path} failed with ${response.status}: ${body}`);
     }
 
@@ -355,6 +373,23 @@ export class EvidenceError extends Error {
     super(message);
     this.name = "EvidenceError";
   }
+}
+
+function createGitHubEvidenceAuthError(reason) {
+  const error = new EvidenceError(`${reason} ${gitHubEvidenceAuthGuidance}`);
+  error.githubEvidenceAuthError = true;
+  return error;
+}
+
+function isGitHubEvidenceAuthFailure(response, body = "") {
+  const remaining = response.headers?.get?.("x-ratelimit-remaining");
+  return (
+    response.status === 401
+    || response.status === 403
+    || response.status === 429
+    || remaining === "0"
+    || /rate limit|bad credentials|requires authentication|resource not accessible/i.test(body)
+  );
 }
 
 function normalizeChangedFile(file) {

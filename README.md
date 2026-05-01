@@ -146,6 +146,51 @@ The local Reviewer App environment and private key stay outside the repository:
 C:\Users\Legion\.config\tanchiki-reviewer-app\
 ```
 
+### One-Command Reviewer Agent Path
+
+`reviewer:agent` uses two separate GitHub auth paths:
+
+1. Normal GitHub auth for read-only PR evidence collection. Set `GH_TOKEN` or
+   `GITHUB_TOKEN` from the normal GitHub identity before running the command:
+
+```powershell
+$env:GH_TOKEN = gh auth token
+```
+
+2. Reviewer App auth for live GitHub review submission. The live command creates
+   this short-lived Reviewer App token internally only after local preflight,
+   OpenAI output validation, and review-body validation pass. Do not export a
+   Reviewer App token into the operator shell for evidence collection.
+
+Dry-run mode collects evidence and calls OpenAI, but it must not request a
+Reviewer App token or submit a GitHub review:
+
+```powershell
+npm run reviewer:agent -- --pr <PR_NUMBER> --issue <MAR-ID> --dry-run
+```
+
+Live mode uses the same evidence and validation path, then submits the generated
+review through the internally created Reviewer App token when all gates pass:
+
+```powershell
+npm run reviewer:agent -- --pr <PR_NUMBER> --issue <MAR-ID>
+```
+
+When editing PR bodies manually in PowerShell, prefer a single-quoted here-string
+so Markdown backticks stay literal:
+
+```powershell
+$body = @'
+## Linked Linear Issue
+
+Closes: MAR-000
+
+Inline code like `reviewer:agent` stays intact.
+'@
+
+gh pr edit <PR_NUMBER> --body $body
+```
+
 Load the local environment, then run each Reviewer App GitHub command through
 the token-scoped runner:
 
