@@ -6,7 +6,9 @@ import { tmpdir } from "node:os";
 import { test } from "node:test";
 
 import {
+  decideCandidateReport,
   decideConductorStep,
+  formatCandidateReport,
   formatDecision,
   main,
   parseArgs,
@@ -53,6 +55,18 @@ function release(overrides = {}) {
     labels: ["role:release", "type:docs", "risk:low", "validation:docs"],
     status: "Backlog",
     title: "Conductor release summary",
+    ...overrides,
+  };
+}
+
+function reportCandidate(overrides = {}) {
+  return {
+    id: "MAR-340",
+    labels: ["automation-ready", "role:coder", "type:harness", "risk:medium", "validation:harness"],
+    project: activeProject,
+    status: "Todo",
+    statusType: "unstarted",
+    title: "Conductor v4 report candidates",
     ...overrides,
   };
 }
@@ -473,6 +487,97 @@ test("conductor step stops when live reviewer sync metadata is missing", () => {
   assert.match(formatDecision(decision), /risk metadata/);
 });
 
+test("conductor candidate report ignores completed automation-ready issues", () => {
+  const report = decideCandidateReport({
+    activeProject,
+    issues: [
+      reportCandidate({
+        id: "MAR-336",
+        status: "Done",
+        statusType: "completed",
+        title: "Completed producer",
+      }),
+    ],
+  });
+
+  assert.equal(report.reason, "no-active-candidate");
+  assert.equal(report.candidates[0].classification, "completed");
+  assert.match(formatCandidateReport(report), /historical and ignored/);
+});
+
+test("conductor candidate report exposes one active automation-ready issue", () => {
+  const report = decideCandidateReport({
+    activeProject,
+    issues: [
+      reportCandidate({ id: "MAR-340" }),
+      reportCandidate({ id: "MAR-336", status: "Done", statusType: "completed" }),
+    ],
+  });
+
+  assert.equal(report.reason, "one-active-candidate");
+  assert.equal(report.candidates.find((candidate) => candidate.id === "MAR-340").classification, "active");
+  assert.match(report.nextAction, /Run Dispatcher for MAR-340 \(coder\)/);
+  assert.match(formatCandidateReport(report), /Read-only: no Linear or GitHub mutation was applied/);
+});
+
+test("conductor candidate report marks unresolved blocked issues as blocked", () => {
+  const report = decideCandidateReport({
+    activeProject,
+    issues: [
+      reportCandidate({
+        blockedBy: [{ id: "MAR-339", status: "Todo", statusType: "unstarted" }],
+      }),
+    ],
+  });
+
+  assert.equal(report.reason, "no-active-candidate");
+  assert.equal(report.candidates[0].classification, "blocked");
+  assert.match(report.candidates[0].reason, /MAR-339/);
+});
+
+test("conductor candidate report fails closed on missing metadata", () => {
+  const report = decideCandidateReport({
+    activeProject,
+    issues: [
+      reportCandidate({
+        labels: ["automation-ready", "role:coder", "type:harness", "validation:harness"],
+      }),
+    ],
+  });
+
+  assert.equal(report.reason, "no-active-candidate");
+  assert.equal(report.candidates[0].classification, "unsafe");
+  assert.match(report.candidates[0].reason, /risk metadata/);
+});
+
+test("conductor candidate report respects stop labels", () => {
+  const report = decideCandidateReport({
+    activeProject,
+    issues: [
+      reportCandidate({
+        labels: ["automation-ready", "role:coder", "type:harness", "risk:medium", "validation:harness", "needs-human-approval"],
+      }),
+    ],
+  });
+
+  assert.equal(report.reason, "no-active-candidate");
+  assert.equal(report.candidates[0].classification, "unsafe");
+  assert.match(report.candidates[0].reason, /needs-human-approval/);
+});
+
+test("conductor candidate report stops on multiple active candidates", () => {
+  const report = decideCandidateReport({
+    activeProject,
+    issues: [
+      reportCandidate({ id: "MAR-340" }),
+      reportCandidate({ id: "MAR-343" }),
+    ],
+  });
+
+  assert.equal(report.reason, "multiple-active-candidates");
+  assert.match(report.nextAction, /exactly one issue is exposed/);
+});
+
 test("conductor step CLI requires explicit active project outside fixture mode", async () => {
   const stdout = [];
   const exitCode = await main({
@@ -499,6 +604,95 @@ test("conductor step CLI fails closed when live auth is missing", async () => {
   const output = stdout.join("\n");
   assert.match(output, /missing-auth/);
   assert.match(output, /Missing required auth/);
+});
+
+test("conductor candidate live report needs only Linear auth and fails closed when missing", async () => {
+  const stdout = [];
+  const exitCode = await main({
+    argv: ["--active-project", activeProject, "--report-candidates"],
+    env: {},
+    stderr: () => {},
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  const output = stdout.join("\n");
+  assert.match(output, /Conductor candidate report/);
+  assert.match(output, /missing-linear-auth/);
+  assert.doesNotMatch(output, /GitHub token/);
+});
+
+test("conductor candidate fixture report is deterministic and read-only", async () => {
+  const stdout = [];
+  const exitCode = await main({
+    argv: [
+      "--active-project", activeProject,
+      "--json", JSON.stringify({
+        issues: [
+          reportCandidate({ id: "MAR-342", status: "Done", statusType: "completed" }),
+          reportCandidate({ id: "MAR-340" }),
+        ],
+      }),
+      "--report-candidates",
+    ],
+    env: {},
+    fetchImpl: async () => {
+      throw new Error("report fixture mode must not use live APIs");
+    },
+    stderr: () => {},
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  const output = stdout.join("\n");
+  assert.match(output, /one-active-candidate/);
+  assert.match(output, /MAR-340/);
+  assert.match(output, /Ignored historical automation-ready issues/);
+});
+
+test("conductor candidate live report does not use GitHub or Linear mutation authority", async () => {
+  const stdout = [];
+  let fetchCalls = 0;
+  const fetchImpl = async (url, init = {}) => {
+    fetchCalls += 1;
+    const requestUrl = String(url);
+    assert.equal(requestUrl, "https://api.linear.app/graphql");
+    const body = JSON.parse(init.body);
+    assert.doesNotMatch(body.query, /mutation/i);
+    return jsonResponse({
+      data: {
+        issues: {
+          nodes: [
+            {
+              id: "linear-340",
+              identifier: "MAR-340",
+              labels: { nodes: reportCandidate().labels.map((name) => ({ name })) },
+              project: { name: activeProject },
+              relations: { nodes: [] },
+              inverseRelations: { nodes: [] },
+              state: { id: "state-Todo", name: "Todo", type: "unstarted" },
+              title: "Conductor v4 report candidates",
+              url: "https://linear.app/tanchiki/issue/MAR-340",
+            },
+          ],
+        },
+      },
+    });
+  };
+
+  const exitCode = await main({
+    argv: ["--active-project", activeProject, "--report-candidates"],
+    env: { LINEAR_API_TOKEN: "linear-token" },
+    fetchImpl,
+    stderr: () => {},
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(fetchCalls, 1);
+  const output = stdout.join("\n");
+  assert.match(output, /one-active-candidate/);
+  assert.match(output, /Read-only: no Linear or GitHub mutation was applied/);
 });
 
 test("conductor step live dry-run syncs explicit PR to paired reviewer without mutation", async () => {
@@ -636,6 +830,8 @@ test("conductor step CLI prints required fields from a fixture", () => {
 });
 
 test("conductor step parser rejects ambiguous input sources", () => {
+  assert.equal(parseArgs(["--report-candidates"]).reportCandidates, true);
+  assert.throws(() => parseArgs(["--report-candidates=true"]), /does not accept/);
   assert.throws(
     () => parseArgs(["--fixture", "a.json", "--json", "{}"]),
     /only one/,
