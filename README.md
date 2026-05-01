@@ -143,16 +143,24 @@ completed or canceled historical issues, and prints the exact next safe action.
 It does not mutate Linear, call GitHub, run roles, remove labels, merge, or call
 OpenAI/Codex.
 
-The live path is explicit-input only. Conductor v2 can sync a valid
-current-head `tanchiki-reviewer[bot]` paired-review decision by moving the
-paired Reviewer Linear issue to `In Review` and adding one audit comment.
-Conductor v3 adds the next post-merge Linear transitions: after a human merge
-and recorded paired-review outcome, it may mark the producer issue Done, mark
-the paired Reviewer issue Done on a later run, or promote one explicit Release
-issue to `Todo` + `automation-ready` after upstream issues are Done.
+The live path is explicit-input only. Use the deterministic review-outcome
+bridge after Reviewer App review submission and before any human merge. It
+syncs one valid current-head `tanchiki-reviewer[bot]` paired-review decision by
+moving the paired Reviewer Linear issue to `In Review` and adding one audit
+comment, then stops:
 
 ```powershell
-npm run conductor:step -- --active-project "<exact Linear project name>" --repo owner/name --pr 123 --producer MAR-331 --reviewer MAR-332
+npm run conductor:step -- --sync-review-outcome --active-project "<exact Linear project name>" --repo owner/name --pr 123 --producer MAR-331 --reviewer MAR-332
+```
+
+`--sync-review-outcome` cannot be combined with `--release`. Human merge remains
+separate, and Conductor post-merge Done/Release sync stays a later command.
+After a human merge and recorded paired-review outcome, Conductor v3 may mark
+the producer issue Done, mark the paired Reviewer issue Done on a later run, or
+promote one explicit Release issue to `Todo` + `automation-ready` after upstream
+issues are Done:
+
+```powershell
 npm run conductor:step -- --active-project "<exact Linear project name>" --repo owner/name --pr 123 --producer MAR-336 --reviewer MAR-337 --release MAR-338
 ```
 
@@ -160,8 +168,8 @@ Use `--dry-run` with the same live arguments to read state and print the single
 proposed sync without applying Linear mutation.
 
 Each run applies at most one logical Linear transition, then exits. It does not
-merge, change GitHub labels, remove stop labels, run a reviewer, run Release,
-or continue through the campaign queue.
+submit GitHub reviews, merge, change GitHub labels, remove stop labels, run a
+reviewer, run Release, or continue through the campaign queue.
 
 Use fixture mode to exercise the deterministic transition core:
 
@@ -242,6 +250,17 @@ npm run reviewer:agent -- --submit-from "$env:TEMP\reviewer-agent-<PR_NUMBER>.js
 same head SHA, passing checks, complete metadata/scope gates, and free of stop
 labels before creating the short-lived Reviewer App token. If the head SHA or a
 gate changed, rerun the dry-run artifact step.
+
+After `--submit-from` succeeds, record the paired-review outcome on the paired
+Reviewer Linear issue with the separate Conductor bridge:
+
+```powershell
+npm run conductor:step -- --sync-review-outcome --active-project "<exact Linear project name>" --repo owner/name --pr <PR_NUMBER> --producer <MAR-PRODUCER> --reviewer <MAR-REVIEWER>
+```
+
+That bridge reads the GitHub review, records the Linear outcome, and stops.
+Human merge and existing Conductor post-merge Done sync remain separate later
+steps.
 
 Direct live mode remains available for compatibility, but it performs a fresh
 OpenAI call at submission time. Use it only when a fresh generated decision is

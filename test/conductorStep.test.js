@@ -778,6 +778,7 @@ test("conductor step live dry-run syncs explicit PR to paired reviewer without m
   const exitCode = await main({
     argv: [
       "--active-project", activeProject,
+      "--sync-review-outcome",
       "--repo", "urkrass/Tanchiki",
       "--pr", "144",
       "--producer", "MAR-328",
@@ -798,8 +799,97 @@ test("conductor step live dry-run syncs explicit PR to paired reviewer without m
   assert.equal(mutationCalls, 0);
   assert.match(output, /Decision: sync/);
   assert.match(output, /valid-reviewer-bot-review/);
+  assert.match(output, /Human remains responsible for merge/);
   assert.match(output, /Dry run requested/);
   assert.match(output, /- state: In Review/);
+});
+
+test("conductor bridge flag is required for pre-merge reviewer outcome sync", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer()],
+    prs: [readyPr({ reviews: [botReview()] })],
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /already has a tanchiki-reviewer\[bot\] review; sync or triage/);
+});
+
+test("conductor bridge duplicate run detects existing outcome and stops", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [
+      producer(),
+      reviewer({
+        comments: [syncedReviewComment()],
+      }),
+    ],
+    prs: [readyPr({ reviews: [botReview()] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /already synced/);
+});
+
+test("conductor bridge stops when paired reviewer issue is missing", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer()],
+    prs: [readyPr({ reviews: [botReview()] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /no paired Reviewer issue to sync/);
+});
+
+test("conductor bridge stops when reviewer issue is not paired to producer", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [
+      producer(),
+      reviewer({ blockedBy: ["MAR-999"], producerId: "", title: "Reviewer for a different producer" }),
+    ],
+    prs: [readyPr({ reviews: [botReview()] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /no paired Reviewer issue to sync/);
+});
+
+test("conductor bridge parser rejects post-merge release coupling", () => {
+  assert.throws(
+    () => parseArgs(["--sync-review-outcome", "--release", "MAR-330"]),
+    /post-merge Done\/Release sync is separate/,
+  );
+});
+
+test("conductor bridge live mode fails closed on missing Linear auth", async () => {
+  const stdout = [];
+  const exitCode = await main({
+    argv: [
+      "--active-project", activeProject,
+      "--sync-review-outcome",
+      "--repo", "urkrass/Tanchiki",
+      "--pr", "144",
+      "--producer", "MAR-328",
+      "--reviewer", "MAR-329",
+    ],
+    env: { GITHUB_TOKEN: "github-token" },
+    fetchImpl: async () => {
+      throw new Error("missing auth must stop before API calls");
+    },
+    stderr: () => {},
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  const output = stdout.join("\n");
+  assert.match(output, /missing-auth/);
+  assert.match(output, /Linear API token/);
+  assert.doesNotMatch(output, /github-token/);
 });
 
 test("conductor step CLI prints required fields from a fixture", () => {
@@ -853,8 +943,14 @@ test("conductor step package and static surface preserve safety boundaries", () 
     "reviewer:agent",
     "api.openai.com",
     "submitReview",
+    "mergePullRequest",
+    "enablePullRequestAutoMerge",
+    "addLabelsToLabelable",
+    "removeLabelsFromLabelable",
     "/merge",
     "/labels",
+    "/actions/workflows",
+    "/branches/main/protection",
     "spawnSync",
     "execFile",
     "writeFile",
@@ -913,6 +1009,18 @@ function liveIssue({ id, identifier, labels, stateName }) {
     identifier,
     labels: { nodes: labels.map((name) => ({ name })) },
     project: { name: activeProject },
+    relations: {
+      nodes: identifier === "MAR-328"
+        ? [{
+          relatedIssue: { identifier: "MAR-329", state: { name: "Backlog", type: "backlog" }, title: "Reviewer" },
+          type: "blocks",
+        }]
+        : [{
+          relatedIssue: { identifier: "MAR-328", state: { name: "In Review", type: "started" }, title: "Producer" },
+          type: "blockedBy",
+        }],
+    },
+    inverseRelations: { nodes: [] },
     state: { id: `state-${stateName}`, name: stateName, type: "started" },
     team: {
       states: {

@@ -101,7 +101,7 @@ export function decideConductorStep(input = {}) {
 
   const blockedTransitions = [];
   const liveReviewerSyncTransitions = findReviewerReviewSyncTransitions(state, blockedTransitions);
-  const transitions = state.syncOnly || liveReviewerSyncTransitions.length > 0
+  const transitions = state.syncOnly
     ? liveReviewerSyncTransitions
     : [
       ...findProducerPrReadyTransitions(state, blockedTransitions),
@@ -300,6 +300,7 @@ export function parseArgs(argv) {
     release: "",
     repo: "",
     reviewer: "",
+    syncReviewOutcome: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -321,6 +322,14 @@ export function parseArgs(argv) {
         throw new ConductorStepError("--report-candidates does not accept a value.");
       }
       options.reportCandidates = true;
+      continue;
+    }
+
+    if (key === "--sync-review-outcome") {
+      if (inlineValue !== null) {
+        throw new ConductorStepError("--sync-review-outcome does not accept a value.");
+      }
+      options.syncReviewOutcome = true;
       continue;
     }
 
@@ -358,6 +367,12 @@ export function parseArgs(argv) {
   if (options.fixture && options.json) {
     throw new ConductorStepError("Provide only one of --fixture or --json.");
   }
+  if (options.syncReviewOutcome && options.release) {
+    throw new ConductorStepError("--sync-review-outcome cannot be combined with --release; post-merge Done/Release sync is separate.");
+  }
+  if (options.syncReviewOutcome && options.reportCandidates) {
+    throw new ConductorStepError("--sync-review-outcome cannot be combined with --report-candidates.");
+  }
 
   return options;
 }
@@ -377,9 +392,10 @@ export function readInputState({ env = process.env, options }) {
         release: options.release,
         repo: options.repo,
         reviewer: options.reviewer,
+        syncReviewOutcome: options.syncReviewOutcome,
       },
       liveMode: true,
-      syncOnly: false,
+      syncOnly: options.syncReviewOutcome,
     };
   }
 
@@ -389,6 +405,13 @@ export function readInputState({ env = process.env, options }) {
   }
   if (options.reportCandidates) {
     state.reportCandidates = true;
+  }
+  if (options.syncReviewOutcome) {
+    state.syncOnly = true;
+    state.liveConfig = {
+      ...normalizeLiveConfig(state.liveConfig),
+      syncReviewOutcome: true,
+    };
   }
   return state;
 }
@@ -454,7 +477,18 @@ export async function runLiveConductorStep({ env = process.env, fetchImpl = glob
     });
   }
 
-  const config = normalized.liveConfig;
+  const config = {
+    ...normalized.liveConfig,
+    syncReviewOutcome: normalized.syncOnly || normalized.liveConfig.syncReviewOutcome,
+  };
+  if (config.syncReviewOutcome && config.release) {
+    return stopDecision({
+      activeProject: normalized.activeProject,
+      evidence: ["--sync-review-outcome was combined with post-merge Release metadata."],
+      reason: "incompatible-live-mode",
+      nextAction: "Run the review-outcome bridge before merge without --release; run post-merge Done/Release sync separately after human merge.",
+    });
+  }
   const missingMetadata = [
     !config.repo ? "--repo" : "",
     !config.pr ? "--pr" : "",
@@ -632,7 +666,6 @@ async function readLiveSyncState({ activeProject, config, env, fetchImpl }) {
             comments,
             doneStateId: findTeamStateId(reviewerIssue, "Done"),
             inReviewStateId: findTeamStateId(reviewerIssue, "In Review"),
-            producerId: producerIssue.identifier,
           },
           ...(releaseIssue
             ? [{
@@ -645,7 +678,7 @@ async function readLiveSyncState({ activeProject, config, env, fetchImpl }) {
         ],
         prs: [pr],
         reviewCadence,
-        syncOnly: false,
+        syncOnly: config.syncReviewOutcome === true,
       },
     };
   } catch (error) {
@@ -692,8 +725,9 @@ async function applyLiveMutation({ decision, env, fetchImpl }) {
         ...decision.evidence,
         `Linear mutation applied to ${mutation.issueId}: ${mutation.state || "state unchanged"} plus sync comment.`,
       ],
-      nextAction:
-        "Conductor applied exactly one Linear sync transition. Do not merge, run another role, or continue in a loop.",
+      nextAction: decision.transition === "reviewer-review-sync"
+        ? "Conductor applied the Linear review outcome sync and stopped. Human remains responsible for merge; existing post-merge Done sync remains separate."
+        : "Conductor applied exactly one Linear sync transition. Do not merge, run another role, or continue in a loop.",
     };
   } catch (error) {
     return stopDecision({
@@ -750,6 +784,18 @@ function createLinearClient({ fetchImpl, token }) {
             state { id name type }
             project { name }
             labels { nodes { id name } }
+            relations(first: 50) {
+              nodes {
+                type
+                relatedIssue { identifier title state { name type } }
+              }
+            }
+            inverseRelations(first: 50) {
+              nodes {
+                type
+                issue { identifier title state { name type } }
+              }
+            }
             team {
               states {
                 nodes { id name type }
@@ -926,6 +972,8 @@ function normalizeCheckRuns(runs) {
 function normalizeLinearIssueForState(issue) {
   const labelNodes = issue.labels?.nodes || [];
   return {
+    blockedBy: extractLinearBlockedBy(issue).map((blocker) => blocker.id).filter(Boolean),
+    blocks: extractLinearBlocks(issue).map((blocked) => blocked.id).filter(Boolean),
     id: issue.identifier,
     labelIds: labelNodes.map((label) => label.id).filter(Boolean),
     labels: normalizeLabels(labelNodes),
@@ -1029,7 +1077,12 @@ function findReviewerReviewSyncTransitions(state, blockedTransitions) {
     }
 
     const reviewer = findPairedReviewer(state.issues, producer);
-    if (!reviewer || isTerminalIssue(reviewer)) {
+    if (!reviewer) {
+      blockedTransitions.push(`${formatIssue(producer)} has no paired Reviewer issue to sync.`);
+      continue;
+    }
+    if (isTerminalIssue(reviewer)) {
+      blockedTransitions.push(`${formatIssue(reviewer)} is terminal and cannot receive a pre-merge review outcome sync.`);
       continue;
     }
 
@@ -1067,9 +1120,10 @@ function findReviewerReviewSyncTransitions(state, blockedTransitions) {
         "PR is open, non-draft, unmerged, targets main, metadata-ready, and checks are passing.",
         `${formatIssue(reviewer)} is the paired Reviewer issue.`,
         `Valid Reviewer App review by ${reviewSelection.review.authorLogin}: ${reviewSelection.decision}.`,
+        "Bridge mode records the Linear paired-review outcome only.",
       ],
       nextAction:
-        "Apply the proposed Linear reviewer-state sync, then leave merge and Done-state decisions to existing protocol.",
+        "Apply the Linear review outcome sync, then stop. Human remains responsible for merge; existing Conductor post-merge Done sync remains separate.",
       proposedMutation: {
         addLabels: [],
         comment,
@@ -1445,7 +1499,8 @@ function buildReviewerSyncComment({ activeProject, decision, pr, review }) {
     "Checks/metadata: passing",
     "",
     "Synced the paired Reviewer issue to `In Review` and recorded the Reviewer App decision.",
-    "Next action: follow paired-review protocol. Conductor did not merge, mark Done, apply labels, remove labels, or run a reviewer.",
+    "Next action: stop. Human remains responsible for merge. Existing Conductor post-merge Done sync remains separate.",
+    "Conductor did not merge, mark Done, apply labels, remove labels, remove stop labels, submit a review, run another role, or continue in a loop.",
   ].join("\n");
 }
 
@@ -1572,6 +1627,21 @@ function extractLinearBlockedBy(issue) {
     }
   }
   return blockers;
+}
+
+function extractLinearBlocks(issue) {
+  const blocked = [];
+  for (const relation of issue.relations?.nodes || []) {
+    if (isBlockingRelationType(relation.type) && relation.relatedIssue) {
+      blocked.push(normalizeCandidateBlockerFromLinearIssue(relation.relatedIssue));
+    }
+  }
+  for (const relation of issue.inverseRelations?.nodes || []) {
+    if (isBlockedByRelationType(relation.type) && relation.issue) {
+      blocked.push(normalizeCandidateBlockerFromLinearIssue(relation.issue));
+    }
+  }
+  return blocked;
 }
 
 function normalizeCandidateBlockerFromLinearIssue(issue) {
@@ -1780,6 +1850,7 @@ function normalizeIssue(issue) {
   return {
     ...issue,
     blockedBy: normalizeList(issue.blockedBy || issue.blockers),
+    blocks: normalizeList(issue.blocks),
     comments,
     labels: normalizeLabels(issue.labels),
     outcome: issue.outcome || "",
@@ -1809,6 +1880,7 @@ function normalizeLiveConfig(config = {}) {
     release: String(config.release || "").trim(),
     repo: String(config.repo || "").trim(),
     reviewer: String(config.reviewer || "").trim(),
+    syncReviewOutcome: config.syncReviewOutcome === true,
   };
 }
 
@@ -1882,6 +1954,7 @@ function findPairedReviewer(issues, producer) {
       issue.producerId === producer.id ||
       issue.pairedProducerId === producer.id ||
       issue.reviewsIssue === producer.id ||
+      producer.blocks.includes(issue.id) ||
       issue.blockedBy.includes(producer.id)
     );
   });
