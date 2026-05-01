@@ -189,15 +189,29 @@ $env:GH_TOKEN = gh auth token
    OpenAI output validation, and review-body validation pass. Do not export a
    Reviewer App token into the operator shell for evidence collection.
 
-Dry-run mode collects evidence and calls OpenAI, but it must not request a
-Reviewer App token or submit a GitHub review:
+Recommended paired-review burn-in flow is a stable dry-run artifact followed by
+artifact submission. Dry-run mode collects evidence, calls OpenAI, validates the
+strict JSON decision and review body, writes the sanitized validated artifact,
+and must not request a Reviewer App token or submit a GitHub review:
 
 ```powershell
-npm run reviewer:agent -- --pr <PR_NUMBER> --issue <MAR-ID> --dry-run
+npm run reviewer:agent -- --pr <PR_NUMBER> --issue <MAR-ID> --dry-run --output "$env:TEMP\reviewer-agent-<PR_NUMBER>.json"
 ```
 
-Live mode uses the same evidence and validation path, then submits the generated
-review through the internally created Reviewer App token when all gates pass:
+Submit the exact validated artifact without another OpenAI call:
+
+```powershell
+npm run reviewer:agent -- --submit-from "$env:TEMP\reviewer-agent-<PR_NUMBER>.json"
+```
+
+`--submit-from` rechecks that the PR is still open, non-draft, unmerged, on the
+same head SHA, passing checks, complete metadata/scope gates, and free of stop
+labels before creating the short-lived Reviewer App token. If the head SHA or a
+gate changed, rerun the dry-run artifact step.
+
+Direct live mode remains available for compatibility, but it performs a fresh
+OpenAI call at submission time. Use it only when a fresh generated decision is
+acceptable:
 
 ```powershell
 npm run reviewer:agent -- --pr <PR_NUMBER> --issue <MAR-ID>
