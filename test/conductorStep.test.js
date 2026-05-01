@@ -501,8 +501,13 @@ test("conductor candidate report ignores completed automation-ready issues", () 
   });
 
   assert.equal(report.reason, "no-active-candidate");
+  assert.equal(report.nextAction, "No runnable issue is exposed. Create or groom the next campaign issue.");
   assert.equal(report.candidates[0].classification, "completed");
-  assert.match(formatCandidateReport(report), /historical and ignored/);
+  const output = formatCandidateReport(report);
+  assert.match(output, /Historical completed\/canceled automation-ready issues: 1/);
+  assert.match(output, /Historical details: omitted by default/);
+  assert.doesNotMatch(output, /MAR-336/);
+  assert.match(formatCandidateReport(report, { includeHistorical: true }), /MAR-336/);
 });
 
 test("conductor candidate report exposes one active automation-ready issue", () => {
@@ -517,7 +522,13 @@ test("conductor candidate report exposes one active automation-ready issue", () 
   assert.equal(report.reason, "one-active-candidate");
   assert.equal(report.candidates.find((candidate) => candidate.id === "MAR-340").classification, "active");
   assert.match(report.nextAction, /Run Dispatcher for MAR-340 \(coder\)/);
-  assert.match(formatCandidateReport(report), /Read-only: no Linear or GitHub mutation was applied/);
+  const output = formatCandidateReport(report);
+  assert.match(output, /Active candidates: 1/);
+  assert.match(output, /Historical completed\/canceled automation-ready issues: 1/);
+  assert.match(output, /Active candidate details/);
+  assert.match(output, /MAR-340/);
+  assert.doesNotMatch(output, /MAR-336/);
+  assert.match(output, /Read-only: no Linear or GitHub mutation was applied/);
 });
 
 test("conductor candidate report marks unresolved blocked issues as blocked", () => {
@@ -533,6 +544,11 @@ test("conductor candidate report marks unresolved blocked issues as blocked", ()
   assert.equal(report.reason, "no-active-candidate");
   assert.equal(report.candidates[0].classification, "blocked");
   assert.match(report.candidates[0].reason, /MAR-339/);
+  assert.match(report.nextAction, /Resolve blocked-by relations/);
+  const output = formatCandidateReport(report);
+  assert.match(output, /Blocked candidates: 1/);
+  assert.match(output, /Blocked candidate details/);
+  assert.match(output, /MAR-339/);
 });
 
 test("conductor candidate report fails closed on missing metadata", () => {
@@ -548,6 +564,11 @@ test("conductor candidate report fails closed on missing metadata", () => {
   assert.equal(report.reason, "no-active-candidate");
   assert.equal(report.candidates[0].classification, "unsafe");
   assert.match(report.candidates[0].reason, /risk metadata/);
+  assert.match(report.nextAction, /Clean up unsafe candidate metadata/);
+  const output = formatCandidateReport(report);
+  assert.match(output, /Unsafe candidates: 1/);
+  assert.match(output, /Unsafe candidate details/);
+  assert.match(output, /risk metadata/);
 });
 
 test("conductor candidate report respects stop labels", () => {
@@ -565,6 +586,26 @@ test("conductor candidate report respects stop labels", () => {
   assert.match(report.candidates[0].reason, /needs-human-approval/);
 });
 
+test("conductor candidate report next action mentions blockers and unsafe metadata cleanup together", () => {
+  const report = decideCandidateReport({
+    activeProject,
+    issues: [
+      reportCandidate({
+        id: "MAR-340",
+        blockedBy: [{ id: "MAR-339", status: "Todo", statusType: "unstarted" }],
+      }),
+      reportCandidate({
+        id: "MAR-341",
+        labels: ["automation-ready", "role:coder", "type:harness", "validation:harness"],
+      }),
+    ],
+  });
+
+  assert.equal(report.reason, "no-active-candidate");
+  assert.match(report.nextAction, /Resolve blocked-by relations/);
+  assert.match(report.nextAction, /clean up unsafe candidate metadata/);
+});
+
 test("conductor candidate report stops on multiple active candidates", () => {
   const report = decideCandidateReport({
     activeProject,
@@ -575,7 +616,7 @@ test("conductor candidate report stops on multiple active candidates", () => {
   });
 
   assert.equal(report.reason, "multiple-active-candidates");
-  assert.match(report.nextAction, /exactly one issue is exposed/);
+  assert.match(report.nextAction, /exactly one active issue is exposed/);
 });
 
 test("conductor step CLI requires explicit active project outside fixture mode", async () => {
@@ -647,7 +688,37 @@ test("conductor candidate fixture report is deterministic and read-only", async 
   const output = stdout.join("\n");
   assert.match(output, /one-active-candidate/);
   assert.match(output, /MAR-340/);
-  assert.match(output, /Ignored historical automation-ready issues/);
+  assert.match(output, /Historical completed\/canceled automation-ready issues: 1/);
+  assert.match(output, /Historical details: omitted by default/);
+  assert.doesNotMatch(output, /MAR-342/);
+});
+
+test("conductor candidate fixture report includes historical details only with explicit flag", async () => {
+  const stdout = [];
+  const exitCode = await main({
+    argv: [
+      "--active-project", activeProject,
+      "--json", JSON.stringify({
+        issues: [
+          reportCandidate({ id: "MAR-342", status: "Done", statusType: "completed" }),
+        ],
+      }),
+      "--report-candidates",
+      "--include-historical",
+    ],
+    env: {},
+    fetchImpl: async () => {
+      throw new Error("report fixture mode must not use live APIs");
+    },
+    stderr: () => {},
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  const output = stdout.join("\n");
+  assert.match(output, /Historical completed\/canceled automation-ready issue details/);
+  assert.match(output, /MAR-342/);
+  assert.match(output, /completed/);
 });
 
 test("conductor candidate live report does not use GitHub or Linear mutation authority", async () => {
@@ -921,7 +992,10 @@ test("conductor step CLI prints required fields from a fixture", () => {
 
 test("conductor step parser rejects ambiguous input sources", () => {
   assert.equal(parseArgs(["--report-candidates"]).reportCandidates, true);
+  assert.equal(parseArgs(["--report-candidates", "--include-historical"]).includeHistorical, true);
   assert.throws(() => parseArgs(["--report-candidates=true"]), /does not accept/);
+  assert.throws(() => parseArgs(["--include-historical=true"]), /does not accept/);
+  assert.throws(() => parseArgs(["--include-historical"]), /requires --report-candidates/);
   assert.throws(
     () => parseArgs(["--fixture", "a.json", "--json", "{}"]),
     /only one/,

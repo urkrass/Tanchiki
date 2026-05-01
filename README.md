@@ -138,10 +138,18 @@ npm run conductor:step -- --active-project "<exact Linear project name>" --repor
 ```
 
 Report mode reads only Linear issues in the active project with
-`automation-ready`, lists status/status type and Level 5 metadata, ignores
-completed or canceled historical issues, and prints the exact next safe action.
-It does not mutate Linear, call GitHub, run roles, remove labels, merge, or call
-OpenAI/Codex.
+`automation-ready`, summarizes active, blocked, unsafe, and historical
+completed/canceled candidates by count, lists active/blocked/unsafe issue
+details, and prints the exact next safe action. Completed or canceled
+historical issues are counted but not listed by default; use
+`--include-historical` when an audit needs those details:
+
+```powershell
+npm run conductor:step -- --active-project "<exact Linear project name>" --report-candidates --include-historical
+```
+
+Report mode does not mutate Linear, call GitHub, run roles, remove labels,
+merge, or call OpenAI/Codex.
 
 The live path is explicit-input only. Use the deterministic review-outcome
 bridge after Reviewer App review submission and before any human merge. It
