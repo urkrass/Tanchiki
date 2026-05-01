@@ -513,6 +513,45 @@ for (const scenario of [
   });
 }
 
+for (const label of [
+  "merge:do-not-merge",
+  "merge:human-required",
+  "needs-human-approval",
+  "blocked",
+  "human-only",
+  "risk:human-only",
+]) {
+  test(`reviewer-agent refuses ${label} before OpenAI`, async () => {
+    const stdout = [];
+    const stderr = [];
+    let openAiCalled = false;
+    const fetchImpl = await makeReviewerAgentFetch({
+      labels: [label],
+      onOpenAiRequest: () => {
+        openAiCalled = true;
+      },
+    });
+
+    const exitCode = await main({
+      argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+      env: {
+        OPENAI_API_KEY: "secret-openai-key",
+      },
+      fetchImpl,
+      stderr: (line) => stderr.push(line),
+      stdout: (line) => stdout.push(line),
+    });
+
+    assert.equal(exitCode, 1);
+    assert.deepEqual(stdout, []);
+    assert.equal(openAiCalled, false);
+    assert.match(stderr.join("\n"), /Local preflight refused before OpenAI/);
+    assert.match(stderr.join("\n"), /stop or blocked label is present/);
+    assert.match(stderr.join("\n"), /No OpenAI API call was made/);
+    assert.match(stderr.join("\n"), /No GitHub review was submitted/);
+  });
+}
+
 test("reviewer-agent direct CLI refuses non-dry-run before network work", () => {
   const result = spawnSync(process.execPath, [
     join(root, "scripts", "reviewer-agent.js"),
@@ -581,6 +620,7 @@ async function makeReviewerAgentFetch({
   checks = { check_runs: [{ conclusion: "success", name: "CI", status: "completed" }], statuses: [] },
   decision = makeReviewerDecision(),
   files = [{ filename: "scripts/reviewer-agent.js" }],
+  labels = [],
   onOpenAiRequest = () => {},
   openAiText = null,
   pullRequest = {},
@@ -594,7 +634,7 @@ async function makeReviewerAgentFetch({
   };
   const responseByPath = new Map([
     ["/repos/urkrass/Tanchiki/pulls/119", { json: fakePullRequest }],
-    ["/repos/urkrass/Tanchiki/issues/119", { json: { labels: [] } }],
+    ["/repos/urkrass/Tanchiki/issues/119", { json: { labels } }],
     ["/repos/urkrass/Tanchiki/pulls/119/files?per_page=100&page=1", { json: files }],
     ["/repos/urkrass/Tanchiki/commits/abc123/check-runs?per_page=100", {
       json: { check_runs: checks.check_runs || [] },

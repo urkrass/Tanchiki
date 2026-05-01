@@ -20,6 +20,14 @@ const decisionValues = new Set([
 ]);
 const confidenceValues = new Set(["low", "medium", "high"]);
 const severityValues = new Set(["blocking", "warning", "note"]);
+const policyStopLabels = new Set([
+  "merge:do-not-merge",
+  "merge:human-required",
+  "needs-human-approval",
+  "blocked",
+  "human-only",
+  "risk:human-only",
+]);
 const checkKeys = [
   "pr_state_ok",
   "metadata_ok",
@@ -622,7 +630,7 @@ function findApprovalVetoReasons(evidence) {
   const reasons = [];
   const labels = (evidence?.labels?.names || []).map((label) => label.toLowerCase());
 
-  if (labels.some((label) => label === "blocked" || label.startsWith("stop:"))) {
+  if (labels.some((label) => policyStopLabels.has(label) || label.startsWith("stop:"))) {
     reasons.push("approval blocked because a stop or blocked label is present");
   }
   if (evidence?.role_type_risk_validation?.risk === "risk:human-only") {
