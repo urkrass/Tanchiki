@@ -59,15 +59,30 @@ function release(overrides = {}) {
 
 function readyPr(overrides = {}) {
   return {
+    baseRefName: "main",
     checks: "passing",
     draft: false,
+    headSha: "abc123",
     labels: [],
     linkedIssueIds: ["MAR-328"],
     merged: false,
     metadata: "passing",
     number: 144,
+    reviews: [],
     state: "open",
     url: "https://github.com/urkrass/Tanchiki/pull/144",
+    ...overrides,
+  };
+}
+
+function botReview(overrides = {}) {
+  return {
+    authorLogin: "tanchiki-reviewer[bot]",
+    body: "APPROVED FOR MERGE",
+    commitId: "abc123",
+    htmlUrl: "https://github.com/urkrass/Tanchiki/pull/144#pullrequestreview-1",
+    id: "review-1",
+    state: "APPROVED",
     ...overrides,
   };
 }
@@ -193,9 +208,104 @@ test("conductor step records reviewer result without merging", () => {
   assert.match(formatDecision(decision), /does not merge/);
 });
 
-test("conductor step CLI requires explicit active project outside fixture mode", () => {
+test("conductor step syncs one valid reviewer bot review", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer({ status: "Todo" })],
+    prs: [readyPr({ reviews: [botReview()] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "sync");
+  assert.equal(decision.transition, "reviewer-review-sync");
+  assert.equal(decision.targetIssue.id, "MAR-329");
+  assert.equal(decision.proposedMutation.state, "In Review");
+  assert.equal(decision.proposedMutation.addLabels.length, 0);
+  assert.match(decision.proposedMutation.comment, /Conductor live sync review id: review-1/);
+  assert.match(formatDecision(decision), /Valid Reviewer App review/);
+});
+
+test("conductor step stops when review actor is not the reviewer bot", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer()],
+    prs: [readyPr({ reviews: [botReview({ authorLogin: "octocat" })] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /no review by tanchiki-reviewer\[bot\]/);
+});
+
+test("conductor step stops when reviewer bot review is stale", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer()],
+    prs: [readyPr({ reviews: [botReview({ commitId: "old-sha" })] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /is stale/);
+});
+
+test("conductor step stops when reviewer bot review was already synced", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [
+      producer(),
+      reviewer({
+        comments: ["Conductor live sync review id: review-1"],
+      }),
+    ],
+    prs: [readyPr({ reviews: [botReview()] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /already synced/);
+});
+
+test("conductor step stops when multiple live reviewer syncs are eligible", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [
+      producer(),
+      reviewer(),
+      producer({ id: "MAR-331", title: "Second producer" }),
+      reviewer({ blockedBy: ["MAR-331"], id: "MAR-332", producerId: "MAR-331" }),
+    ],
+    prs: [
+      readyPr({ reviews: [botReview()] }),
+      readyPr({
+        headSha: "def456",
+        linkedIssueIds: ["MAR-331"],
+        number: 145,
+        reviews: [botReview({ commitId: "def456", id: "review-2" })],
+      }),
+    ],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "multiple-eligible-transitions");
+  assert.match(formatDecision(decision), /MAR-329/);
+  assert.match(formatDecision(decision), /MAR-332/);
+});
+
+test("conductor step stops when live reviewer sync metadata is missing", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer({ labels: ["role:reviewer", "type:harness", "validation:harness"] })],
+    prs: [readyPr({ reviews: [botReview()] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /risk metadata/);
+});
+
+test("conductor step CLI requires explicit active project outside fixture mode", async () => {
   const stdout = [];
-  const exitCode = main({
+  const exitCode = await main({
     argv: [],
     env: {},
     stderr: () => {},
@@ -206,9 +316,9 @@ test("conductor step CLI requires explicit active project outside fixture mode",
   assert.match(stdout.join("\n"), /missing-active-project/);
 });
 
-test("conductor step CLI makes live mutation deferral explicit", () => {
+test("conductor step CLI fails closed when live auth is missing", async () => {
   const stdout = [];
-  const exitCode = main({
+  const exitCode = await main({
     argv: ["--active-project", activeProject],
     env: {},
     stderr: () => {},
@@ -217,8 +327,115 @@ test("conductor step CLI makes live mutation deferral explicit", () => {
 
   assert.equal(exitCode, 0);
   const output = stdout.join("\n");
-  assert.match(output, /standalone-mutation-not-implemented/);
-  assert.match(output, /Standalone Linear\/GitHub mutation is not implemented/);
+  assert.match(output, /missing-auth/);
+  assert.match(output, /Missing required auth/);
+});
+
+test("conductor step live dry-run syncs explicit PR to paired reviewer without mutation", async () => {
+  const stdout = [];
+  let mutationCalls = 0;
+  const fetchImpl = async (url, init = {}) => {
+    const requestUrl = String(url);
+    if (requestUrl === "https://api.linear.app/graphql") {
+      const body = JSON.parse(init.body);
+      if (body.query.includes("mutation")) {
+        mutationCalls += 1;
+        return jsonResponse({ data: {} });
+      }
+      if (body.query.includes("GetIssueComments")) {
+        return jsonResponse({
+          data: {
+            issue: {
+              comments: { nodes: [] },
+            },
+          },
+        });
+      }
+      if (body.variables.id === "MAR-328") {
+        return jsonResponse({
+          data: {
+            issue: liveIssue({
+              id: "linear-prod",
+              identifier: "MAR-328",
+              labels: producer().labels,
+              stateName: "In Review",
+            }),
+          },
+        });
+      }
+      if (body.variables.id === "MAR-329") {
+        return jsonResponse({
+          data: {
+            issue: liveIssue({
+              id: "linear-reviewer",
+              identifier: "MAR-329",
+              labels: reviewer().labels,
+              stateName: "Backlog",
+            }),
+          },
+        });
+      }
+    }
+
+    if (requestUrl.endsWith("/repos/urkrass/Tanchiki/pulls/144")) {
+      return jsonResponse({
+        base: { ref: "main", repo: { full_name: "urkrass/Tanchiki" } },
+        draft: false,
+        head: { sha: "abc123" },
+        html_url: "https://github.com/urkrass/Tanchiki/pull/144",
+        labels: [],
+        merged: false,
+        number: 144,
+        state: "open",
+      });
+    }
+    if (requestUrl.endsWith("/repos/urkrass/Tanchiki/pulls/144/reviews?per_page=100")) {
+      return jsonResponse([{
+        body: "APPROVED FOR MERGE",
+        commit_id: "abc123",
+        html_url: "https://github.com/urkrass/Tanchiki/pull/144#pullrequestreview-1",
+        id: 1,
+        state: "APPROVED",
+        user: { login: "tanchiki-reviewer[bot]" },
+      }]);
+    }
+    if (requestUrl.endsWith("/repos/urkrass/Tanchiki/commits/abc123/check-runs?per_page=100")) {
+      return jsonResponse({
+        check_runs: [
+          { conclusion: "success", name: "Required PR body sections", status: "completed" },
+          { conclusion: "success", name: "test", status: "completed" },
+        ],
+      });
+    }
+
+    throw new Error(`Unexpected fetch URL: ${requestUrl}`);
+  };
+
+  const exitCode = await main({
+    argv: [
+      "--active-project", activeProject,
+      "--repo", "urkrass/Tanchiki",
+      "--pr", "144",
+      "--producer", "MAR-328",
+      "--reviewer", "MAR-329",
+      "--dry-run",
+    ],
+    env: {
+      GITHUB_TOKEN: "github-token",
+      LINEAR_API_TOKEN: "linear-token",
+    },
+    fetchImpl,
+    stderr: () => {},
+    stdout: (line) => stdout.push(line),
+  });
+
+  const output = stdout.join("\n");
+  assert.equal(exitCode, 0);
+  assert.equal(mutationCalls, 0);
+  assert.match(output, /Decision: sync/);
+  assert.match(output, /valid-reviewer-bot-review/);
+  assert.match(output, /Dry run requested/);
+  assert.match(output, /- state: In Review/);
 });
 
 test("conductor step CLI prints required fields from a fixture", () => {
@@ -295,6 +512,35 @@ test("conductor step direct command succeeds with an honest safe stop", () => {
 
 function readRepoFile(...pathParts) {
   return readFileSync(join(root, ...pathParts), "utf8");
+}
+
+function jsonResponse(payload, ok = true) {
+  return {
+    ok,
+    status: ok ? 200 : 500,
+    json: async () => payload,
+  };
+}
+
+function liveIssue({ id, identifier, labels, stateName }) {
+  return {
+    description: "review_cadence: paired-review",
+    id,
+    identifier,
+    labels: { nodes: labels.map((name) => ({ name })) },
+    project: { name: activeProject },
+    state: { id: `state-${stateName}`, name: stateName, type: "started" },
+    team: {
+      states: {
+        nodes: [
+          { id: "state-Backlog", name: "Backlog", type: "backlog" },
+          { id: "state-In Review", name: "In Review", type: "started" },
+        ],
+      },
+    },
+    title: `${identifier} live issue`,
+    url: `https://linear.app/tanchiki/issue/${identifier}`,
+  };
 }
 
 function escapeRegExp(value) {

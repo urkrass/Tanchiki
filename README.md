@@ -116,18 +116,31 @@ Use Arrow keys or WASD to move. Press Space to fire a shell in the tank's curren
 ### Executable Campaign Conductor Step
 
 `npm run conductor:step` is the first local entry point for the Campaign
-Conductor state machine. Conductor v1 is deliberately boring and deterministic:
+Conductor state machine. The command is deliberately boring and deterministic:
 it never calls OpenAI, never runs Dispatcher, Coder, Reviewer, Release, or Merge
 work, never submits GitHub reviews, never merges, and never changes labels,
 repository settings, workflows, branch protection, deployment, or secrets.
 
-Standalone live Linear/GitHub mutation is not implemented yet. Without an
-explicit active project, the command stops. With an active project but no
-supplied state fixture, it also stops and says that live mutation is deferred:
+Without an explicit active project, the command stops. In live mode it also
+requires process-scoped Linear and GitHub auth plus explicit repo, PR, producer,
+and paired Reviewer issue inputs so it cannot guess campaign state. Missing
+auth is reported without printing tokens:
 
 ```powershell
 npm run conductor:step -- --active-project "<exact Linear project name>"
 ```
+
+Conductor v2's live path is limited to one state sync: if a linked PR has a
+valid current-head `tanchiki-reviewer[bot]` paired-review decision, the command
+may move only the paired Reviewer Linear issue to `In Review` and add one audit
+comment. It does not mark Done, merge, label, remove labels, or run a reviewer:
+
+```powershell
+npm run conductor:step -- --active-project "<exact Linear project name>" --repo owner/name --pr 123 --producer MAR-331 --reviewer MAR-332
+```
+
+Use `--dry-run` with the same live arguments to read state and print the single
+proposed sync without applying Linear mutation.
 
 Use fixture mode to exercise the deterministic transition core:
 
