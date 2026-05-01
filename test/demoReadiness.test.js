@@ -9,6 +9,7 @@ import { describeUpgradePanelContext } from "../src/upgradePanel.js";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const mainSource = readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
 const stylesSource = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+const upgradePanelSource = readFileSync(new URL("../src/upgradePanel.js", import.meta.url), "utf8");
 const step = 1 / 60;
 
 test("first public demo page keeps objective, controls, and live status visible", () => {
@@ -44,12 +45,19 @@ test("side-panel shell keeps controls, mission HUD, and progression in separate 
     html.indexOf("</aside>", html.indexOf("<aside class=\"side-panel progression-panel\""))
   );
 
-  assert.doesNotMatch(controlsPanel, /status-bar|id="status"|upgrade-panel|upgrade-context/);
+  assert.doesNotMatch(
+    controlsPanel,
+    /status-bar|id="status"|upgrade-panel|upgrade-context|progression-summary|HP|Enemies|Base|Mission|Objective/
+  );
   assert.match(playPanel, /status-bar/);
+  assert.match(playPanel, /id="status"/);
   assert.match(playPanel, /<canvas id="game"/);
+  assert.doesNotMatch(playPanel, /demo-brief|upgrade-panel|progression-summary|progression-panel__empty/);
   assert.match(progressionPanel, /id="progression-summary"/);
   assert.match(progressionPanel, /id="upgrade-panel"/);
+  assert.match(progressionPanel, /id="upgrade-context"/);
   assert.match(progressionPanel, /progression-panel__empty/);
+  assert.doesNotMatch(progressionPanel, /status-bar|id="status"|<canvas id="game"|demo-brief/);
 });
 
 test("demo campaign preserves victory to upgrade to next-level flow", () => {
@@ -91,6 +99,13 @@ test("right panel renderer owns progression summary and empty-state visibility",
   assert.match(mainSource, /const progressionEmpty = document\.querySelector\("#progression-empty"\);/);
   assert.match(mainSource, /summaryContainer: progressionSummary,/);
   assert.match(mainSource, /emptyElement: progressionEmpty,/);
+  assert.match(upgradePanelSource, /import \{ createProgressionFeedback \} from "\.\/game\/progressionFeedback\.js";/);
+  assert.match(upgradePanelSource, /const feedback = renderProgressionSummary\(summaryContainer, snapshot\);/);
+  assert.match(upgradePanelSource, /emptyElement\.hidden = pending \|\| Boolean\(feedback\);/);
+  assert.match(upgradePanelSource, /container\.replaceChildren\(\.\.\.rows\.map\(createProgressionRow\)\);/);
+  assert.match(upgradePanelSource, /label: "Campaign level"/);
+  assert.match(upgradePanelSource, /label: "XP"/);
+  assert.match(upgradePanelSource, /label: "Upgrade points"/);
 });
 
 test("demo campaign exposes readable mission status for the opening minute", () => {
@@ -143,7 +158,11 @@ test("layout styles provide desktop side panels and a playfield-first fallback",
   assert.match(stylesSource, /\.progression-summary__row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;/);
   assert.match(stylesSource, /\.play-panel\s*\{[\s\S]*display: grid;[\s\S]*gap: 12px;/);
   assert.match(stylesSource, /@media \(max-width: 1180px\) \{[\s\S]*\.play-panel\s*\{[\s\S]*grid-row: 1;/);
+  assert.match(stylesSource, /@media \(max-width: 1180px\) \{[\s\S]*\.controls-panel\s*\{[\s\S]*grid-column: 1;[\s\S]*grid-row: 2;/);
+  assert.match(stylesSource, /@media \(max-width: 1180px\) \{[\s\S]*\.progression-panel\s*\{[\s\S]*grid-column: 2;[\s\S]*grid-row: 2;/);
+  assert.match(stylesSource, /@media \(max-width: 1180px\) \{[\s\S]*\.progression-summary__row\s*\{[\s\S]*grid-template-columns: 1fr;/);
   assert.match(stylesSource, /@media \(max-width: 760px\) \{[\s\S]*\.game-screen\s*\{[\s\S]*grid-template-columns: 1fr;/);
+  assert.match(stylesSource, /@media \(max-width: 760px\) \{[\s\S]*\.play-panel,\s*[\s\S]*\.controls-panel,\s*[\s\S]*\.progression-panel\s*\{[\s\S]*grid-column: auto;[\s\S]*grid-row: auto;/);
 });
 
 function createCampaignHarness(options = {}) {
