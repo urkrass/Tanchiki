@@ -145,10 +145,11 @@ export async function main({
       throw new EvidenceError(`Generated review refused: ${evaluation.refusal_reasons.join("; ")}`);
     }
 
-    const reviewDecision = mapDecisionToReviewPrDecision(generated.decision);
+    const normalizedDecision = normalizeReviewBodyForDecision(generated.decision);
+    const reviewDecision = mapDecisionToReviewPrDecision(normalizedDecision);
     const reviewBodyRefusal = getReviewBodyRefusalReason(
       reviewDecision,
-      generated.decision.review_body_markdown,
+      normalizedDecision.review_body_markdown,
     );
     if (reviewBodyRefusal) {
       throw new EvidenceError(`Generated review body refused: ${reviewBodyRefusal}`);
@@ -165,7 +166,7 @@ export async function main({
     if (!options.dryRun) {
       reviewerAppTokenRequested = true;
       submission = await submitGeneratedReview({
-        body: generated.decision.review_body_markdown,
+        body: normalizedDecision.review_body_markdown,
         createTokenImpl,
         decision: reviewDecision,
         env,
@@ -190,7 +191,7 @@ export async function main({
       evidence_summary: summarizeEvidenceForOutput(evidence),
       local_checks: evaluation.local_checks,
       local_gate_refusals: evaluation.refusal_reasons,
-      decision: generated.decision,
+      decision: normalizedDecision,
       openai_usage: generated.usage,
     }, null, 2));
     return 0;
@@ -594,6 +595,20 @@ export function mapDecisionToReviewPrDecision(decision) {
     return isProcessBlockedDecision(decision) ? "comment" : "request-changes";
   }
   return "comment";
+}
+
+export function normalizeReviewBodyForDecision(decision) {
+  if (decision?.decision !== "APPROVED_FOR_MERGE") {
+    return decision;
+  }
+  if (decision.review_body_markdown.includes("APPROVED FOR MERGE")) {
+    return decision;
+  }
+
+  return {
+    ...decision,
+    review_body_markdown: `APPROVED FOR MERGE\n\n${decision.review_body_markdown}`,
+  };
 }
 
 export async function submitGeneratedReview({

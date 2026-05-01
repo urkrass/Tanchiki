@@ -19,6 +19,7 @@ import {
   evaluateReviewerDecision,
   mapDecisionToReviewPrDecision,
   main,
+  normalizeReviewBodyForDecision,
   openAiResponsesUrl,
   parseArgs,
   reviewerDecisionSchema,
@@ -221,6 +222,84 @@ test("reviewer-agent fixture evidence passes local approval gates and request sa
   assert.match(requestText, /MAR-318/);
   assert.match(requestText, /diff --git/);
   assert.doesNotMatch(requestText, /OPENAI_API_KEY|GH_TOKEN|GITHUB_REVIEWER|secret-/);
+});
+
+test("reviewer-agent normalizes approval body before review-pr validation", async () => {
+  const stdout = [];
+  const stderr = [];
+  const openAiRequests = [];
+  const fetchImpl = await makeReviewerAgentFetch({
+    decision: makeReviewerDecision({
+      decision: "APPROVED_FOR_MERGE",
+      review_body_markdown: "Approved for merge.\n\nIndependence: separate Reviewer App session.",
+    }),
+    onOpenAiRequest: (request) => openAiRequests.push(request),
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+    env: {
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(stderr, []);
+  assert.equal(openAiRequests.length, 1);
+  const parsed = JSON.parse(stdout.join("\n"));
+  assert.equal(parsed.mapped_github_event, "APPROVE");
+  assert.match(parsed.decision.review_body_markdown, /^APPROVED FOR MERGE\n\nApproved for merge\./);
+});
+
+test("reviewer-agent approval normalization preserves forbidden output refusal", async () => {
+  const stdout = [];
+  const stderr = [];
+  const fetchImpl = await makeReviewerAgentFetch({
+    decision: makeReviewerDecision({
+      decision: "APPROVED_FOR_MERGE",
+      review_body_markdown: [
+        "Approved for merge.",
+        "",
+        "Independence: separate Reviewer App session.",
+        "Mark the Linear issue Done after review.",
+      ].join("\n"),
+    }),
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+    env: {
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(stdout, []);
+  assert.match(stderr.join("\n"), /model output requested Linear Done/);
+  assert.match(stderr.join("\n"), /No GitHub review was submitted/);
+});
+
+test("reviewer-agent approval normalization is approval-only", () => {
+  const approval = makeReviewerDecision({
+    decision: "APPROVED_FOR_MERGE",
+    review_body_markdown: "Approved for merge.\n\nIndependence: distinct run.",
+  });
+  assert.match(
+    normalizeReviewBodyForDecision(approval).review_body_markdown,
+    /^APPROVED FOR MERGE\n\nApproved for merge\./,
+  );
+
+  const changes = makeReviewerDecision({
+    decision: "CHANGES_REQUESTED",
+    review_body_markdown: "CHANGES REQUESTED\n\nBlocking finding:\n- Fix this.",
+  });
+  assert.equal(normalizeReviewBodyForDecision(changes), changes);
 });
 
 test("reviewer evidence validates and trims max diff size", () => {
