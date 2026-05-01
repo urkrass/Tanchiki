@@ -1,3 +1,4 @@
+import { readFile as readArtifactFile, writeFile as writeArtifactFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -22,6 +23,7 @@ import {
 
 export const defaultOpenAiModel = "gpt-5.5";
 export const openAiResponsesUrl = "https://api.openai.com/v1/responses";
+const reviewArtifactSchemaVersion = "tanchiki.reviewer_agent.review_artifact.v1";
 const repoRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 
 const reviewBodyMaxChars = 12000;
@@ -123,6 +125,47 @@ export async function main({
 
   try {
     const options = parseArgs(argv);
+
+    if (options.submitFrom) {
+      const artifact = await readReviewArtifact(options.submitFrom);
+      const revalidation = await revalidateReviewArtifactForSubmission({
+        artifact,
+        env,
+        fetchImpl,
+      });
+
+      reviewerAppTokenRequested = true;
+      const submission = await submitGeneratedReview({
+        body: revalidation.reviewBody,
+        createTokenImpl,
+        decision: revalidation.reviewDecision,
+        env,
+        fetchImpl,
+        issue: artifact.issue.id,
+        pr: artifact.pr.number,
+        repo: artifact.repo,
+      });
+      githubReviewSubmitted = submission.submitted;
+
+      stdout(JSON.stringify({
+        mode: "api-backed-reviewer-agent",
+        artifact_mode: "submit-from",
+        dry_run: false,
+        requested_model: null,
+        openai_call_made: false,
+        github_review_submitted: githubReviewSubmitted,
+        mapped_github_event: submission.event,
+        reviewer_app_token_requested: reviewerAppTokenRequested,
+        submission_allowed: submission.allowed,
+        submission_blocked_reason: submission.blocked_reason,
+        evidence_summary: summarizeEvidenceForOutput(revalidation.evidence),
+        local_checks: revalidation.preflight.local_checks,
+        local_gate_refusals: revalidation.preflight.refusal_reasons,
+        decision: revalidation.decision,
+      }, null, 2));
+      return 0;
+    }
+
     const evidence = await collectPrEvidence({
       fetchImpl,
       issue: options.issue,
@@ -166,10 +209,21 @@ export async function main({
       throw new EvidenceError(`Generated review body refused: ${reviewBodyRefusal}`);
     }
 
+    const artifact = createReviewArtifact({
+      decision: normalizedDecision,
+      evidence,
+      evaluation,
+      issue: options.issue,
+      reviewDecision,
+    });
+    if (options.output) {
+      await writeReviewArtifact(options.output, artifact);
+    }
+
     let submission = {
       allowed: true,
       blocked_reason: null,
-      event: mapDecisionToGithubReviewEvent(generated.decision.decision),
+      event: artifact.mapped_github_event,
       reviewer_app_token_requested: false,
       submitted: false,
     };
@@ -202,6 +256,7 @@ export async function main({
       evidence_summary: summarizeEvidenceForOutput(evidence),
       local_checks: evaluation.local_checks,
       local_gate_refusals: evaluation.refusal_reasons,
+      artifact_path: options.output || null,
       decision: normalizedDecision,
       openai_usage: generated.usage,
     }, null, 2));
@@ -211,7 +266,7 @@ export async function main({
       throw error;
     }
 
-    stderr(`Reviewer Agent OpenAI invocation refused: ${error.message}`);
+    stderr(`Reviewer Agent refused: ${error.message}`);
     stderr(
       openAiCallAttempted
         ? "OpenAI API call was attempted, but no valid review was accepted."
@@ -233,8 +288,10 @@ export function parseArgs(argv) {
     issue: null,
     maxDiffChars: defaultMaxDiffChars,
     model: null,
+    output: null,
     pr: null,
     repo: defaultRepo,
+    submitFrom: null,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -249,7 +306,15 @@ export function parseArgs(argv) {
     const key = equalsIndex === -1 ? arg : arg.slice(0, equalsIndex);
     const inlineValue = equalsIndex === -1 ? null : arg.slice(equalsIndex + 1);
 
-    if (!["--pr", "--issue", "--max-diff-chars", "--model", "--repo"].includes(key)) {
+    if (![
+      "--pr",
+      "--issue",
+      "--max-diff-chars",
+      "--model",
+      "--output",
+      "--repo",
+      "--submit-from",
+    ].includes(key)) {
       throw new EvidenceError(`Unknown argument: ${arg}`);
     }
 
@@ -269,9 +334,26 @@ export function parseArgs(argv) {
       options.maxDiffChars = validateMaxDiffChars(value);
     } else if (key === "--model") {
       options.model = parseModel(value);
+    } else if (key === "--output") {
+      options.output = parsePathArgument(value, "--output");
     } else if (key === "--repo") {
       options.repo = parseRepo(value);
+    } else if (key === "--submit-from") {
+      options.submitFrom = parsePathArgument(value, "--submit-from");
     }
+  }
+
+  if (options.submitFrom) {
+    if (options.dryRun) {
+      throw new EvidenceError("--submit-from cannot be combined with --dry-run.");
+    }
+    if (options.output) {
+      throw new EvidenceError("--submit-from cannot be combined with --output.");
+    }
+    if (options.model) {
+      throw new EvidenceError("--submit-from does not call OpenAI and cannot use --model.");
+    }
+    return options;
   }
 
   if (options.pr === null) {
@@ -279,6 +361,9 @@ export function parseArgs(argv) {
   }
   if (!options.issue) {
     throw new EvidenceError("--issue is required.");
+  }
+  if (options.output && !options.dryRun) {
+    throw new EvidenceError("--output is only supported with --dry-run.");
   }
 
   return options;
@@ -556,6 +641,176 @@ export function computeLocalChecks(evidence) {
   };
 }
 
+export function createReviewArtifact({
+  decision,
+  evidence,
+  evaluation,
+  issue,
+  reviewDecision,
+}) {
+  return {
+    schema_version: reviewArtifactSchemaVersion,
+    repo: evidence.repo,
+    pr: {
+      number: evidence.pr.number,
+      head_sha: evidence.pr.head_sha,
+    },
+    issue: {
+      id: issue,
+    },
+    mapped_github_event: mapReviewPrDecisionToGithubEvent(reviewDecision),
+    review_pr_decision: reviewDecision,
+    decision,
+    validated_review_body: decision.review_body_markdown,
+    local_checks: evaluation.local_checks,
+    local_gate_refusals: evaluation.refusal_reasons,
+  };
+}
+
+export async function writeReviewArtifact(path, artifact) {
+  const text = `${JSON.stringify(artifact, null, 2)}\n`;
+  assertReviewArtifactHasNoSecretMaterial(text);
+  await writeArtifactFile(path, text, "utf8");
+}
+
+export async function readReviewArtifact(path) {
+  let parsed;
+  try {
+    parsed = JSON.parse(await readArtifactFile(path, "utf8"));
+  } catch (error) {
+    throw new EvidenceError(`Review artifact could not be read as JSON: ${error.message}`);
+  }
+
+  return validateReviewArtifact(parsed);
+}
+
+export function validateReviewArtifact(value) {
+  assertPlainObject(value, "review artifact");
+  assertAllowedKeys(value, [
+    "schema_version",
+    "repo",
+    "pr",
+    "issue",
+    "mapped_github_event",
+    "review_pr_decision",
+    "decision",
+    "validated_review_body",
+    "local_checks",
+    "local_gate_refusals",
+  ], "review artifact");
+
+  if (value.schema_version !== reviewArtifactSchemaVersion) {
+    throw new EvidenceError("Review artifact schema_version is unsupported.");
+  }
+  if (parseRepo(value.repo) !== defaultRepo) {
+    throw new EvidenceError("Review artifact repo is unsupported.");
+  }
+
+  assertPlainObject(value.pr, "review artifact pr");
+  assertAllowedKeys(value.pr, ["number", "head_sha"], "review artifact pr");
+  const prNumber = parsePrNumber(value.pr.number);
+  if (!isNonEmptyString(value.pr.head_sha)) {
+    throw new EvidenceError("Review artifact pr.head_sha must be a non-empty string.");
+  }
+
+  assertPlainObject(value.issue, "review artifact issue");
+  assertAllowedKeys(value.issue, ["id"], "review artifact issue");
+  const issueId = parseIssueId(value.issue.id);
+
+  const decision = validateReviewerDecision(value.decision);
+  const normalizedDecision = normalizeReviewBodyForDecision(decision);
+  const reviewDecision = mapDecisionToReviewPrDecision(normalizedDecision);
+  if (value.review_pr_decision !== reviewDecision) {
+    throw new EvidenceError("Review artifact review_pr_decision does not match decision.");
+  }
+  const mappedEvent = mapReviewPrDecisionToGithubEvent(reviewDecision);
+  if (value.mapped_github_event !== mappedEvent) {
+    throw new EvidenceError("Review artifact mapped_github_event does not match decision.");
+  }
+  if (value.validated_review_body !== normalizedDecision.review_body_markdown) {
+    throw new EvidenceError("Review artifact validated_review_body does not match decision body.");
+  }
+  const bodyRefusal = getReviewBodyRefusalReason(reviewDecision, value.validated_review_body);
+  if (bodyRefusal) {
+    throw new EvidenceError(`Review artifact body refused: ${bodyRefusal}`);
+  }
+
+  assertPlainObject(value.local_checks, "review artifact local_checks");
+  assertAllowedKeys(value.local_checks, checkKeys, "review artifact local_checks");
+  for (const key of checkKeys) {
+    if (typeof value.local_checks[key] !== "boolean") {
+      throw new EvidenceError(`Review artifact local_checks.${key} must be boolean.`);
+    }
+  }
+  if (!Array.isArray(value.local_gate_refusals)) {
+    throw new EvidenceError("Review artifact local_gate_refusals must be an array.");
+  }
+  for (const reason of value.local_gate_refusals) {
+    if (typeof reason !== "string") {
+      throw new EvidenceError("Review artifact local_gate_refusals entries must be strings.");
+    }
+  }
+
+  assertReviewArtifactHasNoSecretMaterial(JSON.stringify(value));
+  return {
+    ...value,
+    repo: defaultRepo,
+    pr: {
+      number: prNumber,
+      head_sha: value.pr.head_sha,
+    },
+    issue: {
+      id: issueId,
+    },
+    mapped_github_event: mappedEvent,
+    review_pr_decision: reviewDecision,
+    decision: normalizedDecision,
+    validated_review_body: normalizedDecision.review_body_markdown,
+  };
+}
+
+export async function revalidateReviewArtifactForSubmission({
+  artifact,
+  env = process.env,
+  fetchImpl = fetch,
+}) {
+  const evidence = await collectPrEvidence({
+    fetchImpl,
+    issue: artifact.issue.id,
+    pr: artifact.pr.number,
+    repo: artifact.repo,
+    token: readGitHubToken(env),
+  });
+
+  if (evidence.pr.head_sha !== artifact.pr.head_sha) {
+    throw new EvidenceError(
+      "Review artifact is stale: PR head SHA changed since dry-run. Rerun reviewer:agent --dry-run.",
+    );
+  }
+
+  const preflight = evaluateLocalPreflight(evidence);
+  if (preflight.refusal_reasons.length > 0) {
+    throw new EvidenceError(
+      `Review artifact submission refused after revalidation: ${preflight.refusal_reasons.join("; ")}. Rerun reviewer:agent --dry-run.`,
+    );
+  }
+
+  const reviewDecision = artifact.review_pr_decision;
+  const reviewBody = artifact.validated_review_body;
+  const bodyRefusal = getReviewBodyRefusalReason(reviewDecision, reviewBody);
+  if (bodyRefusal) {
+    throw new EvidenceError(`Review artifact body refused after revalidation: ${bodyRefusal}`);
+  }
+
+  return {
+    decision: artifact.decision,
+    evidence,
+    preflight,
+    reviewBody,
+    reviewDecision,
+  };
+}
+
 export function findForbiddenModelOutputReasons(decision) {
   const text = [
     decision.summary,
@@ -816,7 +1071,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       process.exitCode = exitCode;
     },
     (error) => {
-      console.error(`Reviewer Agent OpenAI invocation failed: ${error.message}`);
+      console.error(`Reviewer Agent failed: ${error.message}`);
       process.exitCode = 1;
     },
   );
@@ -842,6 +1097,14 @@ function parseModel(value) {
   const text = String(value).trim();
   if (!text) {
     throw new EvidenceError("--model must not be empty.");
+  }
+  return text;
+}
+
+function parsePathArgument(value, name) {
+  const text = String(value).trim();
+  if (!text) {
+    throw new EvidenceError(`${name} must not be empty.`);
   }
   return text;
 }
@@ -1024,6 +1287,16 @@ function isGeneratedIndependenceParagraph(paragraph) {
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function assertReviewArtifactHasNoSecretMaterial(text) {
+  if (
+    /secret-(?:gh|openai|reviewer)-token/i.test(text)
+    || /\b(?:GH_TOKEN|GITHUB_TOKEN|OPENAI_API_KEY|GITHUB_REVIEWER_PRIVATE_KEY)\b/i.test(text)
+    || /-----BEGIN [A-Z ]*PRIVATE KEY-----/i.test(text)
+  ) {
+    throw new EvidenceError("Review artifact contains forbidden secret-shaped material.");
+  }
 }
 
 function findApprovalVetoReasons(evidence) {
