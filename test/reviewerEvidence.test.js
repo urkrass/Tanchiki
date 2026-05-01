@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -148,8 +149,10 @@ test("reviewer-agent parser supports evidence dry-run command shape", () => {
       issue: "MAR-312",
       maxDiffChars: 2000,
       model: "gpt-5.5",
+      output: null,
       pr: 119,
       repo: "urkrass/Tanchiki",
+      submitFrom: null,
     },
   );
 
@@ -162,13 +165,33 @@ test("reviewer-agent parser supports evidence dry-run command shape", () => {
     issue: "MAR-321",
     maxDiffChars: defaultMaxDiffChars,
     model: null,
+    output: null,
     pr: 1,
     repo: "urkrass/Tanchiki",
+    submitFrom: null,
+  });
+  assert.deepEqual(parseArgs(["--submit-from", "C:\\Temp\\reviewer-agent-129.json"]), {
+    dryRun: false,
+    issue: null,
+    maxDiffChars: defaultMaxDiffChars,
+    model: null,
+    output: null,
+    pr: null,
+    repo: "urkrass/Tanchiki",
+    submitFrom: "C:\\Temp\\reviewer-agent-129.json",
   });
   assert.throws(() => parseArgs([]), /--pr is required/);
   assert.throws(() => parseArgs(["--pr", "0", "--issue", "MAR-312", "--dry-run"]), /positive integer/);
   assert.throws(() => parseArgs(["--pr", "1", "--issue", "ABC-1", "--dry-run"]), /MAR-<number>/);
   assert.throws(() => parseArgs(["--pr", "1", "--issue", "MAR-1", "--dry-run", "--body", "x"]), /Unknown argument/);
+  assert.throws(
+    () => parseArgs(["--pr", "1", "--issue", "MAR-1", "--output", "review.json"]),
+    /--output is only supported with --dry-run/,
+  );
+  assert.throws(
+    () => parseArgs(["--submit-from", "review.json", "--dry-run"]),
+    /--submit-from cannot be combined with --dry-run/,
+  );
   assert.throws(
     () => parseArgs(["--pr", "1", "--issue", "MAR-1", "--dry-run", "--repo", "other/repo"]),
     /--repo must be urkrass\/Tanchiki/,
@@ -310,7 +333,7 @@ test("reviewer-agent approval normalization preserves forbidden output refusal",
   assert.match(stderr.join("\n"), /No GitHub review was submitted/);
 });
 
-test("reviewer-agent approval normalization is approval-only", () => {
+test("reviewer-agent decision normalization preserves required approval basis", () => {
   const approval = makeReviewerDecision({
     decision: "APPROVED_FOR_MERGE",
     review_body_markdown: "Approved for merge.\n\nIndependence: distinct run.",
@@ -337,6 +360,86 @@ test("reviewer-agent approval normalization is approval-only", () => {
     review_body_markdown: "CHANGES REQUESTED\n\nBlocking finding:\n- Fix this.",
   });
   assert.equal(normalizeReviewBodyForDecision(changes), changes);
+});
+
+test("reviewer-agent normalizes non-approval review body markers before executor validation", () => {
+  const changes = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "CHANGES_REQUESTED",
+    findings: [{ severity: "blocking", file: "scripts/reviewer-agent.js", message: "Fix marker." }],
+    review_body_markdown: "Blocking finding:\n- Fix marker.",
+  }));
+  assert.equal(countExactLine(changes.review_body_markdown, "CHANGES REQUESTED"), 1);
+  assert.match(changes.review_body_markdown, /^CHANGES REQUESTED\n\nBlocking finding:/);
+  assert.equal(mapDecisionToReviewPrDecision(changes), "request-changes");
+  assert.equal(
+    getReviewBodyRefusalReason(mapDecisionToReviewPrDecision(changes), changes.review_body_markdown),
+    null,
+  );
+
+  const blockedForRequestChanges = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "BLOCKED",
+    findings: [{ severity: "blocking", file: "scripts/reviewer-agent.js", message: "Fix gate." }],
+    review_body_markdown: "Blocking finding:\n- Fix gate.",
+  }));
+  assert.equal(countExactLine(blockedForRequestChanges.review_body_markdown, "BLOCKED"), 1);
+  assert.equal(mapDecisionToReviewPrDecision(blockedForRequestChanges), "request-changes");
+  assert.equal(
+    getReviewBodyRefusalReason(
+      mapDecisionToReviewPrDecision(blockedForRequestChanges),
+      blockedForRequestChanges.review_body_markdown,
+    ),
+    null,
+  );
+
+  const blockedForComment = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "BLOCKED",
+    review_body_markdown: "Offline reviewer process needs human inspection.",
+    summary: "Offline reviewer process evidence needs a human.",
+  }));
+  assert.equal(countExactLine(blockedForComment.review_body_markdown, "BLOCKED"), 1);
+  assert.equal(mapDecisionToReviewPrDecision(blockedForComment), "comment");
+  assert.equal(
+    getReviewBodyRefusalReason(
+      mapDecisionToReviewPrDecision(blockedForComment),
+      blockedForComment.review_body_markdown,
+    ),
+    null,
+  );
+
+  const human = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "HUMAN_REVIEW_REQUIRED",
+    review_body_markdown: "Human should inspect the ambiguous metadata.",
+  }));
+  assert.equal(countExactLine(human.review_body_markdown, "HUMAN REVIEW REQUIRED"), 1);
+  assert.match(human.review_body_markdown, /^HUMAN REVIEW REQUIRED\n\nHuman should inspect/);
+  assert.equal(mapDecisionToReviewPrDecision(human), "comment");
+  assert.equal(
+    getReviewBodyRefusalReason(mapDecisionToReviewPrDecision(human), human.review_body_markdown),
+    null,
+  );
+});
+
+test("reviewer-agent non-approval normalization collapses duplicate marker sections", () => {
+  const changes = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "CHANGES_REQUESTED",
+    review_body_markdown: [
+      "CHANGES REQUESTED",
+      "",
+      "CHANGES REQUESTED: Blocking finding.",
+      "",
+      "CHANGES REQUESTED",
+      "",
+      "Fix the gate wording.",
+    ].join("\n"),
+  }));
+
+  assert.equal(countExactLine(changes.review_body_markdown, "CHANGES REQUESTED"), 1);
+  assert.match(changes.review_body_markdown, /^CHANGES REQUESTED\n\nBlocking finding\./);
+  assert.match(changes.review_body_markdown, /Fix the gate wording\.$/);
+  assert.equal(
+    getReviewBodyRefusalReason(mapDecisionToReviewPrDecision(changes), changes.review_body_markdown),
+    null,
+  );
 });
 
 test("reviewer-agent approval normalization does not duplicate complete approval basis", () => {
@@ -593,6 +696,123 @@ test("reviewer evidence summarizes failing pending unavailable and absent checks
   assert.equal(summarizeChecks({ unavailableReason: "403 forbidden" }).state, "unavailable");
 });
 
+test("reviewer evidence ignores older failed check runs when a newer same-identity run passed", () => {
+  const summary = summarizeChecks({
+    checkRuns: [
+      {
+        app: { id: 15368, slug: "github-actions" },
+        completed_at: "2026-05-01T10:00:00Z",
+        conclusion: "failure",
+        id: 1001,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T09:59:00Z",
+        status: "completed",
+      },
+      {
+        app: { id: 15368, slug: "github-actions" },
+        completed_at: "2026-05-01T10:05:00Z",
+        conclusion: "success",
+        id: 1002,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T10:04:00Z",
+        status: "completed",
+      },
+    ],
+    status: { statuses: [] },
+  });
+
+  assert.equal(summary.state, "passing");
+  assert.equal(summary.check_run_count, 2);
+  assert.equal(summary.evaluated_check_run_count, 1);
+  assert.deepEqual(summary.check_runs, [
+    { conclusion: "success", name: "PR Metadata Check", status: "completed" },
+  ]);
+  assert.deepEqual(summary.findings, []);
+});
+
+test("reviewer evidence fails when the newest same-identity check run failed", () => {
+  const summary = summarizeChecks({
+    checkRuns: [
+      {
+        app: { id: 15368, slug: "github-actions" },
+        completed_at: "2026-05-01T10:00:00Z",
+        conclusion: "success",
+        id: 1001,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T09:59:00Z",
+        status: "completed",
+      },
+      {
+        app: { id: 15368, slug: "github-actions" },
+        completed_at: "2026-05-01T10:05:00Z",
+        conclusion: "failure",
+        id: 1002,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T10:04:00Z",
+        status: "completed",
+      },
+    ],
+    status: { statuses: [] },
+  });
+
+  assert.equal(summary.state, "failing");
+  assert.deepEqual(summary.findings, ["Check run PR Metadata Check concluded failure."]);
+});
+
+test("reviewer evidence is pending when the newest same-identity check run is pending", () => {
+  const summary = summarizeChecks({
+    checkRuns: [
+      {
+        completed_at: "2026-05-01T10:00:00Z",
+        conclusion: "success",
+        id: 1001,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T09:59:00Z",
+        status: "completed",
+      },
+      {
+        conclusion: null,
+        id: 1002,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T10:05:00Z",
+        status: "in_progress",
+      },
+    ],
+    status: { statuses: [] },
+  });
+
+  assert.equal(summary.state, "pending");
+  assert.deepEqual(summary.check_runs, [
+    { conclusion: null, name: "PR Metadata Check", status: "in_progress" },
+  ]);
+  assert.deepEqual(summary.findings, ["Check run PR Metadata Check is in_progress."]);
+});
+
+test("reviewer evidence uses check run id when same-identity timestamps are unavailable", () => {
+  const summary = summarizeChecks({
+    checkRuns: [
+      {
+        conclusion: "failure",
+        id: 1001,
+        name: "PR Metadata Check",
+        status: "completed",
+      },
+      {
+        conclusion: "success",
+        id: 1002,
+        name: "PR Metadata Check",
+        status: "completed",
+      },
+    ],
+    status: { statuses: [] },
+  });
+
+  assert.equal(summary.state, "passing");
+  assert.deepEqual(summary.check_runs, [
+    { conclusion: "success", name: "PR Metadata Check", status: "completed" },
+  ]);
+});
+
 test("GitHub evidence client uses read-only PR evidence endpoints", async () => {
   const requests = [];
   const fetchImpl = async (url, init = {}) => {
@@ -808,6 +1028,241 @@ test("reviewer-agent dry-run calls OpenAI with strict structured output and subm
   assert.deepEqual(requestBody.text.format.schema, reviewerDecisionSchema);
   assert.match(requestBody.input[0].content[0].text, /constrained Tanchiki Reviewer App reviewer agent/);
   assert.match(requestBody.input[1].content[0].text, /MAR-314/);
+});
+
+test("reviewer-agent dry-run writes sanitized validated review artifact", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "tanchiki-reviewer-agent-"));
+  try {
+    const artifactPath = join(tempDir, "reviewer-agent-119.json");
+    const stdout = [];
+    const stderr = [];
+    const openAiRequests = [];
+    let reviewerTokenRequested = false;
+    const fetchImpl = await makeReviewerAgentFetch({
+      decision: makeReviewerDecision({
+        decision: "APPROVED_FOR_MERGE",
+        confidence: "high",
+        summary: "Generated approval is safe for artifact handoff.",
+        review_body_markdown: "Approved for merge.",
+      }),
+      onOpenAiRequest: (request) => openAiRequests.push(request),
+    });
+
+    const exitCode = await main({
+      argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run", "--output", artifactPath],
+      env: {
+        GH_TOKEN: "secret-gh-token",
+        OPENAI_API_KEY: "secret-openai-key",
+      },
+      fetchImpl,
+      createTokenImpl: () => {
+        reviewerTokenRequested = true;
+        return { token: "secret-reviewer-token" };
+      },
+      stderr: (line) => stderr.push(line),
+      stdout: (line) => stdout.push(line),
+    });
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(stderr, []);
+    assert.equal(openAiRequests.length, 1);
+    assert.equal(reviewerTokenRequested, false);
+    const parsedOutput = JSON.parse(stdout.join("\n"));
+    assert.equal(parsedOutput.artifact_path, artifactPath);
+
+    const artifactText = readFileSync(artifactPath, "utf8");
+    assert.doesNotMatch(
+      artifactText,
+      /secret-gh-token|secret-openai-key|secret-reviewer-token|OPENAI_API_KEY|GH_TOKEN|GITHUB_TOKEN|GITHUB_REVIEWER_PRIVATE_KEY/i,
+    );
+    const artifact = JSON.parse(artifactText);
+    assert.equal(artifact.schema_version, "tanchiki.reviewer_agent.review_artifact.v1");
+    assert.equal(artifact.repo, "urkrass/Tanchiki");
+    assert.equal(artifact.pr.number, 119);
+    assert.equal(artifact.pr.head_sha, "abc123");
+    assert.equal(artifact.issue.id, "MAR-314");
+    assert.equal(artifact.mapped_github_event, "APPROVE");
+    assert.equal(artifact.review_pr_decision, "approve");
+    assert.equal(artifact.decision.decision, "APPROVED_FOR_MERGE");
+    assert.equal(artifact.validated_review_body, artifact.decision.review_body_markdown);
+    assert.equal(artifact.local_checks.pr_state_ok, true);
+    assert.equal(artifact.local_checks.checks_ok, true);
+    assert.deepEqual(artifact.local_gate_refusals, []);
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test("reviewer-agent submit-from artifact revalidates and submits without OpenAI", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "tanchiki-reviewer-agent-"));
+  try {
+    const artifactPath = join(tempDir, "reviewer-agent-119.json");
+    await writeDryRunArtifact(artifactPath, {
+      decision: makeReviewerDecision({
+        decision: "APPROVED_FOR_MERGE",
+        confidence: "high",
+        summary: "Generated approval is safe for artifact submission.",
+        review_body_markdown: "Approved for merge.",
+      }),
+    });
+
+    const stdout = [];
+    const stderr = [];
+    const openAiRequests = [];
+    const reviewRequests = [];
+    let tokenRequested = false;
+    const fetchImpl = await makeReviewerAgentFetch({
+      onOpenAiRequest: (request) => openAiRequests.push(request),
+      onReviewRequest: (request) => reviewRequests.push(request),
+    });
+
+    const exitCode = await main({
+      argv: ["--submit-from", artifactPath],
+      env: {
+        GITHUB_REVIEWER_APP_ID: "123",
+        GITHUB_REVIEWER_INSTALLATION_ID: "456",
+        GITHUB_REVIEWER_PRIVATE_KEY_PATH: process.execPath,
+        GH_TOKEN: "secret-gh-token",
+      },
+      fetchImpl,
+      createTokenImpl: (context) => {
+        tokenRequested = true;
+        assert.equal(context.appId, "123");
+        assert.equal(context.installationId, "456");
+        return { token: "secret-reviewer-token", expires_at: "2026-05-01T12:00:00Z" };
+      },
+      stderr: (line) => stderr.push(line),
+      stdout: (line) => stdout.push(line),
+    });
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(stderr, []);
+    assert.equal(openAiRequests.length, 0);
+    assert.equal(tokenRequested, true);
+    assert.equal(reviewRequests.length, 1);
+    assert.equal(reviewRequests[0].body.event, "APPROVE");
+    assert.match(reviewRequests[0].body.body, /^APPROVED FOR MERGE\n\nIndependence basis:/);
+    assert.equal(reviewRequests[0].authorization, "Bearer secret-reviewer-token");
+    const output = stdout.join("\n");
+    assert.doesNotMatch(output, /secret-gh-token|secret-reviewer-token|secret-openai-key/);
+    const parsed = JSON.parse(output);
+    assert.equal(parsed.artifact_mode, "submit-from");
+    assert.equal(parsed.openai_call_made, false);
+    assert.equal(parsed.github_review_submitted, true);
+    assert.equal(parsed.mapped_github_event, "APPROVE");
+    assert.equal(parsed.decision.decision, "APPROVED_FOR_MERGE");
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test("reviewer-agent submit-from refuses stale PR head before token", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "tanchiki-reviewer-agent-"));
+  try {
+    const artifactPath = join(tempDir, "reviewer-agent-119.json");
+    await writeDryRunArtifact(artifactPath);
+
+    const stdout = [];
+    const stderr = [];
+    const openAiRequests = [];
+    let tokenRequested = false;
+    const fetchImpl = await makeReviewerAgentFetch({
+      onOpenAiRequest: (request) => openAiRequests.push(request),
+      pullRequest: { head: { ref: "mar-314-openai-reviewer-invocation", sha: "def456" } },
+    });
+
+    const exitCode = await main({
+      argv: ["--submit-from", artifactPath],
+      env: { GH_TOKEN: "secret-gh-token" },
+      fetchImpl,
+      createTokenImpl: () => {
+        tokenRequested = true;
+        return { token: "secret-reviewer-token" };
+      },
+      stderr: (line) => stderr.push(line),
+      stdout: (line) => stdout.push(line),
+    });
+
+    assert.equal(exitCode, 1);
+    assert.deepEqual(stdout, []);
+    assert.equal(openAiRequests.length, 0);
+    assert.equal(tokenRequested, false);
+    assert.match(stderr.join("\n"), /PR head SHA changed/);
+    assert.match(stderr.join("\n"), /No OpenAI API call was made/);
+    assert.match(stderr.join("\n"), /Reviewer App token path was not reached/);
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test("reviewer-agent submit-from refuses changed checks before token", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "tanchiki-reviewer-agent-"));
+  try {
+    const artifactPath = join(tempDir, "reviewer-agent-119.json");
+    await writeDryRunArtifact(artifactPath);
+
+    const stdout = [];
+    const stderr = [];
+    let tokenRequested = false;
+    const fetchImpl = await makeReviewerAgentFetch({
+      checks: { check_runs: [{ conclusion: "failure", name: "CI", status: "completed" }], statuses: [] },
+    });
+
+    const exitCode = await main({
+      argv: ["--submit-from", artifactPath],
+      env: { GH_TOKEN: "secret-gh-token" },
+      fetchImpl,
+      createTokenImpl: () => {
+        tokenRequested = true;
+        return { token: "secret-reviewer-token" };
+      },
+      stderr: (line) => stderr.push(line),
+      stdout: (line) => stdout.push(line),
+    });
+
+    assert.equal(exitCode, 1);
+    assert.deepEqual(stdout, []);
+    assert.equal(tokenRequested, false);
+    assert.match(stderr.join("\n"), /local gate checks_ok failed/);
+    assert.match(stderr.join("\n"), /Reviewer App token path was not reached/);
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test("reviewer-agent submit-from refuses new stop label before token", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "tanchiki-reviewer-agent-"));
+  try {
+    const artifactPath = join(tempDir, "reviewer-agent-119.json");
+    await writeDryRunArtifact(artifactPath);
+
+    const stdout = [];
+    const stderr = [];
+    let tokenRequested = false;
+    const fetchImpl = await makeReviewerAgentFetch({
+      labels: ["merge:do-not-merge"],
+    });
+
+    const exitCode = await main({
+      argv: ["--submit-from", artifactPath],
+      env: { GH_TOKEN: "secret-gh-token" },
+      fetchImpl,
+      createTokenImpl: () => {
+        tokenRequested = true;
+        return { token: "secret-reviewer-token" };
+      },
+      stderr: (line) => stderr.push(line),
+      stdout: (line) => stdout.push(line),
+    });
+
+    assert.equal(exitCode, 1);
+    assert.deepEqual(stdout, []);
+    assert.equal(tokenRequested, false);
+    assert.match(stderr.join("\n"), /stop or blocked label is present/);
+    assert.match(stderr.join("\n"), /Reviewer App token path was not reached/);
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
 });
 
 test("reviewer-agent live mode submits generated review through Reviewer App path", async () => {
@@ -1200,6 +1655,33 @@ function readRepoFile(...pathParts) {
 
 function readFixtureJson(fileName) {
   return JSON.parse(readRepoFile("test", "fixtures", fileName));
+}
+
+async function writeDryRunArtifact(artifactPath, {
+  decision = makeReviewerDecision({
+    decision: "APPROVED_FOR_MERGE",
+    confidence: "high",
+    summary: "Generated approval is safe for artifact handoff.",
+    review_body_markdown: "Approved for merge.",
+  }),
+} = {}) {
+  const stdout = [];
+  const stderr = [];
+  const fetchImpl = await makeReviewerAgentFetch({ decision });
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run", "--output", artifactPath],
+    env: {
+      GH_TOKEN: "secret-gh-token",
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(stderr, []);
+  return JSON.parse(readFileSync(artifactPath, "utf8"));
 }
 
 async function makeReviewerAgentFetch({

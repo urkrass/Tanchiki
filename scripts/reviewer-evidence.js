@@ -274,6 +274,7 @@ export function summarizePrMetadata(prBody, issue) {
 
 export function summarizeChecks(checks = {}) {
   const checkRuns = checks.checkRuns || [];
+  const latestCheckRuns = latestCheckRunsByIdentity(checkRuns);
   const status = checks.status || {};
   const statuses = status.statuses || [];
   const findings = [];
@@ -290,7 +291,7 @@ export function summarizeChecks(checks = {}) {
     };
   }
 
-  for (const checkRun of checkRuns) {
+  for (const checkRun of latestCheckRuns) {
     if (checkRun.status !== "completed") {
       findings.push(`Check run ${checkRun.name} is ${checkRun.status}.`);
     } else if (checkRun.conclusion !== "success") {
@@ -310,10 +311,11 @@ export function summarizeChecks(checks = {}) {
 
   const hasChecks = checkRuns.length > 0 || statuses.length > 0;
   return {
-    state: chooseCheckState({ checkRuns, findings, hasChecks, statuses }),
+    state: chooseCheckState({ checkRuns: latestCheckRuns, findings, hasChecks, statuses }),
     check_run_count: checkRuns.length,
+    evaluated_check_run_count: latestCheckRuns.length,
     commit_status_count: statuses.length,
-    check_runs: checkRuns.map((checkRun) => ({
+    check_runs: latestCheckRuns.map((checkRun) => ({
       name: checkRun.name,
       status: checkRun.status,
       conclusion: checkRun.conclusion || null,
@@ -324,6 +326,79 @@ export function summarizeChecks(checks = {}) {
     })),
     findings,
   };
+}
+
+function latestCheckRunsByIdentity(checkRuns) {
+  const latestByIdentity = new Map();
+
+  for (const checkRun of checkRuns) {
+    const identity = checkRunIdentity(checkRun);
+    const previous = latestByIdentity.get(identity);
+    if (!previous || compareCheckRunsByRecency(checkRun, previous) > 0) {
+      latestByIdentity.set(identity, checkRun);
+    }
+  }
+
+  return [...latestByIdentity.values()];
+}
+
+function checkRunIdentity(checkRun) {
+  const name = String(checkRun.name || "unnamed-check").trim() || "unnamed-check";
+  const appSlug = String(checkRun.app?.slug || "").trim();
+  const appId = checkRun.app?.id == null ? "" : String(checkRun.app.id).trim();
+
+  if (appSlug || appId) {
+    return `app:${appSlug || "unknown"}:${appId || "unknown"}:name:${name}`;
+  }
+
+  return `name:${name}`;
+}
+
+function compareCheckRunsByRecency(left, right) {
+  const leftTime = checkRunRecencyTimestamp(left);
+  const rightTime = checkRunRecencyTimestamp(right);
+  if (leftTime !== null && rightTime !== null && leftTime > rightTime) {
+    return 1;
+  }
+  if (leftTime !== null && rightTime !== null && leftTime < rightTime) {
+    return -1;
+  }
+
+  const leftId = checkRunIdValue(left);
+  const rightId = checkRunIdValue(right);
+  if (leftId > rightId) {
+    return 1;
+  }
+  if (leftId < rightId) {
+    return -1;
+  }
+
+  if (leftTime !== null && rightTime === null) {
+    return 1;
+  }
+  if (leftTime === null && rightTime !== null) {
+    return -1;
+  }
+  return 0;
+}
+
+function checkRunRecencyTimestamp(checkRun) {
+  for (const field of ["completed_at", "started_at", "updated_at"]) {
+    const value = Date.parse(checkRun[field]);
+    if (Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function checkRunIdValue(checkRun) {
+  if (checkRun.id == null) {
+    return 0n;
+  }
+
+  const text = String(checkRun.id).trim();
+  return /^\d+$/.test(text) ? BigInt(text) : 0n;
 }
 
 export function trimDiff(diff, maxDiffChars = defaultMaxDiffChars) {
