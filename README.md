@@ -113,6 +113,33 @@ Use Arrow keys or WASD to move. Press Space to fire a shell in the tank's curren
 
 `npm run codex:next` prints the default Level 5 Dispatcher prompt from `prompts/codex-next.md`. Paste that prompt into Codex to route the next eligible Linear issue to the correct role automatically.
 
+### Executable Campaign Conductor Step
+
+`npm run conductor:step` is the first local entry point for the Campaign
+Conductor state machine. Conductor v1 is deliberately boring and deterministic:
+it never calls OpenAI, never runs Dispatcher, Coder, Reviewer, Release, or Merge
+work, never submits GitHub reviews, never merges, and never changes labels,
+repository settings, workflows, branch protection, deployment, or secrets.
+
+Standalone live Linear/GitHub mutation is not implemented yet. Without an
+explicit active project, the command stops. With an active project but no
+supplied state fixture, it also stops and says that live mutation is deferred:
+
+```powershell
+npm run conductor:step -- --active-project "<exact Linear project name>"
+```
+
+Use fixture mode to exercise the deterministic transition core:
+
+```powershell
+npm run conductor:step -- --fixture .\path\to\campaign-state.json
+```
+
+The output always includes the active project, decision, evidence, proposed
+mutation when one is safe, and the next human or agent action. A wrapper agent
+or future integration can apply the proposed single mutation after performing
+the same Linear/GitHub safety checks.
+
 ## Git Discipline
 
 This repository uses a versioned pre-commit hook in `.githooks/pre-commit`.
