@@ -34,6 +34,9 @@ const decisionValues = new Set([
 const confidenceValues = new Set(["low", "medium", "high"]);
 const severityValues = new Set(["blocking", "warning", "note"]);
 const approvedForMergeMarker = "APPROVED FOR MERGE";
+const changesRequestedMarker = "CHANGES REQUESTED";
+const blockedMarker = "BLOCKED";
+const humanReviewRequiredMarker = "HUMAN REVIEW REQUIRED";
 const reviewerAgentIndependenceBasisMarkdown = [
   "Independence basis:",
   "- Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent.",
@@ -728,11 +731,14 @@ export function mapDecisionToReviewPrDecision(decision) {
 }
 
 export function normalizeReviewBodyForDecision(decision) {
-  if (decision?.decision !== "APPROVED_FOR_MERGE") {
+  const marker = reviewBodyMarkerForDecision(decision?.decision);
+  if (!marker) {
     return decision;
   }
 
-  const normalizedBody = normalizeApprovedReviewBody(decision.review_body_markdown);
+  const normalizedBody = decision.decision === "APPROVED_FOR_MERGE"
+    ? normalizeApprovedReviewBody(decision.review_body_markdown)
+    : normalizeDecisionReviewBody(decision.review_body_markdown, marker);
   if (normalizedBody === decision.review_body_markdown) {
     return decision;
   }
@@ -954,24 +960,70 @@ function normalizeApprovedReviewBody(body) {
   ].filter(Boolean).join("\n\n");
 }
 
+function normalizeDecisionReviewBody(body, marker) {
+  const content = stripGeneratedDecisionBoilerplate(body, marker);
+  return [marker, content].filter(Boolean).join("\n\n");
+}
+
 function stripGeneratedApprovalBoilerplate(body) {
   return String(body || "")
     .replaceAll("\r\n", "\n")
     .split(/\n{2,}/)
-    .map((paragraph) => stripApprovedForMergeMarkerLines(paragraph).trim())
+    .map((paragraph) => stripDecisionMarkerLines(paragraph, approvedForMergeMarker).trim())
     .filter((paragraph) => paragraph && !isGeneratedIndependenceParagraph(paragraph))
     .join("\n\n");
 }
 
-function stripApprovedForMergeMarkerLines(paragraph) {
+function stripGeneratedDecisionBoilerplate(body, marker) {
+  return String(body || "")
+    .replaceAll("\r\n", "\n")
+    .split(/\n{2,}/)
+    .map((paragraph) => stripDecisionMarkerLines(paragraph, marker).trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function stripDecisionMarkerLines(paragraph, marker) {
   return paragraph
     .split("\n")
-    .filter((line) => line.trim() !== approvedForMergeMarker)
+    .map((line) => stripDecisionMarkerFromLine(line, marker))
+    .filter((line) => line !== null)
     .join("\n");
+}
+
+function stripDecisionMarkerFromLine(line, marker) {
+  const trimmed = line.trim();
+  const markerPattern = escapeRegExp(marker);
+  if (new RegExp(`^${markerPattern}$`, "i").test(trimmed)) {
+    return null;
+  }
+
+  const prefixedMarker = new RegExp(`^${markerPattern}\\s*[:-]\\s*`, "i");
+  return prefixedMarker.test(trimmed) ? trimmed.replace(prefixedMarker, "") : line;
+}
+
+function reviewBodyMarkerForDecision(decision) {
+  if (decision === "APPROVED_FOR_MERGE") {
+    return approvedForMergeMarker;
+  }
+  if (decision === "CHANGES_REQUESTED") {
+    return changesRequestedMarker;
+  }
+  if (decision === "BLOCKED") {
+    return blockedMarker;
+  }
+  if (decision === "HUMAN_REVIEW_REQUIRED") {
+    return humanReviewRequiredMarker;
+  }
+  return null;
 }
 
 function isGeneratedIndependenceParagraph(paragraph) {
   return /^independence(?:\s+basis)?:/i.test(paragraph.trim());
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function findApprovalVetoReasons(evidence) {
