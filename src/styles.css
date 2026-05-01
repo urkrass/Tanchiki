@@ -64,6 +64,11 @@ body {
   gap: 14px;
 }
 
+.progression-panel {
+  display: grid;
+  gap: 16px;
+}
+
 .demo-brief {
   display: grid;
   gap: 8px;
@@ -132,6 +137,51 @@ p {
 .progression-panel__empty {
   margin-top: 0;
   line-height: 1.45;
+}
+
+.progression-panel__intro {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.progression-panel__intro h2 {
+  font-size: 1.35rem;
+}
+
+.progression-summary {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.progression-summary__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 34px;
+  margin: 0;
+  padding: 8px 9px;
+  color: var(--panel-dark);
+  background: rgba(255, 253, 245, 0.68);
+  border: 2px solid rgba(47, 56, 43, 0.42);
+}
+
+.progression-summary__label {
+  min-width: 0;
+  color: #5b654f;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.progression-summary__value {
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.1;
+  text-align: right;
 }
 
 .play-panel {
@@ -336,10 +386,6 @@ canvas {
   display: none;
 }
 
-.upgrade-panel:not([hidden]) + .progression-panel__empty {
-  display: none;
-}
-
 .upgrade-panel__copy {
   min-width: 0;
 }
@@ -441,6 +487,15 @@ canvas {
   .progression-panel {
     grid-column: 2;
     grid-row: 2;
+  }
+
+  .progression-summary__row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .progression-summary__value {
+    text-align: left;
   }
 }
 

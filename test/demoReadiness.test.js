@@ -20,6 +20,7 @@ test("first public demo page keeps objective, controls, and live status visible"
   assert.match(html, /<strong>Restart<\/strong> R/);
   assert.match(html, /<div class="status-bar" aria-label="Live mission status">/);
   assert.match(html, /<div id="status" class="status" aria-live="polite"><\/div>/);
+  assert.match(html, /<div id="progression-summary" class="progression-summary" aria-label="Campaign progression"><\/div>/);
   assert.match(html, /<p id="upgrade-context" class="upgrade-panel__context"><\/p>/);
 });
 
@@ -28,7 +29,7 @@ test("side-panel shell keeps controls, mission HUD, and progression in separate 
   assert.match(html, /<aside class="side-panel controls-panel game-copy" aria-label="Controls and quick start">/);
   assert.match(html, /<section class="play-panel" aria-label="Mission playfield">/);
   assert.match(html, /<aside class="side-panel progression-panel" aria-label="Upgrades and rewards">/);
-  assert.match(html, /<p class="progression-panel__empty">Win the mission to choose an upgrade\.<\/p>/);
+  assert.match(html, /<p id="progression-empty" class="progression-panel__empty">Win the mission to choose an upgrade\.<\/p>/);
 
   const controlsPanel = html.slice(
     html.indexOf("<aside class=\"side-panel controls-panel game-copy\""),
@@ -46,6 +47,7 @@ test("side-panel shell keeps controls, mission HUD, and progression in separate 
   assert.doesNotMatch(controlsPanel, /status-bar|id="status"|upgrade-panel|upgrade-context/);
   assert.match(playPanel, /status-bar/);
   assert.match(playPanel, /<canvas id="game"/);
+  assert.match(progressionPanel, /id="progression-summary"/);
   assert.match(progressionPanel, /id="upgrade-panel"/);
   assert.match(progressionPanel, /progression-panel__empty/);
 });
@@ -82,6 +84,13 @@ test("upgrade panel context connects the reward to the next level", () => {
       availableUpgradePoints: 1
     }
   }), "Earned +100 XP and 1 upgrade point. Pick one upgrade now; it starts on Level 2.");
+});
+
+test("right panel renderer owns progression summary and empty-state visibility", () => {
+  assert.match(mainSource, /const progressionSummary = document\.querySelector\("#progression-summary"\);/);
+  assert.match(mainSource, /const progressionEmpty = document\.querySelector\("#progression-empty"\);/);
+  assert.match(mainSource, /summaryContainer: progressionSummary,/);
+  assert.match(mainSource, /emptyElement: progressionEmpty,/);
 });
 
 test("demo campaign exposes readable mission status for the opening minute", () => {
@@ -130,8 +139,9 @@ test("HUD styles preserve chip layout and narrow-screen readability hooks", () =
 test("layout styles provide desktop side panels and a playfield-first fallback", () => {
   assert.match(stylesSource, /\.game-screen\s*\{[\s\S]*grid-template-columns: minmax\(180px, 220px\) minmax\(0, 720px\) minmax\(220px, 280px\);/);
   assert.match(stylesSource, /\.side-panel\s*\{[\s\S]*border: 3px solid var\(--panel-dark\);/);
+  assert.match(stylesSource, /\.progression-panel\s*\{[\s\S]*display: grid;[\s\S]*gap: 16px;/);
+  assert.match(stylesSource, /\.progression-summary__row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;/);
   assert.match(stylesSource, /\.play-panel\s*\{[\s\S]*display: grid;[\s\S]*gap: 12px;/);
-  assert.match(stylesSource, /\.upgrade-panel:not\(\[hidden\]\) \+ \.progression-panel__empty\s*\{[\s\S]*display: none;/);
   assert.match(stylesSource, /@media \(max-width: 1180px\) \{[\s\S]*\.play-panel\s*\{[\s\S]*grid-row: 1;/);
   assert.match(stylesSource, /@media \(max-width: 760px\) \{[\s\S]*\.game-screen\s*\{[\s\S]*grid-template-columns: 1fr;/);
 });
