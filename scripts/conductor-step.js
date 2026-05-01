@@ -32,6 +32,10 @@ const STOP_LABELS = [
   "needs-human-approval",
   "risk:human-only",
 ];
+const AUTOMATION_READY_LABEL = "automation-ready";
+const ACTIVE_CANDIDATE_STATUS = "Todo";
+const ACTIVE_CANDIDATE_STATUS_TYPE = "unstarted";
+const CANCELED_STATUSES = ["Canceled", "Cancelled", "Duplicate", "Abandoned", "Skipped"];
 const TERMINAL_STATUSES = ["Done", "Canceled", "Cancelled", "Abandoned", "Skipped"];
 const REVIEWER_BOT_LOGINS = ["tanchiki-reviewer[bot]", "tanchiki-reviewer"];
 const PAIRED_REVIEW_DECISION_ALIASES = [
@@ -168,6 +172,122 @@ export function formatDecision(decision) {
   return lines.join("\n");
 }
 
+export function decideCandidateReport(input = {}) {
+  const state = normalizeCandidateReportState(input);
+
+  if (!state.activeProject) {
+    return candidateReportStop({
+      activeProject: "MISSING",
+      evidence: ["Active Linear project was not provided."],
+      reason: "missing-active-project",
+      nextAction: "Provide --active-project or TANCHIKI_ACTIVE_LINEAR_PROJECT before running a candidate report.",
+    });
+  }
+
+  if (state.activeProjectAmbiguous || state.activeProjects.length > 1) {
+    return candidateReportStop({
+      activeProject: state.activeProject,
+      evidence: [`Active project candidates: ${state.activeProjects.join(", ") || "ambiguous project marker"}.`],
+      reason: "ambiguous-active-project",
+      nextAction: "Choose exactly one active Linear project before reporting conductor candidates.",
+    });
+  }
+
+  const candidates = state.issues
+    .filter(hasAutomationReady)
+    .sort(compareIssuesById)
+    .map((issue) => classifyCandidateIssue(issue, state.activeProject));
+  const activeCandidates = candidates.filter((candidate) => candidate.classification === "active");
+
+  if (activeCandidates.length === 1) {
+    const active = activeCandidates[0];
+    return {
+      activeProject: state.activeProject,
+      candidates,
+      decision: "report",
+      evidence: [
+        `Found ${candidates.length} automation-ready issue(s) in the active project.`,
+        `${active.id} is the only active automation-ready candidate.`,
+      ],
+      nextAction: `Run Dispatcher for ${active.id} (${active.metadata.role}).`,
+      readOnly: true,
+      reason: "one-active-candidate",
+    };
+  }
+
+  if (activeCandidates.length > 1) {
+    return {
+      activeProject: state.activeProject,
+      candidates,
+      decision: "report",
+      evidence: [
+        `Found ${candidates.length} automation-ready issue(s) in the active project.`,
+        `Active candidates: ${activeCandidates.map((candidate) => candidate.id).join(", ")}.`,
+      ],
+      nextAction: "Do not run Dispatcher; run Planner/Groomer or human triage so exactly one issue is exposed.",
+      readOnly: true,
+      reason: "multiple-active-candidates",
+    };
+  }
+
+  return {
+    activeProject: state.activeProject,
+    candidates,
+    decision: "report",
+    evidence: [
+      `Found ${candidates.length} automation-ready issue(s) in the active project.`,
+      "No active automation-ready candidate is eligible for Dispatcher.",
+    ],
+    nextAction: "Do not run Dispatcher; resolve blockers or queue grooming first.",
+    readOnly: true,
+    reason: "no-active-candidate",
+  };
+}
+
+export function formatCandidateReport(report) {
+  const lines = [
+    "Conductor candidate report",
+    `Active project: ${report.activeProject}`,
+    `Decision: ${report.decision}`,
+    `Reason: ${report.reason}`,
+  ];
+
+  lines.push("Evidence:");
+  for (const item of report.evidence) {
+    lines.push(`- ${item}`);
+  }
+
+  if (report.candidates.length === 0) {
+    lines.push("Candidates: none");
+  } else {
+    lines.push("Candidates:");
+    for (const candidate of report.candidates) {
+      lines.push(`- ${candidate.id}: ${candidate.title || "untitled"}`);
+      lines.push(`  classification: ${candidate.classification}`);
+      lines.push(`  status: ${candidate.status || "missing"} (${candidate.statusType || "missing"})`);
+      lines.push(`  role/type/risk/validation: ${candidate.metadata.role || "missing"} / ${candidate.metadata.type || "missing"} / ${candidate.metadata.risk || "missing"} / ${candidate.metadata.validation || "missing"}`);
+      lines.push(`  labels: ${candidate.labels.join(", ") || "none"}`);
+      lines.push(`  blockers: ${candidate.blockers.join(", ") || "none"}`);
+      lines.push(`  reason: ${candidate.reason}`);
+      lines.push(`  next safe action: ${candidate.nextSafeAction}`);
+    }
+  }
+
+  const ignored = report.candidates.filter((candidate) => ["completed", "canceled"].includes(candidate.classification));
+  if (ignored.length > 0) {
+    lines.push("Ignored historical automation-ready issues:");
+    for (const candidate of ignored) {
+      lines.push(`- ${candidate.id}: ${candidate.classification}; ${candidate.reason}`);
+    }
+  }
+
+  if (report.readOnly) {
+    lines.push("Read-only: no Linear or GitHub mutation was applied.");
+  }
+  lines.push(`Next action: ${report.nextAction}`);
+  return lines.join("\n");
+}
+
 export function parseArgs(argv) {
   const options = {
     activeProject: "",
@@ -176,6 +296,7 @@ export function parseArgs(argv) {
     json: "",
     pr: "",
     producer: "",
+    reportCandidates: false,
     release: "",
     repo: "",
     reviewer: "",
@@ -192,6 +313,14 @@ export function parseArgs(argv) {
         throw new ConductorStepError("--dry-run does not accept a value.");
       }
       options.dryRun = true;
+      continue;
+    }
+
+    if (key === "--report-candidates") {
+      if (inlineValue !== null) {
+        throw new ConductorStepError("--report-candidates does not accept a value.");
+      }
+      options.reportCandidates = true;
       continue;
     }
 
@@ -258,6 +387,9 @@ export function readInputState({ env = process.env, options }) {
   if (activeProject && !state.activeProject) {
     state.activeProject = activeProject;
   }
+  if (options.reportCandidates) {
+    state.reportCandidates = true;
+  }
   return state;
 }
 
@@ -271,6 +403,13 @@ export async function main({
   try {
     const options = parseArgs(argv);
     const state = readInputState({ env, options });
+    if (state.reportCandidates === true) {
+      const report = state.liveMode
+        ? await runLiveCandidateReport({ env, fetchImpl, state })
+        : decideCandidateReport(state);
+      stdout(formatCandidateReport(report));
+      return 0;
+    }
     const decision = state.liveMode
       ? await runLiveConductorStep({ env, fetchImpl, state })
       : decideConductorStep(state);
@@ -359,6 +498,57 @@ export async function runLiveConductorStep({ env = process.env, fetchImpl = glob
   }
 
   return applyLiveMutation({ decision, env, fetchImpl });
+}
+
+export async function runLiveCandidateReport({ env = process.env, fetchImpl = globalThis.fetch, state }) {
+  const normalized = normalizeCandidateReportState(state);
+  if (!normalized.activeProject) {
+    return candidateReportStop({
+      activeProject: "MISSING",
+      evidence: ["Active Linear project was not provided."],
+      reason: "missing-active-project",
+      nextAction: "Provide --active-project or TANCHIKI_ACTIVE_LINEAR_PROJECT before running a candidate report.",
+    });
+  }
+
+  const linearToken = env.LINEAR_API_TOKEN || env.LINEAR_API_KEY || "";
+  if (!linearToken) {
+    return candidateReportStop({
+      activeProject: normalized.activeProject,
+      evidence: [
+        "Live candidate reporting requires Linear read auth scoped to this process.",
+        "Missing required auth: Linear API token.",
+      ],
+      reason: "missing-linear-auth",
+      nextAction:
+        "Provide Linear auth through the process environment or use --fixture/--json for deterministic validation. Do not print, commit, or write tokens.",
+    });
+  }
+
+  if (!fetchImpl) {
+    return candidateReportStop({
+      activeProject: normalized.activeProject,
+      evidence: ["No fetch implementation is available for live Linear API reads."],
+      reason: "api-unavailable",
+      nextAction: "Run with a Node runtime that provides fetch, or use fixture mode.",
+    });
+  }
+
+  try {
+    const linear = createLinearClient({ fetchImpl, token: linearToken });
+    const issues = await linear.listAutomationReadyIssues(normalized.activeProject);
+    return decideCandidateReport({
+      activeProject: normalized.activeProject,
+      issues: issues.map(normalizeLinearCandidateIssueForReport),
+    });
+  } catch (error) {
+    return candidateReportStop({
+      activeProject: normalized.activeProject,
+      evidence: [sanitizeErrorMessage(error)],
+      reason: "api-unavailable",
+      nextAction: "Fix live Linear API access or rerun in --fixture/--json mode.",
+    });
+  }
 }
 
 export class ConductorStepError extends Error {
@@ -597,6 +787,51 @@ function createLinearClient({ fetchImpl, token }) {
         { id: issueId },
       );
       return data.issue?.comments?.nodes || [];
+    },
+    async listAutomationReadyIssues(activeProject) {
+      const data = await graphql(
+        `query ReportAutomationReadyIssues($activeProject: String!, $automationReady: String!) {
+          issues(
+            filter: {
+              project: { name: { eq: $activeProject } }
+              labels: { name: { eq: $automationReady } }
+            }
+            first: 100
+          ) {
+            nodes {
+              id
+              identifier
+              title
+              url
+              state { id name type }
+              project { name }
+              labels { nodes { id name } }
+              relations(first: 50) {
+                nodes {
+                  type
+                  relatedIssue {
+                    identifier
+                    title
+                    state { name type }
+                  }
+                }
+              }
+              inverseRelations(first: 50) {
+                nodes {
+                  type
+                  issue {
+                    identifier
+                    title
+                    state { name type }
+                  }
+                }
+              }
+            }
+          }
+        }`,
+        { activeProject, automationReady: AUTOMATION_READY_LABEL },
+      );
+      return data.issues?.nodes || [];
     },
     async updateIssue(issueId, input) {
       const data = await graphql(
@@ -1266,6 +1501,265 @@ function getMetadataBlocker(issue) {
   return "";
 }
 
+function normalizeCandidateReportState(input) {
+  const campaign = input.campaign || {};
+  return {
+    activeProject: String(input.activeProject || campaign.activeProject || "").trim(),
+    activeProjectAmbiguous: input.activeProjectAmbiguous === true,
+    activeProjects: normalizeList(input.activeProjects || campaign.activeProjects),
+    issues: normalizeList(input.issues).map(normalizeCandidateIssue),
+  };
+}
+
+function normalizeCandidateIssue(issue) {
+  const state = issue.state && typeof issue.state === "object" ? issue.state : {};
+  const project = issue.project && typeof issue.project === "object" ? issue.project.name : issue.project;
+  const id = String(issue.identifier || issue.id || issue.key || "").trim();
+  return {
+    ...issue,
+    blockedBy: normalizeCandidateBlockers(issue.blockedBy || issue.blockers || issue.blocked_by),
+    id,
+    labels: normalizeLabels(issue.labels),
+    project: String(project || "").trim(),
+    status: String(issue.status || state.name || issue.stateName || "").trim(),
+    statusType: String(issue.statusType || issue.stateType || state.type || "").trim(),
+    title: issue.title || "",
+  };
+}
+
+function normalizeCandidateBlockers(blockers = []) {
+  return normalizeList(blockers).map((blocker) => {
+    if (typeof blocker === "string") {
+      return {
+        id: blocker,
+        status: "",
+        statusType: "",
+        title: "",
+      };
+    }
+    const state = blocker.state && typeof blocker.state === "object" ? blocker.state : {};
+    return {
+      id: String(blocker.identifier || blocker.id || blocker.key || "").trim(),
+      status: String(blocker.status || state.name || blocker.stateName || "").trim(),
+      statusType: String(blocker.statusType || blocker.stateType || state.type || "").trim(),
+      title: blocker.title || "",
+    };
+  });
+}
+
+function normalizeLinearCandidateIssueForReport(issue) {
+  return {
+    blockedBy: extractLinearBlockedBy(issue),
+    id: issue.identifier,
+    labels: normalizeLabels(issue.labels?.nodes || []),
+    project: issue.project?.name || "",
+    status: issue.state?.name || "",
+    statusType: issue.state?.type || "",
+    title: issue.title || "",
+  };
+}
+
+function extractLinearBlockedBy(issue) {
+  const blockers = [];
+  for (const relation of issue.relations?.nodes || []) {
+    if (isBlockedByRelationType(relation.type) && relation.relatedIssue) {
+      blockers.push(normalizeCandidateBlockerFromLinearIssue(relation.relatedIssue));
+    }
+  }
+  for (const relation of issue.inverseRelations?.nodes || []) {
+    if (isBlockingRelationType(relation.type) && relation.issue) {
+      blockers.push(normalizeCandidateBlockerFromLinearIssue(relation.issue));
+    }
+  }
+  return blockers;
+}
+
+function normalizeCandidateBlockerFromLinearIssue(issue) {
+  return {
+    id: issue.identifier || "",
+    status: issue.state?.name || "",
+    statusType: issue.state?.type || "",
+    title: issue.title || "",
+  };
+}
+
+function isBlockedByRelationType(type = "") {
+  const normalized = String(type).toLowerCase().replace(/[^a-z]/g, "");
+  return normalized === "blockedby" || normalized === "isblockedby";
+}
+
+function isBlockingRelationType(type = "") {
+  const normalized = String(type).toLowerCase().replace(/[^a-z]/g, "");
+  return normalized === "blocks" || normalized === "isblocking";
+}
+
+function classifyCandidateIssue(issue, activeProject) {
+  const metadata = getCandidateMetadata(issue);
+  const blockers = issue.blockedBy.filter((blocker) => !isResolvedCandidateBlocker(blocker));
+  const summary = {
+    blockers: blockers.map((blocker) => blocker.id || blocker.title || "UNKNOWN"),
+    id: issue.id,
+    labels: issue.labels,
+    metadata,
+    status: issue.status,
+    statusType: issue.statusType,
+    title: issue.title,
+  };
+
+  if (isCompletedCandidate(issue)) {
+    return {
+      ...summary,
+      classification: "completed",
+      nextSafeAction: "Ignore historical completed automation-ready issue; no Dispatcher action.",
+      reason: `${issue.id} is already completed, so its automation-ready label is historical and ignored.`,
+    };
+  }
+
+  if (isCanceledCandidate(issue)) {
+    return {
+      ...summary,
+      classification: "canceled",
+      nextSafeAction: "Ignore terminal canceled automation-ready issue; no Dispatcher action.",
+      reason: `${issue.id} is canceled or abandoned, so it is not an active candidate.`,
+    };
+  }
+
+  if (!issue.project || issue.project !== activeProject) {
+    return {
+      ...summary,
+      classification: "unsafe",
+      nextSafeAction: "Do not run Dispatcher; triage project membership before exposing this issue.",
+      reason: `${issue.id} is not confirmed in the active project.`,
+    };
+  }
+
+  if (!issue.status || !issue.statusType) {
+    return {
+      ...summary,
+      classification: "unsafe",
+      nextSafeAction: "Do not run Dispatcher; restore deterministic Linear status metadata first.",
+      reason: `${issue.id} is missing status or status type metadata.`,
+    };
+  }
+
+  const metadataBlocker = getCandidateMetadataBlocker(issue);
+  if (metadataBlocker) {
+    return {
+      ...summary,
+      classification: "unsafe",
+      nextSafeAction: "Do not run Dispatcher; fix Level 5 metadata before exposing this issue.",
+      reason: `${issue.id}: ${metadataBlocker}`,
+    };
+  }
+
+  const stopLabels = matchingLabels(issue.labels, STOP_LABELS);
+  if (stopLabels.length > 0) {
+    return {
+      ...summary,
+      classification: "unsafe",
+      nextSafeAction: "Do not run Dispatcher; human or Planner/Groomer must resolve the stop labels.",
+      reason: `${issue.id} has stop or human-gate labels: ${stopLabels.join(", ")}.`,
+    };
+  }
+
+  if (isCampaignUmbrella(issue)) {
+    return {
+      ...summary,
+      classification: "unsafe",
+      nextSafeAction: "Do not run Dispatcher; expose a concrete role issue instead.",
+      reason: `${issue.id} appears to be a parent or campaign umbrella issue.`,
+    };
+  }
+
+  if (blockers.length > 0) {
+    return {
+      ...summary,
+      classification: "blocked",
+      nextSafeAction: "Do not run Dispatcher; resolve the listed Linear blocked-by relation first.",
+      reason: `${issue.id} has unresolved blocker(s): ${blockers.map((blocker) => blocker.id || "UNKNOWN").join(", ")}.`,
+    };
+  }
+
+  if (issue.status === ACTIVE_CANDIDATE_STATUS && issue.statusType === ACTIVE_CANDIDATE_STATUS_TYPE) {
+    return {
+      ...summary,
+      classification: "active",
+      nextSafeAction: `Run Dispatcher for ${issue.id} (${metadata.role}).`,
+      reason: `${issue.id} is Todo, unstarted, in the active project, and has exact Level 5 metadata.`,
+    };
+  }
+
+  return {
+    ...summary,
+    classification: "unsafe",
+    nextSafeAction: "Do not run Dispatcher; queue state is not a safe active candidate.",
+    reason: `${issue.id} has non-candidate status ${issue.status} (${issue.statusType}).`,
+  };
+}
+
+function candidateReportStop({ activeProject, evidence, nextAction, reason }) {
+  return {
+    activeProject,
+    candidates: [],
+    decision: "report",
+    evidence,
+    nextAction,
+    readOnly: true,
+    reason,
+  };
+}
+
+function getCandidateMetadata(issue) {
+  return {
+    role: labelSuffix(matchingLabels(issue.labels, ROLE_LABELS)[0], "role:"),
+    risk: labelSuffix(matchingLabels(issue.labels, RISK_LABELS)[0], "risk:"),
+    type: labelSuffix(matchingLabels(issue.labels, TYPE_LABELS)[0], "type:"),
+    validation: labelSuffix(matchingLabels(issue.labels, VALIDATION_LABELS)[0], "validation:"),
+  };
+}
+
+function getCandidateMetadataBlocker(issue) {
+  const groups = [
+    ["role", matchingLabels(issue.labels, ROLE_LABELS), "role:*"],
+    ["type", matchingLabels(issue.labels, TYPE_LABELS), "type:*"],
+    ["risk", matchingLabels(issue.labels, RISK_LABELS), "risk:*"],
+    ["validation", matchingLabels(issue.labels, VALIDATION_LABELS), "validation:*"],
+  ];
+  for (const [name, labels, pattern] of groups) {
+    if (labels.length !== 1) {
+      return `${name} metadata must have exactly one ${pattern}; found ${labels.length || "none"}.`;
+    }
+  }
+  return "";
+}
+
+function labelSuffix(label = "", prefix = "") {
+  return label.startsWith(prefix) ? label.slice(prefix.length) : "";
+}
+
+function isCompletedCandidate(issue) {
+  return issue.statusType === "completed" || issue.status === "Done";
+}
+
+function isCanceledCandidate(issue) {
+  return issue.statusType === "canceled" || CANCELED_STATUSES.includes(issue.status);
+}
+
+function isResolvedCandidateBlocker(blocker) {
+  return isCompletedCandidate(blocker) || isCanceledCandidate(blocker);
+}
+
+function isCampaignUmbrella(issue) {
+  if (issue.isParent === true || issue.isCampaignUmbrella === true || Number(issue.childCount || 0) > 0) {
+    return true;
+  }
+  return normalizeList(issue.children).length > 0;
+}
+
+function compareIssuesById(a, b) {
+  return String(a.id || "").localeCompare(String(b.id || ""), undefined, { numeric: true });
+}
+
 function normalizeState(input) {
   const campaign = input.campaign || {};
   return {
@@ -1433,7 +1927,7 @@ function isTerminalOrAbandoned(issue) {
 }
 
 function hasAutomationReady(issue) {
-  return issue.labels.includes("automation-ready");
+  return issue.labels.includes(AUTOMATION_READY_LABEL);
 }
 
 function hasStopLabel(item) {

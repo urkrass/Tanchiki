@@ -131,6 +131,18 @@ auth is reported without printing tokens:
 npm run conductor:step -- --active-project "<exact Linear project name>"
 ```
 
+Use report-only candidate discovery before exposing broader automation queues:
+
+```powershell
+npm run conductor:step -- --active-project "<exact Linear project name>" --report-candidates
+```
+
+Report mode reads only Linear issues in the active project with
+`automation-ready`, lists status/status type and Level 5 metadata, ignores
+completed or canceled historical issues, and prints the exact next safe action.
+It does not mutate Linear, call GitHub, run roles, remove labels, merge, or call
+OpenAI/Codex.
+
 The live path is explicit-input only. Conductor v2 can sync a valid
 current-head `tanchiki-reviewer[bot]` paired-review decision by moving the
 paired Reviewer Linear issue to `In Review` and adding one audit comment.
