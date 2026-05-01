@@ -33,6 +33,14 @@ const decisionValues = new Set([
 ]);
 const confidenceValues = new Set(["low", "medium", "high"]);
 const severityValues = new Set(["blocking", "warning", "note"]);
+const approvedForMergeMarker = "APPROVED FOR MERGE";
+const reviewerAgentIndependenceBasisMarkdown = [
+  "Independence basis:",
+  "- Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent.",
+  "- Reviewer authority was limited to evidence analysis and GitHub review submission.",
+  "- Repository contents, GitHub labels, merge state, and Linear issue state were unchanged by this reviewer path.",
+  "- Human remains responsible for merge.",
+].join("\n");
 const policyStopLabels = new Set([
   "merge:do-not-merge",
   "merge:human-required",
@@ -145,10 +153,11 @@ export async function main({
       throw new EvidenceError(`Generated review refused: ${evaluation.refusal_reasons.join("; ")}`);
     }
 
-    const reviewDecision = mapDecisionToReviewPrDecision(generated.decision);
+    const normalizedDecision = normalizeReviewBodyForDecision(generated.decision);
+    const reviewDecision = mapDecisionToReviewPrDecision(normalizedDecision);
     const reviewBodyRefusal = getReviewBodyRefusalReason(
       reviewDecision,
-      generated.decision.review_body_markdown,
+      normalizedDecision.review_body_markdown,
     );
     if (reviewBodyRefusal) {
       throw new EvidenceError(`Generated review body refused: ${reviewBodyRefusal}`);
@@ -165,7 +174,7 @@ export async function main({
     if (!options.dryRun) {
       reviewerAppTokenRequested = true;
       submission = await submitGeneratedReview({
-        body: generated.decision.review_body_markdown,
+        body: normalizedDecision.review_body_markdown,
         createTokenImpl,
         decision: reviewDecision,
         env,
@@ -190,7 +199,7 @@ export async function main({
       evidence_summary: summarizeEvidenceForOutput(evidence),
       local_checks: evaluation.local_checks,
       local_gate_refusals: evaluation.refusal_reasons,
-      decision: generated.decision,
+      decision: normalizedDecision,
       openai_usage: generated.usage,
     }, null, 2));
     return 0;
@@ -550,26 +559,147 @@ export function findForbiddenModelOutputReasons(decision) {
     ...(decision.findings || []).map((finding) => `${finding.file || ""} ${finding.message}`),
   ].join("\n");
 
-  const forbiddenPatterns = [
+  const forbiddenCommandPatterns = [
     { pattern: /\bgh\s+pr\s+merge\b/i, reason: "model output requested a gh pr merge command" },
     { pattern: /\bgh\s+pr\s+edit\b/i, reason: "model output requested a gh pr edit command" },
     { pattern: /\bgh\s+issue\s+edit\b/i, reason: "model output requested a gh issue edit command" },
     { pattern: /\bgit\s+push\b/i, reason: "model output requested git push" },
     { pattern: /\bgit\s+commit\b/i, reason: "model output requested git commit" },
     { pattern: /\bmerge:auto-eligible\b/i, reason: "model output attempted merge:auto-eligible" },
-    { pattern: /\bremove\s+(?:stop\s+)?labels?\b/i, reason: "model output requested label removal" },
-    { pattern: /\bedit\s+files?\b/i, reason: "model output requested file edits" },
-    { pattern: /\bchange\s+(?:repo|repository)\s+settings\b/i, reason: "model output requested repository settings changes" },
-    { pattern: /\brun\s+(?:the\s+)?dispatcher\b/i, reason: "model output requested Dispatcher" },
-    { pattern: /\brun\s+(?:the\s+)?conductor\b/i, reason: "model output requested Conductor" },
-    { pattern: /\brun\s+codex\b/i, reason: "model output requested Codex" },
-    { pattern: /\bmark\s+(?:the\s+)?(?:linear\s+)?(?:issue\s+)?done\b/i, reason: "model output requested Linear Done" },
-    { pattern: /\bapply\s+(?:the\s+)?labels?\b/i, reason: "model output requested label application" },
+  ];
+  const forbiddenActionRules = [
+    {
+      patterns: [
+        /\bremove\s+(?:the\s+)?(?:stop\s+)?labels?\b/i,
+        /\b(?:stop\s+)?labels?\s+(?:should|must|need(?:s)?\s+to|can|may)\s+be\s+removed\b/i,
+      ],
+      reason: "model output requested label removal",
+    },
+    {
+      patterns: [
+        /\bedit\s+(?:repo(?:sitory)?\s+)?files?\b/i,
+        /\b(?:make|perform|request|require)\s+file\s+edits?\b/i,
+        /\bfile\s+edits?\s+(?:are\s+)?(?:required|requested|needed)\b/i,
+        /\bfiles?\s+(?:should|must|need(?:s)?\s+to|can|may)\s+be\s+edited\b/i,
+      ],
+      reason: "model output requested file edits",
+    },
+    {
+      patterns: [
+        /\b(?:change|edit|modify|update)\s+(?:repo|repository)\s+settings\b/i,
+        /\b(?:repo|repository)\s+settings\s+(?:should|must|need(?:s)?\s+to|can|may)\s+be\s+(?:changed|edited|modified|updated)\b/i,
+      ],
+      reason: "model output requested repository settings changes",
+    },
+    {
+      patterns: [
+        /\b(?:change|edit|modify|update)\s+(?:github\s+actions\s+)?workflows?\b/i,
+        /\b(?:github\s+actions\s+)?workflows?\s+(?:should|must|need(?:s)?\s+to|can|may)\s+be\s+(?:changed|edited|modified|updated)\b/i,
+      ],
+      reason: "model output requested workflow changes",
+    },
+    {
+      patterns: [
+        /\b(?:change|edit|modify|update)\s+branch\s+protection\b/i,
+        /\bbranch\s+protection\s+(?:should|must|need(?:s)?\s+to|can|may)\s+be\s+(?:changed|edited|modified|updated)\b/i,
+      ],
+      reason: "model output requested branch protection changes",
+    },
+    {
+      patterns: [/\brun\s+(?:the\s+)?dispatcher\b/i],
+      reason: "model output requested Dispatcher",
+    },
+    {
+      patterns: [/\brun\s+(?:the\s+)?conductor\b/i],
+      reason: "model output requested Conductor",
+    },
+    {
+      patterns: [/\brun\s+codex\b/i],
+      reason: "model output requested Codex",
+    },
+    {
+      patterns: [
+        /\bmark\s+(?:the\s+)?(?:linear\s+)?(?:issue\s+)?done\b/i,
+        /\b(?:linear\s+)?issue\s+(?:should|must|need(?:s)?\s+to|can|may)\s+be\s+marked\s+done\b/i,
+      ],
+      reason: "model output requested Linear Done",
+    },
+    {
+      patterns: [
+        /\bapply\s+(?:the\s+)?labels?\b/i,
+        /\blabels?\s+(?:should|must|need(?:s)?\s+to|can|may)\s+be\s+applied\b/i,
+      ],
+      reason: "model output requested label application",
+    },
   ];
 
-  return forbiddenPatterns
-    .filter(({ pattern }) => pattern.test(text))
-    .map(({ reason }) => reason);
+  const reasons = new Set();
+
+  for (const { pattern, reason } of forbiddenCommandPatterns) {
+    if (pattern.test(text)) {
+      reasons.add(reason);
+    }
+  }
+
+  for (const segment of splitModelOutputSegments(text)) {
+    for (const { patterns, reason } of forbiddenActionRules) {
+      if (patterns.some((pattern) => hasActionRequestMatch(segment, pattern))) {
+        reasons.add(reason);
+      }
+    }
+  }
+
+  return [...reasons];
+}
+
+function splitModelOutputSegments(text) {
+  return text
+    .split(/\n+/)
+    .flatMap((line) => line.match(/[^.!?;]+[.!?;]?/g) || [])
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function hasActionRequestMatch(segment, pattern) {
+  pattern.lastIndex = 0;
+  const match = pattern.exec(segment);
+
+  if (!match || isSafetyBoundaryStatement(segment, match.index, match[0].length)) {
+    return false;
+  }
+
+  return isImperativeOrAuthorityGrant(segment, match.index);
+}
+
+function isSafetyBoundaryStatement(segment, matchIndex, matchLength) {
+  const context = segment
+    .slice(Math.max(0, matchIndex - 80), Math.min(segment.length, matchIndex + matchLength + 80))
+    .toLowerCase();
+
+  return [
+    /\b(?:did|does|do|was|were|is|are|has|have|had|will|would|should|must|can|could)\s+not\b/,
+    /\b(?:cannot|can't|mustn't|shouldn't|won't|wouldn't)\b/,
+    /\bno\s+(?:file\s+edits?|repo(?:sitory)?\s+changes?|label(?:\s+changes?|\s+application)?|linear\s+issue\s+state\s+changes?)\b/,
+    /\b(?:unchanged|unmodified|unaffected|untouched)\b/,
+    /\b(?:no|not|never)\s+(?:authority|permission|approval|ability)\b/,
+  ].some((pattern) => pattern.test(context));
+}
+
+function isImperativeOrAuthorityGrant(segment, matchIndex) {
+  const before = segment.slice(0, matchIndex).toLowerCase();
+  const strippedBefore = before.replace(/^[\s>*+\-[\]\d.)]+/, "").trim();
+
+  if (strippedBefore === "" || /[:(]\s*$/.test(before)) {
+    return true;
+  }
+
+  return [
+    /\b(?:please|must|should|need(?:s)?\s+to|required\s+to|has\s+to|have\s+to)\b/,
+    /\b(?:can|may|allowed|authorized|approved|responsible|authority|permission)\s+(?:now\s+)?(?:to\s+)?$/,
+    /\b(?:can\s+you|could\s+you|ask(?:ed)?\s+\S*\s*to|request(?:ed)?\s+\S*\s*to|recommend(?:ed)?\s+\S*\s*to)\b/,
+    /\b(?:after(?:\s+this)?\s+review|once\b.*\bpass(?:es|ed)?|then|next|go\s+ahead\s+and|proceed\s+to)\b/,
+    /\b(?:next\s+step|follow-up|remaining\s+action)\s+(?:is|:)\s+(?:to\s+)?$/,
+  ].some((pattern) => pattern.test(before));
 }
 
 export function mapDecisionToGithubReviewEvent(decision) {
@@ -594,6 +724,31 @@ export function mapDecisionToReviewPrDecision(decision) {
     return isProcessBlockedDecision(decision) ? "comment" : "request-changes";
   }
   return "comment";
+}
+
+export function normalizeReviewBodyForDecision(decision) {
+  if (decision?.decision !== "APPROVED_FOR_MERGE") {
+    return decision;
+  }
+
+  const sections = [];
+  if (!decision.review_body_markdown.includes(approvedForMergeMarker)) {
+    sections.push(approvedForMergeMarker);
+  }
+  if (!hasReviewerAgentIndependenceBasis(decision.review_body_markdown)) {
+    sections.push(reviewerAgentIndependenceBasisMarkdown);
+  }
+
+  if (sections.length === 0) {
+    return decision;
+  }
+
+  sections.push(decision.review_body_markdown);
+
+  return {
+    ...decision,
+    review_body_markdown: sections.join("\n\n"),
+  };
 }
 
 export async function submitGeneratedReview({
@@ -796,6 +951,12 @@ function assertAllowedKeys(value, allowedKeys, label) {
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasReviewerAgentIndependenceBasis(body) {
+  return reviewerAgentIndependenceBasisMarkdown
+    .split("\n")
+    .every((line) => body.includes(line));
 }
 
 function findApprovalVetoReasons(evidence) {

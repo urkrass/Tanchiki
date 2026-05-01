@@ -17,13 +17,16 @@ import {
   defaultOpenAiModel,
   evaluateLocalPreflight,
   evaluateReviewerDecision,
+  findForbiddenModelOutputReasons,
   mapDecisionToReviewPrDecision,
   main,
+  normalizeReviewBodyForDecision,
   openAiResponsesUrl,
   parseArgs,
   reviewerDecisionSchema,
   validateReviewerDecision,
 } from "../scripts/reviewer-agent.js";
+import { getReviewBodyRefusalReason } from "../scripts/reviewer-review-pr.js";
 
 const root = process.cwd();
 
@@ -147,6 +150,14 @@ test("reviewer-agent parser supports evidence dry-run command shape", () => {
     parseArgs(["--pr=119", "--issue=MAR-312", "--dry-run"]).maxDiffChars,
     defaultMaxDiffChars,
   );
+  assert.deepEqual(parseArgs(["--pr", "1", "--issue", "MAR-321", "--dry-run"]), {
+    dryRun: true,
+    issue: "MAR-321",
+    maxDiffChars: defaultMaxDiffChars,
+    model: null,
+    pr: 1,
+    repo: "urkrass/Tanchiki",
+  });
   assert.throws(() => parseArgs([]), /--pr is required/);
   assert.throws(() => parseArgs(["--pr", "0", "--issue", "MAR-312", "--dry-run"]), /positive integer/);
   assert.throws(() => parseArgs(["--pr", "1", "--issue", "ABC-1", "--dry-run"]), /MAR-<number>/);
@@ -214,6 +225,236 @@ test("reviewer-agent fixture evidence passes local approval gates and request sa
   assert.match(requestText, /diff --git/);
   assert.doesNotMatch(requestText, /OPENAI_API_KEY|GH_TOKEN|GITHUB_REVIEWER|secret-/);
 });
+
+test("reviewer-agent normalizes approval body before review-pr validation", async () => {
+  const stdout = [];
+  const stderr = [];
+  const openAiRequests = [];
+  const fetchImpl = await makeReviewerAgentFetch({
+    decision: makeReviewerDecision({
+      decision: "APPROVED_FOR_MERGE",
+      review_body_markdown: "Approved for merge.",
+    }),
+    onOpenAiRequest: (request) => openAiRequests.push(request),
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+    env: {
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(stderr, []);
+  assert.equal(openAiRequests.length, 1);
+  const parsed = JSON.parse(stdout.join("\n"));
+  assert.equal(parsed.mapped_github_event, "APPROVE");
+  assert.match(parsed.decision.review_body_markdown, /^APPROVED FOR MERGE\n\nIndependence basis:/);
+  assert.match(
+    parsed.decision.review_body_markdown,
+    /Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent\./,
+  );
+  assert.match(
+    parsed.decision.review_body_markdown,
+    /Reviewer authority was limited to evidence analysis and GitHub review submission\./,
+  );
+  assert.match(
+    parsed.decision.review_body_markdown,
+    /Repository contents, GitHub labels, merge state, and Linear issue state were unchanged by this reviewer path\./,
+  );
+  assert.match(parsed.decision.review_body_markdown, /Human remains responsible for merge\./);
+  assert.match(parsed.decision.review_body_markdown, /\n\nApproved for merge\.$/);
+});
+
+test("reviewer-agent approval normalization preserves forbidden output refusal", async () => {
+  const stdout = [];
+  const stderr = [];
+  const fetchImpl = await makeReviewerAgentFetch({
+    decision: makeReviewerDecision({
+      decision: "APPROVED_FOR_MERGE",
+      review_body_markdown: [
+        "Approved for merge.",
+        "",
+        "Independence: separate Reviewer App session.",
+        "Mark the Linear issue Done after review.",
+      ].join("\n"),
+    }),
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+    env: {
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(stdout, []);
+  assert.match(stderr.join("\n"), /model output requested Linear Done/);
+  assert.match(stderr.join("\n"), /No GitHub review was submitted/);
+});
+
+test("reviewer-agent approval normalization is approval-only", () => {
+  const approval = makeReviewerDecision({
+    decision: "APPROVED_FOR_MERGE",
+    review_body_markdown: "Approved for merge.\n\nIndependence: distinct run.",
+  });
+  const normalizedApproval = normalizeReviewBodyForDecision(approval);
+  assert.match(normalizedApproval.review_body_markdown, /^APPROVED FOR MERGE\n\nIndependence basis:/);
+  assert.match(
+    normalizedApproval.review_body_markdown,
+    /Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent\./,
+  );
+  assert.match(
+    normalizedApproval.review_body_markdown,
+    /Reviewer authority was limited to evidence analysis and GitHub review submission\./,
+  );
+  assert.match(
+    normalizedApproval.review_body_markdown,
+    /Repository contents, GitHub labels, merge state, and Linear issue state were unchanged by this reviewer path\./,
+  );
+  assert.match(normalizedApproval.review_body_markdown, /Human remains responsible for merge\./);
+  assert.match(normalizedApproval.review_body_markdown, /Approved for merge\./);
+
+  const changes = makeReviewerDecision({
+    decision: "CHANGES_REQUESTED",
+    review_body_markdown: "CHANGES REQUESTED\n\nBlocking finding:\n- Fix this.",
+  });
+  assert.equal(normalizeReviewBodyForDecision(changes), changes);
+});
+
+test("reviewer-agent approval normalization does not duplicate complete approval basis", () => {
+  const completeBody = [
+    "APPROVED FOR MERGE",
+    "",
+    "Independence basis:",
+    "- Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent.",
+    "- Reviewer authority was limited to evidence analysis and GitHub review submission.",
+    "- Repository contents, GitHub labels, merge state, and Linear issue state were unchanged by this reviewer path.",
+    "- Human remains responsible for merge.",
+    "",
+    "No blocking findings.",
+  ].join("\n");
+  const approval = makeReviewerDecision({
+    decision: "APPROVED_FOR_MERGE",
+    review_body_markdown: completeBody,
+  });
+
+  assert.equal(normalizeReviewBodyForDecision(approval), approval);
+});
+
+test("reviewer-agent normalized approval body avoids forbidden output false positives", () => {
+  const approval = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "APPROVED_FOR_MERGE",
+    review_body_markdown: "Approved for merge.\n\nIndependence: separate Reviewer App session.",
+  }));
+
+  assert.deepEqual(findForbiddenModelOutputReasons(approval), []);
+  assert.equal(
+    getReviewBodyRefusalReason("approve", approval.review_body_markdown),
+    null,
+  );
+  assert.doesNotMatch(approval.review_body_markdown, /did not edit files|apply labels|mark Linear Done/i);
+});
+
+test("reviewer-agent forbidden output scanner allows safety boundary statements", () => {
+  const decision = makeReviewerDecision({
+    summary: [
+      "No file edits were performed.",
+      "Repository contents were unchanged.",
+      "GitHub labels were unchanged.",
+      "Linear issue state was unchanged.",
+    ].join(" "),
+    review_body_markdown: [
+      "HUMAN REVIEW REQUIRED",
+      "",
+      "Reviewer authority was limited to evidence analysis and GitHub review submission.",
+      "Human remains responsible for merge.",
+      "The reviewer did not edit files, did not apply labels, and did not mark Linear Done.",
+      "Stop labels were not removed, Dispatcher was not run, and Codex was not run.",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(findForbiddenModelOutputReasons(decision), []);
+});
+
+for (const scenario of [
+  {
+    text: "Run gh pr merge 119 after this review.",
+    expected: "model output requested a gh pr merge command",
+  },
+  {
+    text: "Run gh pr edit 119 --add-label merge:auto-eligible.",
+    expected: "model output requested a gh pr edit command",
+  },
+  {
+    text: "Run gh issue edit 119 --add-label reviewed.",
+    expected: "model output requested a gh issue edit command",
+  },
+  {
+    text: "git push origin reviewer-agent-fix.",
+    expected: "model output requested git push",
+  },
+  {
+    text: "git commit -am reviewer-fix.",
+    expected: "model output requested git commit",
+  },
+  {
+    text: "Apply labels after approval.",
+    expected: "model output requested label application",
+  },
+  {
+    text: "Remove stop labels.",
+    expected: "model output requested label removal",
+  },
+  {
+    text: "Mark the Linear issue Done.",
+    expected: "model output requested Linear Done",
+  },
+  {
+    text: "Edit files to fix the blocker.",
+    expected: "model output requested file edits",
+  },
+  {
+    text: "Change repository settings.",
+    expected: "model output requested repository settings changes",
+  },
+  {
+    text: "Modify GitHub Actions workflows.",
+    expected: "model output requested workflow changes",
+  },
+  {
+    text: "Update branch protection.",
+    expected: "model output requested branch protection changes",
+  },
+  {
+    text: "Run Dispatcher.",
+    expected: "model output requested Dispatcher",
+  },
+  {
+    text: "Run the Conductor.",
+    expected: "model output requested Conductor",
+  },
+  {
+    text: "Run Codex.",
+    expected: "model output requested Codex",
+  },
+]) {
+  test(`reviewer-agent forbidden output scanner rejects action request: ${scenario.text}`, () => {
+    const decision = makeReviewerDecision({
+      review_body_markdown: scenario.text,
+    });
+
+    assert.ok(findForbiddenModelOutputReasons(decision).includes(scenario.expected));
+  });
+}
 
 test("reviewer evidence validates and trims max diff size", () => {
   assert.equal(validateMaxDiffChars("60000"), 60000);
