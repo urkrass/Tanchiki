@@ -364,6 +364,98 @@ test("reviewer-agent normalized approval body avoids forbidden output false posi
   assert.doesNotMatch(approval.review_body_markdown, /did not edit files|apply labels|mark Linear Done/i);
 });
 
+test("reviewer-agent forbidden output scanner allows safety boundary statements", () => {
+  const decision = makeReviewerDecision({
+    summary: [
+      "No file edits were performed.",
+      "Repository contents were unchanged.",
+      "GitHub labels were unchanged.",
+      "Linear issue state was unchanged.",
+    ].join(" "),
+    review_body_markdown: [
+      "HUMAN REVIEW REQUIRED",
+      "",
+      "Reviewer authority was limited to evidence analysis and GitHub review submission.",
+      "Human remains responsible for merge.",
+      "The reviewer did not edit files, did not apply labels, and did not mark Linear Done.",
+      "Stop labels were not removed, Dispatcher was not run, and Codex was not run.",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(findForbiddenModelOutputReasons(decision), []);
+});
+
+for (const scenario of [
+  {
+    text: "Run gh pr merge 119 after this review.",
+    expected: "model output requested a gh pr merge command",
+  },
+  {
+    text: "Run gh pr edit 119 --add-label merge:auto-eligible.",
+    expected: "model output requested a gh pr edit command",
+  },
+  {
+    text: "Run gh issue edit 119 --add-label reviewed.",
+    expected: "model output requested a gh issue edit command",
+  },
+  {
+    text: "git push origin reviewer-agent-fix.",
+    expected: "model output requested git push",
+  },
+  {
+    text: "git commit -am reviewer-fix.",
+    expected: "model output requested git commit",
+  },
+  {
+    text: "Apply labels after approval.",
+    expected: "model output requested label application",
+  },
+  {
+    text: "Remove stop labels.",
+    expected: "model output requested label removal",
+  },
+  {
+    text: "Mark the Linear issue Done.",
+    expected: "model output requested Linear Done",
+  },
+  {
+    text: "Edit files to fix the blocker.",
+    expected: "model output requested file edits",
+  },
+  {
+    text: "Change repository settings.",
+    expected: "model output requested repository settings changes",
+  },
+  {
+    text: "Modify GitHub Actions workflows.",
+    expected: "model output requested workflow changes",
+  },
+  {
+    text: "Update branch protection.",
+    expected: "model output requested branch protection changes",
+  },
+  {
+    text: "Run Dispatcher.",
+    expected: "model output requested Dispatcher",
+  },
+  {
+    text: "Run the Conductor.",
+    expected: "model output requested Conductor",
+  },
+  {
+    text: "Run Codex.",
+    expected: "model output requested Codex",
+  },
+]) {
+  test(`reviewer-agent forbidden output scanner rejects action request: ${scenario.text}`, () => {
+    const decision = makeReviewerDecision({
+      review_body_markdown: scenario.text,
+    });
+
+    assert.ok(findForbiddenModelOutputReasons(decision).includes(scenario.expected));
+  });
+}
+
 test("reviewer evidence validates and trims max diff size", () => {
   assert.equal(validateMaxDiffChars("60000"), 60000);
   assert.throws(() => validateMaxDiffChars("1999"), /between 2000 and 200000/);
