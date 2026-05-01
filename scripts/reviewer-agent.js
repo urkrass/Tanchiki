@@ -33,6 +33,13 @@ const decisionValues = new Set([
 ]);
 const confidenceValues = new Set(["low", "medium", "high"]);
 const severityValues = new Set(["blocking", "warning", "note"]);
+const approvedForMergeMarker = "APPROVED FOR MERGE";
+const reviewerAgentIndependenceBasisMarkdown = [
+  "Independence basis:",
+  "- Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent.",
+  "- Reviewer path did not edit files, push commits, apply labels, merge, or mark Linear Done.",
+  "- Human remains responsible for merge.",
+].join("\n");
 const policyStopLabels = new Set([
   "merge:do-not-merge",
   "merge:human-required",
@@ -601,13 +608,24 @@ export function normalizeReviewBodyForDecision(decision) {
   if (decision?.decision !== "APPROVED_FOR_MERGE") {
     return decision;
   }
-  if (decision.review_body_markdown.includes("APPROVED FOR MERGE")) {
+
+  const sections = [];
+  if (!decision.review_body_markdown.includes(approvedForMergeMarker)) {
+    sections.push(approvedForMergeMarker);
+  }
+  if (!hasReviewerAgentIndependenceBasis(decision.review_body_markdown)) {
+    sections.push(reviewerAgentIndependenceBasisMarkdown);
+  }
+
+  if (sections.length === 0) {
     return decision;
   }
 
+  sections.push(decision.review_body_markdown);
+
   return {
     ...decision,
-    review_body_markdown: `APPROVED FOR MERGE\n\n${decision.review_body_markdown}`,
+    review_body_markdown: sections.join("\n\n"),
   };
 }
 
@@ -811,6 +829,12 @@ function assertAllowedKeys(value, allowedKeys, label) {
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasReviewerAgentIndependenceBasis(body) {
+  return reviewerAgentIndependenceBasisMarkdown
+    .split("\n")
+    .every((line) => body.includes(line));
 }
 
 function findApprovalVetoReasons(evidence) {

@@ -231,7 +231,7 @@ test("reviewer-agent normalizes approval body before review-pr validation", asyn
   const fetchImpl = await makeReviewerAgentFetch({
     decision: makeReviewerDecision({
       decision: "APPROVED_FOR_MERGE",
-      review_body_markdown: "Approved for merge.\n\nIndependence: separate Reviewer App session.",
+      review_body_markdown: "Approved for merge.",
     }),
     onOpenAiRequest: (request) => openAiRequests.push(request),
   });
@@ -251,7 +251,17 @@ test("reviewer-agent normalizes approval body before review-pr validation", asyn
   assert.equal(openAiRequests.length, 1);
   const parsed = JSON.parse(stdout.join("\n"));
   assert.equal(parsed.mapped_github_event, "APPROVE");
-  assert.match(parsed.decision.review_body_markdown, /^APPROVED FOR MERGE\n\nApproved for merge\./);
+  assert.match(parsed.decision.review_body_markdown, /^APPROVED FOR MERGE\n\nIndependence basis:/);
+  assert.match(
+    parsed.decision.review_body_markdown,
+    /Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent\./,
+  );
+  assert.match(
+    parsed.decision.review_body_markdown,
+    /Reviewer path did not edit files, push commits, apply labels, merge, or mark Linear Done\./,
+  );
+  assert.match(parsed.decision.review_body_markdown, /Human remains responsible for merge\./);
+  assert.match(parsed.decision.review_body_markdown, /\n\nApproved for merge\.$/);
 });
 
 test("reviewer-agent approval normalization preserves forbidden output refusal", async () => {
@@ -290,16 +300,43 @@ test("reviewer-agent approval normalization is approval-only", () => {
     decision: "APPROVED_FOR_MERGE",
     review_body_markdown: "Approved for merge.\n\nIndependence: distinct run.",
   });
+  const normalizedApproval = normalizeReviewBodyForDecision(approval);
+  assert.match(normalizedApproval.review_body_markdown, /^APPROVED FOR MERGE\n\nIndependence basis:/);
   assert.match(
-    normalizeReviewBodyForDecision(approval).review_body_markdown,
-    /^APPROVED FOR MERGE\n\nApproved for merge\./,
+    normalizedApproval.review_body_markdown,
+    /Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent\./,
   );
+  assert.match(
+    normalizedApproval.review_body_markdown,
+    /Reviewer path did not edit files, push commits, apply labels, merge, or mark Linear Done\./,
+  );
+  assert.match(normalizedApproval.review_body_markdown, /Human remains responsible for merge\./);
+  assert.match(normalizedApproval.review_body_markdown, /Approved for merge\./);
 
   const changes = makeReviewerDecision({
     decision: "CHANGES_REQUESTED",
     review_body_markdown: "CHANGES REQUESTED\n\nBlocking finding:\n- Fix this.",
   });
   assert.equal(normalizeReviewBodyForDecision(changes), changes);
+});
+
+test("reviewer-agent approval normalization does not duplicate complete approval basis", () => {
+  const completeBody = [
+    "APPROVED FOR MERGE",
+    "",
+    "Independence basis:",
+    "- Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent.",
+    "- Reviewer path did not edit files, push commits, apply labels, merge, or mark Linear Done.",
+    "- Human remains responsible for merge.",
+    "",
+    "No blocking findings.",
+  ].join("\n");
+  const approval = makeReviewerDecision({
+    decision: "APPROVED_FOR_MERGE",
+    review_body_markdown: completeBody,
+  });
+
+  assert.equal(normalizeReviewBodyForDecision(approval), approval);
 });
 
 test("reviewer evidence validates and trims max diff size", () => {
