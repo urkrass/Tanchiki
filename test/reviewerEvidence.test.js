@@ -310,7 +310,7 @@ test("reviewer-agent approval normalization preserves forbidden output refusal",
   assert.match(stderr.join("\n"), /No GitHub review was submitted/);
 });
 
-test("reviewer-agent approval normalization is approval-only", () => {
+test("reviewer-agent decision normalization preserves required approval basis", () => {
   const approval = makeReviewerDecision({
     decision: "APPROVED_FOR_MERGE",
     review_body_markdown: "Approved for merge.\n\nIndependence: distinct run.",
@@ -337,6 +337,86 @@ test("reviewer-agent approval normalization is approval-only", () => {
     review_body_markdown: "CHANGES REQUESTED\n\nBlocking finding:\n- Fix this.",
   });
   assert.equal(normalizeReviewBodyForDecision(changes), changes);
+});
+
+test("reviewer-agent normalizes non-approval review body markers before executor validation", () => {
+  const changes = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "CHANGES_REQUESTED",
+    findings: [{ severity: "blocking", file: "scripts/reviewer-agent.js", message: "Fix marker." }],
+    review_body_markdown: "Blocking finding:\n- Fix marker.",
+  }));
+  assert.equal(countExactLine(changes.review_body_markdown, "CHANGES REQUESTED"), 1);
+  assert.match(changes.review_body_markdown, /^CHANGES REQUESTED\n\nBlocking finding:/);
+  assert.equal(mapDecisionToReviewPrDecision(changes), "request-changes");
+  assert.equal(
+    getReviewBodyRefusalReason(mapDecisionToReviewPrDecision(changes), changes.review_body_markdown),
+    null,
+  );
+
+  const blockedForRequestChanges = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "BLOCKED",
+    findings: [{ severity: "blocking", file: "scripts/reviewer-agent.js", message: "Fix gate." }],
+    review_body_markdown: "Blocking finding:\n- Fix gate.",
+  }));
+  assert.equal(countExactLine(blockedForRequestChanges.review_body_markdown, "BLOCKED"), 1);
+  assert.equal(mapDecisionToReviewPrDecision(blockedForRequestChanges), "request-changes");
+  assert.equal(
+    getReviewBodyRefusalReason(
+      mapDecisionToReviewPrDecision(blockedForRequestChanges),
+      blockedForRequestChanges.review_body_markdown,
+    ),
+    null,
+  );
+
+  const blockedForComment = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "BLOCKED",
+    review_body_markdown: "Offline reviewer process needs human inspection.",
+    summary: "Offline reviewer process evidence needs a human.",
+  }));
+  assert.equal(countExactLine(blockedForComment.review_body_markdown, "BLOCKED"), 1);
+  assert.equal(mapDecisionToReviewPrDecision(blockedForComment), "comment");
+  assert.equal(
+    getReviewBodyRefusalReason(
+      mapDecisionToReviewPrDecision(blockedForComment),
+      blockedForComment.review_body_markdown,
+    ),
+    null,
+  );
+
+  const human = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "HUMAN_REVIEW_REQUIRED",
+    review_body_markdown: "Human should inspect the ambiguous metadata.",
+  }));
+  assert.equal(countExactLine(human.review_body_markdown, "HUMAN REVIEW REQUIRED"), 1);
+  assert.match(human.review_body_markdown, /^HUMAN REVIEW REQUIRED\n\nHuman should inspect/);
+  assert.equal(mapDecisionToReviewPrDecision(human), "comment");
+  assert.equal(
+    getReviewBodyRefusalReason(mapDecisionToReviewPrDecision(human), human.review_body_markdown),
+    null,
+  );
+});
+
+test("reviewer-agent non-approval normalization collapses duplicate marker sections", () => {
+  const changes = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "CHANGES_REQUESTED",
+    review_body_markdown: [
+      "CHANGES REQUESTED",
+      "",
+      "CHANGES REQUESTED: Blocking finding.",
+      "",
+      "CHANGES REQUESTED",
+      "",
+      "Fix the gate wording.",
+    ].join("\n"),
+  }));
+
+  assert.equal(countExactLine(changes.review_body_markdown, "CHANGES REQUESTED"), 1);
+  assert.match(changes.review_body_markdown, /^CHANGES REQUESTED\n\nBlocking finding\./);
+  assert.match(changes.review_body_markdown, /Fix the gate wording\.$/);
+  assert.equal(
+    getReviewBodyRefusalReason(mapDecisionToReviewPrDecision(changes), changes.review_body_markdown),
+    null,
+  );
 });
 
 test("reviewer-agent approval normalization does not duplicate complete approval basis", () => {
