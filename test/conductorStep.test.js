@@ -224,6 +224,65 @@ test("conductor step syncs one valid reviewer bot review", () => {
   assert.match(formatDecision(decision), /Valid Reviewer App review/);
 });
 
+test("conductor step parses spaced APPROVED FOR MERGE reviewer decision", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer()],
+    prs: [readyPr({ reviews: [botReview({ body: "APPROVED FOR MERGE" })] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "sync");
+  assert.match(decision.proposedMutation.comment, /Decision: APPROVED_FOR_MERGE/);
+});
+
+test("conductor step parses enum APPROVED_FOR_MERGE reviewer decision", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer()],
+    prs: [readyPr({ reviews: [botReview({ body: "APPROVED_FOR_MERGE" })] })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "sync");
+  assert.match(decision.proposedMutation.comment, /Decision: APPROVED_FOR_MERGE/);
+});
+
+test("conductor step treats same decision aliases as one logical decision", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer()],
+    prs: [readyPr({
+      reviews: [
+        botReview({
+          body: "CHANGES REQUESTED\nCHANGES_REQUESTED",
+          state: "CHANGES_REQUESTED",
+        }),
+      ],
+    })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "sync");
+  assert.match(decision.proposedMutation.comment, /Decision: CHANGES_REQUESTED/);
+});
+
+test("conductor step stops on conflicting paired-review decisions", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer()],
+    prs: [readyPr({
+      reviews: [
+        botReview({
+          body: "APPROVED FOR MERGE\nCHANGES_REQUESTED",
+          state: "COMMENTED",
+        }),
+      ],
+    })],
+    syncOnly: true,
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /exactly one paired-review decision; found 2/);
+});
+
 test("conductor step stops when review actor is not the reviewer bot", () => {
   const decision = decideConductorStep(makeState({
     issues: [producer(), reviewer()],

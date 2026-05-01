@@ -34,11 +34,11 @@ const STOP_LABELS = [
 ];
 const TERMINAL_STATUSES = ["Done", "Canceled", "Cancelled", "Abandoned", "Skipped"];
 const REVIEWER_BOT_LOGINS = ["tanchiki-reviewer[bot]", "tanchiki-reviewer"];
-const PAIRED_REVIEW_DECISIONS = [
-  "APPROVED FOR MERGE",
-  "CHANGES REQUESTED",
-  "HUMAN REVIEW REQUIRED",
-  "BLOCKED",
+const PAIRED_REVIEW_DECISION_ALIASES = [
+  ["APPROVED_FOR_MERGE", ["APPROVED FOR MERGE", "APPROVED_FOR_MERGE"]],
+  ["CHANGES_REQUESTED", ["CHANGES REQUESTED", "CHANGES_REQUESTED"]],
+  ["HUMAN_REVIEW_REQUIRED", ["HUMAN REVIEW REQUIRED", "HUMAN_REVIEW_REQUIRED"]],
+  ["BLOCKED", ["BLOCKED"]],
 ];
 
 export function decideConductorStep(input = {}) {
@@ -966,13 +966,26 @@ function selectReviewerBotReview({ pr, reviewer }) {
 }
 
 function extractPairedReviewDecision(body = "") {
-  const matches = PAIRED_REVIEW_DECISIONS.filter((decision) => body.includes(decision));
+  const text = String(body);
+  const matches = PAIRED_REVIEW_DECISION_ALIASES
+    .filter(([, aliases]) => aliases.some((alias) => hasDecisionAlias(text, alias)))
+    .map(([decision]) => decision);
   if (matches.length !== 1) {
     return {
       blocker: `review body must contain exactly one paired-review decision; found ${matches.length}.`,
     };
   }
   return { decision: matches[0] };
+}
+
+function hasDecisionAlias(text, alias) {
+  const escaped = escapeRegExp(alias);
+  const pattern = new RegExp(`(^|[^A-Z0-9_])${escaped}([^A-Z0-9_]|$)`);
+  return pattern.test(text);
+}
+
+function escapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function isReviewerBotLogin(login = "") {
