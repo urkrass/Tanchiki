@@ -479,6 +479,7 @@ for (const scenario of [
   test(`reviewer-agent blocks approval for ${scenario.name}`, async () => {
     const stdout = [];
     const stderr = [];
+    let openAiCalled = false;
     const fetchImpl = await makeReviewerAgentFetch({
       checks: scenario.checks,
       decision: makeReviewerDecision({
@@ -486,6 +487,9 @@ for (const scenario of [
         review_body_markdown: "Approved for merge.",
       }),
       files: scenario.files,
+      onOpenAiRequest: () => {
+        openAiCalled = true;
+      },
       pullRequest: scenario.pullRequest,
     });
 
@@ -501,6 +505,9 @@ for (const scenario of [
 
     assert.equal(exitCode, 1);
     assert.deepEqual(stdout, []);
+    assert.equal(openAiCalled, false);
+    assert.match(stderr.join("\n"), /Local preflight refused before OpenAI/);
+    assert.match(stderr.join("\n"), /No OpenAI API call was made/);
     assert.match(stderr.join("\n"), new RegExp(scenario.expectedGate));
     assert.match(stderr.join("\n"), /No GitHub review was submitted/);
   });
@@ -571,7 +578,7 @@ function readRepoFile(...pathParts) {
 }
 
 async function makeReviewerAgentFetch({
-  checks = { check_runs: [], statuses: [] },
+  checks = { check_runs: [{ conclusion: "success", name: "CI", status: "completed" }], statuses: [] },
   decision = makeReviewerDecision(),
   files = [{ filename: "scripts/reviewer-agent.js" }],
   onOpenAiRequest = () => {},

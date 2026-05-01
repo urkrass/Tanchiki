@@ -97,6 +97,13 @@ export async function main({
       token: readGitHubToken(env),
     });
 
+    const preflight = evaluateLocalPreflight(evidence);
+    if (preflight.refusal_reasons.length > 0) {
+      throw new EvidenceError(
+        `Local preflight refused before OpenAI: ${preflight.refusal_reasons.join("; ")}`,
+      );
+    }
+
     const apiKey = readOpenAiApiKey(env);
     openAiCallAttempted = true;
     const generated = await callOpenAiReviewer({
@@ -433,6 +440,25 @@ export function evaluateReviewerDecision({ decision, evidence }) {
     for (const reason of findApprovalVetoReasons(evidence)) {
       refusalReasons.push(reason);
     }
+  }
+
+  return {
+    local_checks: localChecks,
+    refusal_reasons: refusalReasons,
+  };
+}
+
+export function evaluateLocalPreflight(evidence) {
+  const localChecks = computeLocalChecks(evidence);
+  const refusalReasons = [];
+
+  for (const [key, passed] of Object.entries(localChecks)) {
+    if (!passed) {
+      refusalReasons.push(`local gate ${key} failed`);
+    }
+  }
+  for (const reason of findApprovalVetoReasons(evidence)) {
+    refusalReasons.push(reason);
   }
 
   return {
