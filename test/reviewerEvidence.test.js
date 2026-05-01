@@ -12,7 +12,14 @@ import {
   trimDiff,
   validateMaxDiffChars,
 } from "../scripts/reviewer-evidence.js";
-import { main, parseArgs } from "../scripts/reviewer-agent.js";
+import {
+  defaultOpenAiModel,
+  main,
+  openAiResponsesUrl,
+  parseArgs,
+  reviewerDecisionSchema,
+  validateReviewerDecision,
+} from "../scripts/reviewer-agent.js";
 
 const root = process.cwd();
 
@@ -316,41 +323,20 @@ test("GitHub evidence client uses read-only PR evidence endpoints", async () => 
   }
 });
 
-test("reviewer-agent dry-run output is sanitized and does not call OpenAI or submit reviews", async () => {
+test("reviewer-agent dry-run calls OpenAI with strict structured output and submits no review", async () => {
   const stdout = [];
   const stderr = [];
-  const responseByPath = new Map([
-    ["/repos/urkrass/Tanchiki/pulls/119", { json: { ...await makeFakeClient().getPullRequest(), head: { sha: "abc123" } } }],
-    ["/repos/urkrass/Tanchiki/issues/119", { json: { labels: [] } }],
-    ["/repos/urkrass/Tanchiki/pulls/119/files?per_page=100&page=1", { json: [{ filename: "scripts/reviewer-agent.js" }] }],
-    ["/repos/urkrass/Tanchiki/commits/abc123/check-runs?per_page=100", { json: { check_runs: [] } }],
-    ["/repos/urkrass/Tanchiki/commits/abc123/status", { json: { statuses: [] } }],
-  ]);
-
-  const fetchImpl = async (url, init = {}) => {
-    const parsedUrl = new URL(url);
-    const path = parsedUrl.pathname + parsedUrl.search;
-    assert.equal(init.method, "GET");
-    assert.doesNotMatch(path, /openai|reviews|merge|labels/i);
-
-    if (path === "/repos/urkrass/Tanchiki/pulls/119" && init.headers.Accept.includes("diff")) {
-      return textResponse("diff --git a/scripts/reviewer-agent.js b/scripts/reviewer-agent.js\n");
-    }
-
-    const entry = responseByPath.get(path);
-    if (entry) {
-      return jsonResponse(entry.json);
-    }
-
-    return {
-      ok: false,
-      status: 404,
-      text: async () => `unexpected path ${path}`,
-    };
-  };
+  const openAiRequests = [];
+  const fetchImpl = await makeReviewerAgentFetch({
+    decision: makeReviewerDecision({
+      decision: "HUMAN_REVIEW_REQUIRED",
+      review_body_markdown: "Human review required after generated analysis.",
+    }),
+    onOpenAiRequest: (request) => openAiRequests.push(request),
+  });
 
   const exitCode = await main({
-    argv: ["--pr", "119", "--issue", "MAR-312", "--dry-run"],
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
     env: {
       GH_TOKEN: "secret-gh-token",
       OPENAI_API_KEY: "secret-openai-key",
@@ -365,10 +351,160 @@ test("reviewer-agent dry-run output is sanitized and does not call OpenAI or sub
   const output = stdout.join("\n");
   assert.doesNotMatch(output, /secret-gh-token|secret-openai-key/);
   const parsed = JSON.parse(output);
-  assert.equal(parsed.mode, "evidence-dry-run");
-  assert.equal(parsed.openai_call_made, false);
+  assert.equal(parsed.mode, "api-backed-dry-run");
+  assert.equal(parsed.requested_model, defaultOpenAiModel);
+  assert.equal(parsed.openai_call_made, true);
   assert.equal(parsed.github_review_submitted, false);
+  assert.equal(parsed.submission_allowed, false);
+  assert.equal(parsed.mapped_github_event, "COMMENT");
+  assert.equal(parsed.decision.decision, "HUMAN_REVIEW_REQUIRED");
+  assert.deepEqual(parsed.local_gate_refusals, []);
+
+  assert.equal(openAiRequests.length, 1);
+  assert.equal(openAiRequests[0].url, openAiResponsesUrl);
+  assert.equal(openAiRequests[0].init.method, "POST");
+  assert.equal(openAiRequests[0].init.headers.Authorization, "Bearer secret-openai-key");
+  assert.doesNotMatch(openAiRequests[0].init.body, /secret-openai-key|secret-gh-token/);
+  const requestBody = JSON.parse(openAiRequests[0].init.body);
+  assert.equal(requestBody.model, defaultOpenAiModel);
+  assert.equal(requestBody.store, false);
+  assert.equal(requestBody.reasoning.effort, "medium");
+  assert.equal(requestBody.text.verbosity, "low");
+  assert.equal(requestBody.text.format.type, "json_schema");
+  assert.equal(requestBody.text.format.name, "tanchiki_reviewer_decision");
+  assert.equal(requestBody.text.format.strict, true);
+  assert.deepEqual(requestBody.text.format.schema, reviewerDecisionSchema);
+  assert.match(requestBody.input[0].content[0].text, /constrained Tanchiki Reviewer App reviewer agent/);
+  assert.match(requestBody.input[1].content[0].text, /MAR-314/);
 });
+
+test("reviewer-agent fails closed when OPENAI_API_KEY is missing", async () => {
+  const stdout = [];
+  const stderr = [];
+  let openAiCalled = false;
+  const fetchImpl = await makeReviewerAgentFetch({
+    onOpenAiRequest: () => {
+      openAiCalled = true;
+    },
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+    env: {
+      GH_TOKEN: "secret-gh-token",
+    },
+    fetchImpl,
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(stdout, []);
+  assert.equal(openAiCalled, false);
+  assert.match(stderr.join("\n"), /OPENAI_API_KEY is required/);
+  assert.match(stderr.join("\n"), /No OpenAI API call was made/);
+  assert.doesNotMatch(stderr.join("\n"), /secret-gh-token/);
+});
+
+test("reviewer-agent refuses invalid OpenAI JSON output", async () => {
+  const stdout = [];
+  const stderr = [];
+  const fetchImpl = await makeReviewerAgentFetch({
+    openAiText: "not-json",
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+    env: {
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(stdout, []);
+  assert.match(stderr.join("\n"), /not valid JSON/);
+  assert.match(stderr.join("\n"), /no valid review was accepted/i);
+  assert.doesNotMatch(stderr.join("\n"), /secret-openai-key/);
+});
+
+test("reviewer-agent refuses forbidden model output actions", async () => {
+  const stdout = [];
+  const stderr = [];
+  const fetchImpl = await makeReviewerAgentFetch({
+    decision: makeReviewerDecision({
+      decision: "HUMAN_REVIEW_REQUIRED",
+      review_body_markdown: "Run gh pr merge 119 after this review.",
+    }),
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+    env: {
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(stdout, []);
+  assert.match(stderr.join("\n"), /gh pr merge/);
+  assert.match(stderr.join("\n"), /No GitHub review was submitted/);
+});
+
+for (const scenario of [
+  {
+    name: "draft PR",
+    pullRequest: { draft: true },
+    expectedGate: "pr_state_ok",
+  },
+  {
+    name: "failing checks",
+    checks: {
+      check_runs: [{ conclusion: "failure", name: "CI", status: "completed" }],
+      statuses: [],
+    },
+    expectedGate: "checks_ok",
+  },
+  {
+    name: "forbidden files",
+    files: [{ filename: "src/game/movement.js" }],
+    expectedGate: "forbidden_files_ok",
+  },
+]) {
+  test(`reviewer-agent blocks approval for ${scenario.name}`, async () => {
+    const stdout = [];
+    const stderr = [];
+    const fetchImpl = await makeReviewerAgentFetch({
+      checks: scenario.checks,
+      decision: makeReviewerDecision({
+        decision: "APPROVED_FOR_MERGE",
+        review_body_markdown: "Approved for merge.",
+      }),
+      files: scenario.files,
+      pullRequest: scenario.pullRequest,
+    });
+
+    const exitCode = await main({
+      argv: ["--pr", "119", "--issue", "MAR-314", "--dry-run"],
+      env: {
+        OPENAI_API_KEY: "secret-openai-key",
+      },
+      fetchImpl,
+      stderr: (line) => stderr.push(line),
+      stdout: (line) => stdout.push(line),
+    });
+
+    assert.equal(exitCode, 1);
+    assert.deepEqual(stdout, []);
+    assert.match(stderr.join("\n"), new RegExp(scenario.expectedGate));
+    assert.match(stderr.join("\n"), /No GitHub review was submitted/);
+  });
+}
 
 test("reviewer-agent direct CLI refuses non-dry-run before network work", () => {
   const result = spawnSync(process.execPath, [
@@ -376,19 +512,19 @@ test("reviewer-agent direct CLI refuses non-dry-run before network work", () => 
     "--pr",
     "119",
     "--issue",
-    "MAR-312",
+    "MAR-314",
   ], {
     cwd: root,
     encoding: "utf8",
   });
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /evidence-only collection/);
+  assert.match(result.stderr, /API-backed dry-run generation only/);
   assert.match(result.stderr, /No OpenAI API call was made/);
   assert.match(result.stderr, /No GitHub review was submitted/);
 });
 
-test("reviewer-agent package and static surface preserve evidence-only boundaries", () => {
+test("reviewer-agent package and static surface preserve dry-run submission boundaries", () => {
   const packageJson = JSON.parse(readRepoFile("package.json"));
   const agent = readRepoFile("scripts", "reviewer-agent.js");
   const evidence = readRepoFile("scripts", "reviewer-evidence.js");
@@ -412,8 +548,9 @@ test("reviewer-agent package and static surface preserve evidence-only boundarie
     assert.equal(combined.includes(forbiddenWrite), false);
   }
 
+  assert.match(agent, /OPENAI_API_KEY/);
+  assert.match(agent, /https:\/\/api\.openai\.com\/v1\/responses/);
   for (const forbiddenPattern of [
-    /OPENAI_API_KEY/,
     /createReviewerAppInstallationToken/,
     /submitReview/,
     /\/reviews/i,
@@ -431,6 +568,109 @@ test("reviewer-agent package and static surface preserve evidence-only boundarie
 
 function readRepoFile(...pathParts) {
   return readFileSync(join(root, ...pathParts), "utf8");
+}
+
+async function makeReviewerAgentFetch({
+  checks = { check_runs: [], statuses: [] },
+  decision = makeReviewerDecision(),
+  files = [{ filename: "scripts/reviewer-agent.js" }],
+  onOpenAiRequest = () => {},
+  openAiText = null,
+  pullRequest = {},
+} = {}) {
+  const fakePullRequest = {
+    ...await makeFakeClient({ issue: "MAR-314" }).getPullRequest(),
+    body: makePrBody({ issue: "MAR-314" }),
+    head: { ref: "mar-314-openai-reviewer-invocation", sha: "abc123" },
+    title: "MAR-314 OpenAI invocation",
+    ...pullRequest,
+  };
+  const responseByPath = new Map([
+    ["/repos/urkrass/Tanchiki/pulls/119", { json: fakePullRequest }],
+    ["/repos/urkrass/Tanchiki/issues/119", { json: { labels: [] } }],
+    ["/repos/urkrass/Tanchiki/pulls/119/files?per_page=100&page=1", { json: files }],
+    ["/repos/urkrass/Tanchiki/commits/abc123/check-runs?per_page=100", {
+      json: { check_runs: checks.check_runs || [] },
+    }],
+    ["/repos/urkrass/Tanchiki/commits/abc123/status", {
+      json: { statuses: checks.statuses || [] },
+    }],
+  ]);
+
+  return async (url, init = {}) => {
+    if (url === openAiResponsesUrl) {
+      onOpenAiRequest({ init, url });
+      assert.equal(init.method, "POST");
+      assert.doesNotMatch(init.body, /secret-gh-token|secret-openai-key/);
+      return jsonResponse({
+        status: "completed",
+        output: [
+          {
+            type: "message",
+            content: [
+              {
+                type: "output_text",
+                text: openAiText ?? JSON.stringify(decision),
+              },
+            ],
+          },
+        ],
+        usage: {
+          input_tokens: 1000,
+          output_tokens: 250,
+          total_tokens: 1250,
+        },
+      });
+    }
+
+    const parsedUrl = new URL(url);
+    const path = parsedUrl.pathname + parsedUrl.search;
+    assert.equal(init.method, "GET");
+    assert.doesNotMatch(path, /reviews|merge|labels/i);
+
+    if (path === "/repos/urkrass/Tanchiki/pulls/119" && init.headers.Accept.includes("diff")) {
+      return textResponse("diff --git a/scripts/reviewer-agent.js b/scripts/reviewer-agent.js\n");
+    }
+
+    const entry = responseByPath.get(path);
+    if (entry) {
+      return jsonResponse(entry.json);
+    }
+
+    return {
+      ok: false,
+      status: 404,
+      text: async () => `unexpected path ${path}`,
+    };
+  };
+}
+
+function makeReviewerDecision(overrides = {}) {
+  return validateReviewerDecision({
+    decision: "HUMAN_REVIEW_REQUIRED",
+    confidence: "medium",
+    summary: "Generated review requires human confirmation.",
+    findings: [],
+    checks: {
+      pr_state_ok: true,
+      metadata_ok: true,
+      checks_ok: true,
+      scope_ok: true,
+      forbidden_files_ok: true,
+      review_cadence_ok: true,
+    },
+    review_body_markdown: "Human review required.",
+    ...overrides,
+    checks: {
+      pr_state_ok: true,
+      metadata_ok: true,
+      checks_ok: true,
+      scope_ok: true,
+      forbidden_files_ok: true,
+      review_cadence_ok: true,
+      ...(overrides.checks || {}),
+    },
+  });
 }
 
 function jsonResponse(body) {
