@@ -12,7 +12,7 @@ const stylesSource = readFileSync(new URL("../src/styles.css", import.meta.url),
 const step = 1 / 60;
 
 test("first public demo page keeps objective, controls, and live status visible", () => {
-  assert.match(html, /Level 1 starts with a single job: reach and destroy the enemy base, then choose one upgrade before the next fight\./);
+  assert.match(html, /Destroy the enemy base, then choose one upgrade before the next fight\./);
   assert.match(html, /<div class="demo-brief" aria-label="Demo quick start">/);
   assert.match(html, /<strong>Move<\/strong> WASD or Arrow keys/);
   assert.match(html, /<strong>Fire<\/strong> Space/);
@@ -21,6 +21,33 @@ test("first public demo page keeps objective, controls, and live status visible"
   assert.match(html, /<div class="status-bar" aria-label="Live mission status">/);
   assert.match(html, /<div id="status" class="status" aria-live="polite"><\/div>/);
   assert.match(html, /<p id="upgrade-context" class="upgrade-panel__context"><\/p>/);
+});
+
+test("side-panel shell keeps controls, mission HUD, and progression in separate zones", () => {
+  assert.match(html, /<section class="game-screen" aria-labelledby="title">/);
+  assert.match(html, /<aside class="side-panel controls-panel game-copy" aria-label="Controls and quick start">/);
+  assert.match(html, /<section class="play-panel" aria-label="Mission playfield">/);
+  assert.match(html, /<aside class="side-panel progression-panel" aria-label="Upgrades and rewards">/);
+  assert.match(html, /<p class="progression-panel__empty">Win the mission to choose an upgrade\.<\/p>/);
+
+  const controlsPanel = html.slice(
+    html.indexOf("<aside class=\"side-panel controls-panel game-copy\""),
+    html.indexOf("</aside>", html.indexOf("<aside class=\"side-panel controls-panel game-copy\""))
+  );
+  const playPanel = html.slice(
+    html.indexOf("<section class=\"play-panel\""),
+    html.indexOf("</section>", html.indexOf("<section class=\"play-panel\""))
+  );
+  const progressionPanel = html.slice(
+    html.indexOf("<aside class=\"side-panel progression-panel\""),
+    html.indexOf("</aside>", html.indexOf("<aside class=\"side-panel progression-panel\""))
+  );
+
+  assert.doesNotMatch(controlsPanel, /status-bar|id="status"|upgrade-panel|upgrade-context/);
+  assert.match(playPanel, /status-bar/);
+  assert.match(playPanel, /<canvas id="game"/);
+  assert.match(progressionPanel, /id="upgrade-panel"/);
+  assert.match(progressionPanel, /progression-panel__empty/);
 });
 
 test("demo campaign preserves victory to upgrade to next-level flow", () => {
@@ -98,6 +125,15 @@ test("HUD styles preserve chip layout and narrow-screen readability hooks", () =
   assert.match(stylesSource, /\.status-chip--base \.status-chip__icon/);
   assert.match(stylesSource, /\.status__badges\s*\{[\s\S]*flex-wrap: wrap;/);
   assert.match(stylesSource, /@media \(max-width: 560px\) \{[\s\S]*\.status__chips\s*\{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+});
+
+test("layout styles provide desktop side panels and a playfield-first fallback", () => {
+  assert.match(stylesSource, /\.game-screen\s*\{[\s\S]*grid-template-columns: minmax\(180px, 220px\) minmax\(0, 720px\) minmax\(220px, 280px\);/);
+  assert.match(stylesSource, /\.side-panel\s*\{[\s\S]*border: 3px solid var\(--panel-dark\);/);
+  assert.match(stylesSource, /\.play-panel\s*\{[\s\S]*display: grid;[\s\S]*gap: 12px;/);
+  assert.match(stylesSource, /\.upgrade-panel:not\(\[hidden\]\) \+ \.progression-panel__empty\s*\{[\s\S]*display: none;/);
+  assert.match(stylesSource, /@media \(max-width: 1180px\) \{[\s\S]*\.play-panel\s*\{[\s\S]*grid-row: 1;/);
+  assert.match(stylesSource, /@media \(max-width: 760px\) \{[\s\S]*\.game-screen\s*\{[\s\S]*grid-template-columns: 1fr;/);
 });
 
 function createCampaignHarness(options = {}) {
