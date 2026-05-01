@@ -14,6 +14,7 @@ import {
 } from "../scripts/reviewer-evidence.js";
 import {
   defaultOpenAiModel,
+  mapDecisionToReviewPrDecision,
   main,
   openAiResponsesUrl,
   parseArgs,
@@ -146,11 +147,34 @@ test("reviewer-agent parser supports evidence dry-run command shape", () => {
   assert.throws(() => parseArgs([]), /--pr is required/);
   assert.throws(() => parseArgs(["--pr", "0", "--issue", "MAR-312", "--dry-run"]), /positive integer/);
   assert.throws(() => parseArgs(["--pr", "1", "--issue", "ABC-1", "--dry-run"]), /MAR-<number>/);
-  assert.throws(() => parseArgs(["--pr", "1", "--issue", "MAR-1"]), /pass --dry-run/);
   assert.throws(() => parseArgs(["--pr", "1", "--issue", "MAR-1", "--dry-run", "--body", "x"]), /Unknown argument/);
   assert.throws(
     () => parseArgs(["--pr", "1", "--issue", "MAR-1", "--dry-run", "--repo", "other/repo"]),
     /--repo must be urkrass\/Tanchiki/,
+  );
+  assert.equal(parseArgs(["--pr", "1", "--issue", "MAR-1"]).dryRun, false);
+});
+
+test("reviewer-agent maps generated decisions to GitHub review decisions", () => {
+  assert.equal(mapDecisionToReviewPrDecision("APPROVED_FOR_MERGE"), "approve");
+  assert.equal(mapDecisionToReviewPrDecision("CHANGES_REQUESTED"), "request-changes");
+  assert.equal(mapDecisionToReviewPrDecision("BLOCKED"), "request-changes");
+  assert.equal(mapDecisionToReviewPrDecision("HUMAN_REVIEW_REQUIRED"), "comment");
+  assert.equal(
+    mapDecisionToReviewPrDecision(makeReviewerDecision({
+      decision: "BLOCKED",
+      summary: "Blocked by offline reviewer process evidence.",
+      review_body_markdown: "BLOCKED\n\nOffline process evidence needs a human.",
+    })),
+    "comment",
+  );
+  assert.equal(
+    mapDecisionToReviewPrDecision(makeReviewerDecision({
+      decision: "BLOCKED",
+      findings: [{ severity: "blocking", file: "scripts/reviewer-agent.js", message: "Fix gate." }],
+      review_body_markdown: "BLOCKED\n\nBlocking finding:\n- Fix gate.",
+    })),
+    "request-changes",
   );
 });
 
@@ -327,6 +351,7 @@ test("reviewer-agent dry-run calls OpenAI with strict structured output and subm
   const stdout = [];
   const stderr = [];
   const openAiRequests = [];
+  let reviewerTokenRequested = false;
   const fetchImpl = await makeReviewerAgentFetch({
     decision: makeReviewerDecision({
       decision: "HUMAN_REVIEW_REQUIRED",
@@ -342,6 +367,10 @@ test("reviewer-agent dry-run calls OpenAI with strict structured output and subm
       OPENAI_API_KEY: "secret-openai-key",
     },
     fetchImpl,
+    createTokenImpl: () => {
+      reviewerTokenRequested = true;
+      return { token: "secret-reviewer-token" };
+    },
     stderr: (line) => stderr.push(line),
     stdout: (line) => stdout.push(line),
   });
@@ -349,16 +378,20 @@ test("reviewer-agent dry-run calls OpenAI with strict structured output and subm
   assert.equal(exitCode, 0);
   assert.deepEqual(stderr, []);
   const output = stdout.join("\n");
-  assert.doesNotMatch(output, /secret-gh-token|secret-openai-key/);
+  assert.doesNotMatch(output, /secret-gh-token|secret-openai-key|secret-reviewer-token/);
   const parsed = JSON.parse(output);
-  assert.equal(parsed.mode, "api-backed-dry-run");
+  assert.equal(parsed.mode, "api-backed-reviewer-agent");
+  assert.equal(parsed.dry_run, true);
   assert.equal(parsed.requested_model, defaultOpenAiModel);
   assert.equal(parsed.openai_call_made, true);
   assert.equal(parsed.github_review_submitted, false);
-  assert.equal(parsed.submission_allowed, false);
+  assert.equal(parsed.reviewer_app_token_requested, false);
+  assert.equal(parsed.submission_allowed, true);
+  assert.equal(parsed.submission_blocked_reason, null);
   assert.equal(parsed.mapped_github_event, "COMMENT");
   assert.equal(parsed.decision.decision, "HUMAN_REVIEW_REQUIRED");
   assert.deepEqual(parsed.local_gate_refusals, []);
+  assert.equal(reviewerTokenRequested, false);
 
   assert.equal(openAiRequests.length, 1);
   assert.equal(openAiRequests[0].url, openAiResponsesUrl);
@@ -376,6 +409,100 @@ test("reviewer-agent dry-run calls OpenAI with strict structured output and subm
   assert.deepEqual(requestBody.text.format.schema, reviewerDecisionSchema);
   assert.match(requestBody.input[0].content[0].text, /constrained Tanchiki Reviewer App reviewer agent/);
   assert.match(requestBody.input[1].content[0].text, /MAR-314/);
+});
+
+test("reviewer-agent live mode submits generated review through Reviewer App path", async () => {
+  const stdout = [];
+  const stderr = [];
+  const openAiRequests = [];
+  const reviewRequests = [];
+  let tokenRequested = false;
+  const fetchImpl = await makeReviewerAgentFetch({
+    decision: makeReviewerDecision({
+      decision: "CHANGES_REQUESTED",
+      review_body_markdown: "CHANGES REQUESTED\n\nBlocking finding:\n- Keep the reviewer boundary intact.",
+    }),
+    onOpenAiRequest: (request) => openAiRequests.push(request),
+    onReviewRequest: (request) => reviewRequests.push(request),
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314"],
+    env: {
+      GITHUB_REVIEWER_APP_ID: "123",
+      GITHUB_REVIEWER_INSTALLATION_ID: "456",
+      GITHUB_REVIEWER_PRIVATE_KEY_PATH: process.execPath,
+      GH_TOKEN: "secret-gh-token",
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    createTokenImpl: (context) => {
+      tokenRequested = true;
+      assert.equal(context.appId, "123");
+      assert.equal(context.installationId, "456");
+      return { token: "secret-reviewer-token", expires_at: "2026-05-01T12:00:00Z" };
+    },
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(stderr, []);
+  assert.equal(openAiRequests.length, 1);
+  assert.equal(tokenRequested, true);
+  assert.equal(reviewRequests.length, 1);
+  assert.deepEqual(reviewRequests[0].body, {
+    body: "CHANGES REQUESTED\n\nBlocking finding:\n- Keep the reviewer boundary intact.",
+    event: "REQUEST_CHANGES",
+  });
+  assert.equal(reviewRequests[0].authorization, "Bearer secret-reviewer-token");
+
+  const output = stdout.join("\n");
+  assert.doesNotMatch(output, /secret-gh-token|secret-openai-key|secret-reviewer-token/);
+  const parsed = JSON.parse(output);
+  assert.equal(parsed.mode, "api-backed-reviewer-agent");
+  assert.equal(parsed.dry_run, false);
+  assert.equal(parsed.openai_call_made, true);
+  assert.equal(parsed.github_review_submitted, true);
+  assert.equal(parsed.reviewer_app_token_requested, true);
+  assert.equal(parsed.mapped_github_event, "REQUEST_CHANGES");
+  assert.equal(parsed.submission_allowed, true);
+  assert.equal(parsed.submission_blocked_reason, null);
+  assert.equal(parsed.decision.decision, "CHANGES_REQUESTED");
+});
+
+test("reviewer-agent live mode fails closed when Reviewer App env is missing", async () => {
+  const stdout = [];
+  const stderr = [];
+  const reviewRequests = [];
+  const fetchImpl = await makeReviewerAgentFetch({
+    decision: makeReviewerDecision({
+      decision: "CHANGES_REQUESTED",
+      review_body_markdown: "CHANGES REQUESTED\n\nBlocking finding:\n- Reviewer App env missing.",
+    }),
+    onReviewRequest: (request) => reviewRequests.push(request),
+  });
+
+  const exitCode = await main({
+    argv: ["--pr", "119", "--issue", "MAR-314"],
+    env: {
+      OPENAI_API_KEY: "secret-openai-key",
+    },
+    fetchImpl,
+    createTokenImpl: () => {
+      throw new Error("token should not be requested without env");
+    },
+    stderr: (line) => stderr.push(line),
+    stdout: (line) => stdout.push(line),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(stdout, []);
+  assert.deepEqual(reviewRequests, []);
+  assert.match(stderr.join("\n"), /GITHUB_REVIEWER_APP_ID is required/);
+  assert.match(stderr.join("\n"), /Reviewer App token path was reached/);
+  assert.match(stderr.join("\n"), /No GitHub review was submitted/);
+  assert.doesNotMatch(stderr.join("\n"), /secret-openai-key/);
 });
 
 test("reviewer-agent fails closed when OPENAI_API_KEY is missing", async () => {
@@ -552,25 +679,22 @@ for (const label of [
   });
 }
 
-test("reviewer-agent direct CLI refuses non-dry-run before network work", () => {
+test("reviewer-agent direct CLI refuses missing arguments before network work", () => {
   const result = spawnSync(process.execPath, [
     join(root, "scripts", "reviewer-agent.js"),
-    "--pr",
-    "119",
-    "--issue",
-    "MAR-314",
   ], {
     cwd: root,
     encoding: "utf8",
   });
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /API-backed dry-run generation only/);
+  assert.match(result.stderr, /--pr is required/);
   assert.match(result.stderr, /No OpenAI API call was made/);
+  assert.match(result.stderr, /Reviewer App token path was not reached/);
   assert.match(result.stderr, /No GitHub review was submitted/);
 });
 
-test("reviewer-agent package and static surface preserve dry-run submission boundaries", () => {
+test("reviewer-agent package and static surface preserve submission boundaries", () => {
   const packageJson = JSON.parse(readRepoFile("package.json"));
   const agent = readRepoFile("scripts", "reviewer-agent.js");
   const evidence = readRepoFile("scripts", "reviewer-evidence.js");
@@ -596,13 +720,15 @@ test("reviewer-agent package and static surface preserve dry-run submission boun
 
   assert.match(agent, /OPENAI_API_KEY/);
   assert.match(agent, /https:\/\/api\.openai\.com\/v1\/responses/);
+  assert.match(agent, /createReviewerAppInstallationToken/);
+  assert.match(agent, /submitGeneratedReview/);
+  assert.match(agent, /client\.submitReview/);
   for (const forbiddenPattern of [
-    /createReviewerAppInstallationToken/,
-    /submitReview/,
-    /\/reviews/i,
     /\/merge/i,
     /\/labels/i,
     /process\.env\.GH_TOKEN\s*=/,
+    /writeFileSync/,
+    /appendFileSync/,
   ]) {
     assert.equal(
       forbiddenPattern.test(combined),
@@ -622,6 +748,7 @@ async function makeReviewerAgentFetch({
   files = [{ filename: "scripts/reviewer-agent.js" }],
   labels = [],
   onOpenAiRequest = () => {},
+  onReviewRequest = () => {},
   openAiText = null,
   pullRequest = {},
 } = {}) {
@@ -672,6 +799,18 @@ async function makeReviewerAgentFetch({
 
     const parsedUrl = new URL(url);
     const path = parsedUrl.pathname + parsedUrl.search;
+
+    if (path === "/repos/urkrass/Tanchiki/pulls/119/reviews") {
+      assert.equal(init.method, "POST");
+      assert.doesNotMatch(init.body, /secret-gh-token|secret-openai-key|secret-reviewer-token/);
+      onReviewRequest({
+        authorization: init.headers.Authorization,
+        body: JSON.parse(init.body),
+        path,
+      });
+      return jsonResponse({ id: 42 });
+    }
+
     assert.equal(init.method, "GET");
     assert.doesNotMatch(path, /reviews|merge|labels/i);
 

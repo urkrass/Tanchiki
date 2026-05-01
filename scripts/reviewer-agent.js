@@ -1,5 +1,11 @@
+import { isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  createReviewerAppInstallationToken,
+  readReviewerAppEnvironment,
+  validatePrivateKeyPath,
+} from "./reviewer-app-token.js";
 import {
   EvidenceError,
   collectPrEvidence,
@@ -7,9 +13,16 @@ import {
   defaultRepo,
   validateMaxDiffChars,
 } from "./reviewer-evidence.js";
+import {
+  createGitHubClient,
+  evaluateReviewGates,
+  getReviewBodyRefusalReason,
+  inspectPullRequest,
+} from "./reviewer-review-pr.js";
 
 export const defaultOpenAiModel = "gpt-5.5";
 export const openAiResponsesUrl = "https://api.openai.com/v1/responses";
+const repoRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 
 const reviewBodyMaxChars = 12000;
 const decisionValues = new Set([
@@ -87,12 +100,15 @@ export const reviewerDecisionSchema = {
 
 export async function main({
   argv = process.argv.slice(2),
+  createTokenImpl = createReviewerAppInstallationToken,
   env = process.env,
   fetchImpl = fetch,
   stdout = console.log,
   stderr = console.error,
 } = {}) {
   let openAiCallAttempted = false;
+  let reviewerAppTokenRequested = false;
+  let githubReviewSubmitted = false;
 
   try {
     const options = parseArgs(argv);
@@ -129,15 +145,48 @@ export async function main({
       throw new EvidenceError(`Generated review refused: ${evaluation.refusal_reasons.join("; ")}`);
     }
 
+    const reviewDecision = mapDecisionToReviewPrDecision(generated.decision);
+    const reviewBodyRefusal = getReviewBodyRefusalReason(
+      reviewDecision,
+      generated.decision.review_body_markdown,
+    );
+    if (reviewBodyRefusal) {
+      throw new EvidenceError(`Generated review body refused: ${reviewBodyRefusal}`);
+    }
+
+    let submission = {
+      allowed: true,
+      blocked_reason: null,
+      event: mapDecisionToGithubReviewEvent(generated.decision.decision),
+      reviewer_app_token_requested: false,
+      submitted: false,
+    };
+
+    if (!options.dryRun) {
+      reviewerAppTokenRequested = true;
+      submission = await submitGeneratedReview({
+        body: generated.decision.review_body_markdown,
+        createTokenImpl,
+        decision: reviewDecision,
+        env,
+        fetchImpl,
+        issue: options.issue,
+        pr: options.pr,
+        repo: options.repo,
+      });
+      githubReviewSubmitted = submission.submitted;
+    }
+
     stdout(JSON.stringify({
-      mode: "api-backed-dry-run",
-      dry_run: true,
+      mode: "api-backed-reviewer-agent",
+      dry_run: options.dryRun,
       requested_model: options.model || defaultOpenAiModel,
       openai_call_made: true,
-      github_review_submitted: false,
-      mapped_github_event: mapDecisionToGithubReviewEvent(generated.decision.decision),
-      submission_allowed: false,
-      submission_blocked_reason: "MAR-314 dry-run only; GitHub review submission is scoped to MAR-316.",
+      github_review_submitted: githubReviewSubmitted,
+      mapped_github_event: submission.event,
+      reviewer_app_token_requested: reviewerAppTokenRequested,
+      submission_allowed: submission.allowed,
+      submission_blocked_reason: submission.blocked_reason,
       evidence_summary: summarizeEvidenceForOutput(evidence),
       local_checks: evaluation.local_checks,
       local_gate_refusals: evaluation.refusal_reasons,
@@ -156,7 +205,12 @@ export async function main({
         ? "OpenAI API call was attempted, but no valid review was accepted."
         : "No OpenAI API call was made.",
     );
-    stderr("No GitHub review was submitted.");
+    stderr(
+      reviewerAppTokenRequested
+        ? "Reviewer App token path was reached, but no accepted review was submitted."
+        : "Reviewer App token path was not reached.",
+    );
+    stderr(githubReviewSubmitted ? "GitHub review was submitted." : "No GitHub review was submitted.");
     return 1;
   }
 }
@@ -213,11 +267,6 @@ export function parseArgs(argv) {
   }
   if (!options.issue) {
     throw new EvidenceError("--issue is required.");
-  }
-  if (!options.dryRun) {
-    throw new EvidenceError(
-      "MAR-314 implements API-backed dry-run generation only; pass --dry-run.",
-    );
   }
 
   return options;
@@ -508,6 +557,9 @@ export function findForbiddenModelOutputReasons(decision) {
     { pattern: /\bgit\s+push\b/i, reason: "model output requested git push" },
     { pattern: /\bgit\s+commit\b/i, reason: "model output requested git commit" },
     { pattern: /\bmerge:auto-eligible\b/i, reason: "model output attempted merge:auto-eligible" },
+    { pattern: /\bremove\s+(?:stop\s+)?labels?\b/i, reason: "model output requested label removal" },
+    { pattern: /\bedit\s+files?\b/i, reason: "model output requested file edits" },
+    { pattern: /\bchange\s+(?:repo|repository)\s+settings\b/i, reason: "model output requested repository settings changes" },
     { pattern: /\brun\s+(?:the\s+)?dispatcher\b/i, reason: "model output requested Dispatcher" },
     { pattern: /\brun\s+(?:the\s+)?conductor\b/i, reason: "model output requested Conductor" },
     { pattern: /\brun\s+codex\b/i, reason: "model output requested Codex" },
@@ -528,6 +580,81 @@ export function mapDecisionToGithubReviewEvent(decision) {
     return "REQUEST_CHANGES";
   }
   return "COMMENT";
+}
+
+export function mapDecisionToReviewPrDecision(decision) {
+  const decisionValue = typeof decision === "string" ? decision : decision?.decision;
+  if (decisionValue === "APPROVED_FOR_MERGE") {
+    return "approve";
+  }
+  if (decisionValue === "CHANGES_REQUESTED") {
+    return "request-changes";
+  }
+  if (decisionValue === "BLOCKED") {
+    return isProcessBlockedDecision(decision) ? "comment" : "request-changes";
+  }
+  return "comment";
+}
+
+export async function submitGeneratedReview({
+  body,
+  createTokenImpl = createReviewerAppInstallationToken,
+  decision,
+  env = process.env,
+  fetchImpl = fetch,
+  issue,
+  pr,
+  repo = defaultRepo,
+} = {}) {
+  try {
+    const context = readReviewerAppEnvironment(env);
+    validatePrivateKeyPath(context.privateKeyPath);
+    assertReviewerPrivateKeyOutsideRepo(context.privateKeyPath);
+
+    const token = await createTokenImpl(context, { fetchImpl });
+    const client = createGitHubClient({
+      fetchImpl,
+      repo,
+      token: token.token,
+    });
+    const options = {
+      decision,
+      issue,
+      pr,
+      repo,
+    };
+    const inspection = await inspectPullRequest(options, client);
+    const gateResult = evaluateReviewGates({
+      body,
+      inspection,
+      options,
+    });
+
+    if (gateResult.refusalReasons.length > 0) {
+      throw new EvidenceError(
+        `Reviewer App submission gates refused: ${gateResult.refusalReasons.join("; ")}`,
+      );
+    }
+
+    const event = mapReviewPrDecisionToGithubEvent(decision);
+    await client.submitReview(pr, {
+      body,
+      event,
+    });
+
+    return {
+      allowed: true,
+      blocked_reason: null,
+      event,
+      reviewer_app_token_requested: true,
+      submitted: true,
+    };
+  } catch (error) {
+    if (error instanceof EvidenceError) {
+      throw error;
+    }
+    throw new EvidenceError(`Reviewer App submission failed closed: ${error.message}`);
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -572,6 +699,51 @@ function parseRepo(value) {
     throw new EvidenceError(`--repo must be ${defaultRepo} for this campaign.`);
   }
   return text;
+}
+
+function mapReviewPrDecisionToGithubEvent(decision) {
+  if (decision === "approve") {
+    return "APPROVE";
+  }
+  if (decision === "request-changes") {
+    return "REQUEST_CHANGES";
+  }
+  return "COMMENT";
+}
+
+function isProcessBlockedDecision(decision) {
+  if (!decision || typeof decision !== "object") {
+    return false;
+  }
+
+  const findings = Array.isArray(decision.findings) ? decision.findings : [];
+  if (findings.some((finding) => finding.file)) {
+    return false;
+  }
+
+  const text = [
+    decision.summary,
+    decision.review_body_markdown,
+    ...findings.map((finding) => finding.message),
+  ].join("\n");
+
+  return /\b(process|tooling|offline|environment|credential|manual|human|independence)\b/i.test(text);
+}
+
+function assertReviewerPrivateKeyOutsideRepo(privateKeyPath) {
+  const resolvedPrivateKeyPath = resolve(privateKeyPath);
+  const relativePath = relative(repoRoot, resolvedPrivateKeyPath);
+  const insideRepo = (
+    relativePath !== ""
+    && !relativePath.startsWith("..")
+    && !isAbsolute(relativePath)
+  );
+
+  if (insideRepo) {
+    throw new EvidenceError(
+      "GITHUB_REVIEWER_PRIVATE_KEY_PATH resolves inside this repository checkout.",
+    );
+  }
 }
 
 function summarizeEvidenceForOutput(evidence) {
