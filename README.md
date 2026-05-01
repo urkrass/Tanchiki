@@ -118,8 +118,9 @@ Use Arrow keys or WASD to move. Press Space to fire a shell in the tank's curren
 `npm run conductor:step` is the first local entry point for the Campaign
 Conductor state machine. The command is deliberately boring and deterministic:
 it never calls OpenAI, never runs Dispatcher, Coder, Reviewer, Release, or Merge
-work, never submits GitHub reviews, never merges, and never changes labels,
-repository settings, workflows, branch protection, deployment, or secrets.
+work, never submits GitHub reviews, never merges, never changes GitHub labels,
+and never changes repository settings, workflows, branch protection,
+deployment, or secrets.
 
 Without an explicit active project, the command stops. In live mode it also
 requires process-scoped Linear and GitHub auth plus explicit repo, PR, producer,
@@ -130,17 +131,25 @@ auth is reported without printing tokens:
 npm run conductor:step -- --active-project "<exact Linear project name>"
 ```
 
-Conductor v2's live path is limited to one state sync: if a linked PR has a
-valid current-head `tanchiki-reviewer[bot]` paired-review decision, the command
-may move only the paired Reviewer Linear issue to `In Review` and add one audit
-comment. It does not mark Done, merge, label, remove labels, or run a reviewer:
+The live path is explicit-input only. Conductor v2 can sync a valid
+current-head `tanchiki-reviewer[bot]` paired-review decision by moving the
+paired Reviewer Linear issue to `In Review` and adding one audit comment.
+Conductor v3 adds the next post-merge Linear transitions: after a human merge
+and recorded paired-review outcome, it may mark the producer issue Done, mark
+the paired Reviewer issue Done on a later run, or promote one explicit Release
+issue to `Todo` + `automation-ready` after upstream issues are Done.
 
 ```powershell
 npm run conductor:step -- --active-project "<exact Linear project name>" --repo owner/name --pr 123 --producer MAR-331 --reviewer MAR-332
+npm run conductor:step -- --active-project "<exact Linear project name>" --repo owner/name --pr 123 --producer MAR-336 --reviewer MAR-337 --release MAR-338
 ```
 
 Use `--dry-run` with the same live arguments to read state and print the single
 proposed sync without applying Linear mutation.
+
+Each run applies at most one logical Linear transition, then exits. It does not
+merge, change GitHub labels, remove stop labels, run a reviewer, run Release,
+or continue through the campaign queue.
 
 Use fixture mode to exercise the deterministic transition core:
 

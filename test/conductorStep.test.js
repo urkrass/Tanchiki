@@ -163,7 +163,7 @@ for (const scenario of [
   });
 }
 
-test("conductor step safely stops when merged PR and review are recorded but Done mutation is not implemented", () => {
+test("conductor step syncs producer Done after merged PR and recorded review", () => {
   const decision = decideConductorStep(makeState({
     issues: [
       producer(),
@@ -172,10 +172,45 @@ test("conductor step safely stops when merged PR and review are recorded but Don
     prs: [readyPr({ merged: true, state: "closed" })],
   }));
 
-  assert.equal(decision.decision, "stop");
-  assert.equal(decision.reason, "merged-pr-done-transition-not-implemented");
-  assert.match(formatDecision(decision), /does not implement Linear Done transitions/);
-  assert.match(decision.nextAction, /Mark producer\/reviewer Done/);
+  assert.equal(decision.decision, "sync");
+  assert.equal(decision.reason, "producer-merged-pr-done-sync");
+  assert.equal(decision.transition, "producer-done-sync");
+  assert.equal(decision.targetIssue.id, "MAR-328");
+  assert.equal(decision.proposedMutation.state, "Done");
+  assert.match(decision.proposedMutation.comment, /Conductor Done Sync/);
+  assert.match(decision.proposedMutation.comment, /Conductor done sync target: producer/);
+  assert.match(formatDecision(decision), /PR #144 is merged/);
+});
+
+test("conductor step syncs paired reviewer Done after producer is Done", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [
+      producer({ status: "Done" }),
+      reviewer({ reviewResult: "APPROVED_FOR_MERGE", status: "In Review" }),
+    ],
+    prs: [readyPr({ merged: true, state: "closed" })],
+  }));
+
+  assert.equal(decision.decision, "sync");
+  assert.equal(decision.reason, "reviewer-merged-pr-done-sync");
+  assert.equal(decision.transition, "reviewer-done-sync");
+  assert.equal(decision.targetIssue.id, "MAR-329");
+  assert.equal(decision.proposedMutation.state, "Done");
+  assert.match(decision.proposedMutation.comment, /Conductor done sync target: reviewer/);
+});
+
+test("conductor step treats synced reviewer comment as recorded review outcome", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [
+      producer(),
+      reviewer({ comments: [syncedReviewComment()], status: "In Review" }),
+    ],
+    prs: [readyPr({ merged: true, state: "closed" })],
+  }));
+
+  assert.equal(decision.decision, "sync");
+  assert.equal(decision.transition, "producer-done-sync");
+  assert.match(formatDecision(decision), /APPROVED_FOR_MERGE/);
 });
 
 test("conductor step promotes release when upstream outcomes are terminal", () => {
@@ -191,6 +226,82 @@ test("conductor step promotes release when upstream outcomes are terminal", () =
   assert.equal(decision.transition, "release-ready");
   assert.equal(decision.targetIssue.id, "MAR-330");
   assert.deepEqual(decision.proposedMutation.addLabels, ["automation-ready"]);
+});
+
+test("conductor step stops instead of duplicating producer Done sync", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [
+      producer({ comments: [doneSyncComment("producer")] }),
+      reviewer({ reviewResult: "APPROVED_FOR_MERGE", status: "In Review" }),
+    ],
+    prs: [readyPr({ merged: true, state: "closed" })],
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /already has a producer Done sync comment/);
+});
+
+test("conductor step stops when PR closed without merge", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [
+      producer(),
+      reviewer({ reviewResult: "APPROVED_FOR_MERGE", status: "In Review" }),
+    ],
+    prs: [readyPr({ merged: false, state: "closed" })],
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /closed without merge/);
+});
+
+test("conductor step stops when merged PR has no recorded review outcome", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer(), reviewer({ status: "In Review" })],
+    prs: [readyPr({ merged: true, state: "closed" })],
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "blocked-transition");
+  assert.match(formatDecision(decision), /no recorded paired-review outcome/);
+});
+
+test("conductor step stops when multiple post-merge Done syncs are eligible", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [
+      producer(),
+      reviewer({ reviewResult: "APPROVED_FOR_MERGE", status: "In Review" }),
+      producer({ id: "MAR-331", title: "Second producer" }),
+      reviewer({
+        blockedBy: ["MAR-331"],
+        id: "MAR-332",
+        producerId: "MAR-331",
+        reviewResult: "APPROVED_FOR_MERGE",
+        status: "In Review",
+      }),
+    ],
+    prs: [
+      readyPr({ merged: true, state: "closed" }),
+      readyPr({ linkedIssueIds: ["MAR-331"], merged: true, number: 145, state: "closed" }),
+    ],
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "multiple-eligible-transitions");
+  assert.match(formatDecision(decision), /producer-done-sync: MAR-328/);
+  assert.match(formatDecision(decision), /producer-done-sync: MAR-331/);
+});
+
+test("conductor step stops when issue is in the wrong project", () => {
+  const decision = decideConductorStep(makeState({
+    issues: [producer({ project: "Other project" }), reviewer()],
+    prs: [readyPr()],
+  }));
+
+  assert.equal(decision.decision, "stop");
+  assert.equal(decision.reason, "wrong-active-project");
+  assert.match(formatDecision(decision), /Other project/);
 });
 
 test("conductor step records reviewer result without merging", () => {
@@ -579,6 +690,24 @@ function jsonResponse(payload, ok = true) {
     status: ok ? 200 : 500,
     json: async () => payload,
   };
+}
+
+function syncedReviewComment(decision = "APPROVED_FOR_MERGE") {
+  return [
+    "## Conductor Live Sync",
+    "",
+    `Decision: ${decision}`,
+    "Conductor live sync review id: review-1",
+  ].join("\n");
+}
+
+function doneSyncComment(role) {
+  return [
+    "## Conductor Done Sync",
+    "",
+    "PR: #144 https://github.com/urkrass/Tanchiki/pull/144",
+    `Conductor done sync target: ${role}`,
+  ].join("\n");
 }
 
 function liveIssue({ id, identifier, labels, stateName }) {
