@@ -83,15 +83,28 @@ export function decideConductorStep(input = {}) {
     });
   }
 
+  const wrongProjectIssues = state.issues
+    .filter((issue) => issue.project && issue.project !== state.activeProject)
+    .map((issue) => `${formatIssue(issue)} project: ${issue.project}.`);
+  if (wrongProjectIssues.length > 0) {
+    return stopDecision({
+      activeProject: state.activeProject,
+      evidence: wrongProjectIssues,
+      reason: "wrong-active-project",
+      nextAction: "Use issues from the declared active Linear project only.",
+    });
+  }
+
   const blockedTransitions = [];
   const liveReviewerSyncTransitions = findReviewerReviewSyncTransitions(state, blockedTransitions);
-  const transitions = state.syncOnly ? liveReviewerSyncTransitions : [
-    ...liveReviewerSyncTransitions,
-    ...findProducerPrReadyTransitions(state, blockedTransitions),
-    ...findReviewerCompletedTransitions(state),
-    ...findHumanMergeCompleteTransitions(state),
-    ...findReleaseReadyTransitions(state),
-  ];
+  const transitions = state.syncOnly || liveReviewerSyncTransitions.length > 0
+    ? liveReviewerSyncTransitions
+    : [
+      ...findProducerPrReadyTransitions(state, blockedTransitions),
+      ...findReviewerCompletedTransitions(state),
+      ...findHumanMergeCompleteTransitions(state, blockedTransitions),
+      ...findReleaseReadyTransitions(state),
+    ];
 
   if (transitions.length > 1) {
     return stopDecision({
@@ -163,6 +176,7 @@ export function parseArgs(argv) {
     json: "",
     pr: "",
     producer: "",
+    release: "",
     repo: "",
     reviewer: "",
   };
@@ -181,7 +195,7 @@ export function parseArgs(argv) {
       continue;
     }
 
-    if (!["--active-project", "--fixture", "--json", "--pr", "--producer", "--repo", "--reviewer"].includes(key)) {
+    if (!["--active-project", "--fixture", "--json", "--pr", "--producer", "--release", "--repo", "--reviewer"].includes(key)) {
       throw new ConductorStepError(`Unknown argument: ${arg}`);
     }
 
@@ -203,6 +217,8 @@ export function parseArgs(argv) {
       options.pr = String(value).trim();
     } else if (key === "--producer") {
       options.producer = String(value).trim();
+    } else if (key === "--release") {
+      options.release = String(value).trim();
     } else if (key === "--repo") {
       options.repo = String(value).trim();
     } else if (key === "--reviewer") {
@@ -229,11 +245,12 @@ export function readInputState({ env = process.env, options }) {
         dryRun: options.dryRun,
         pr: options.pr,
         producer: options.producer,
+        release: options.release,
         repo: options.repo,
         reviewer: options.reviewer,
       },
       liveMode: true,
-      syncOnly: true,
+      syncOnly: false,
     };
   }
 
@@ -330,7 +347,7 @@ export async function runLiveConductorStep({ env = process.env, fetchImpl = glob
   }
 
   const decision = decideConductorStep(liveStateResult.state);
-  if (decision.decision !== "sync" || !decision.proposedMutation || config.dryRun) {
+  if (!["promote", "sync"].includes(decision.decision) || !decision.proposedMutation || !decision.proposedMutation.linearIssueId || config.dryRun) {
     if (config.dryRun && decision.proposedMutation) {
       return {
         ...decision,
@@ -341,7 +358,7 @@ export async function runLiveConductorStep({ env = process.env, fetchImpl = glob
     return decision;
   }
 
-  return applyLiveReviewerSync({ decision, env, fetchImpl });
+  return applyLiveMutation({ decision, env, fetchImpl });
 }
 
 export class ConductorStepError extends Error {
@@ -369,23 +386,45 @@ async function readLiveSyncState({ activeProject, config, env, fetchImpl }) {
 
     const producerIssue = await linear.getIssue(config.producer);
     const reviewerIssue = await linear.getIssue(config.reviewer);
+    const releaseIssue = config.release ? await linear.getIssue(config.release) : null;
     const pr = await github.getPullRequest(prNumber);
+    const producerComments = await linear.getIssueComments(producerIssue.id);
     const comments = await linear.getIssueComments(reviewerIssue.id);
+    const releaseComments = releaseIssue ? await linear.getIssueComments(releaseIssue.id) : [];
+    const automationReadyLabelId = releaseIssue ? await linear.getIssueLabelId("automation-ready") : "";
 
-    if (producerIssue.project.name !== activeProject || reviewerIssue.project.name !== activeProject) {
+    if (
+      producerIssue.project.name !== activeProject
+      || reviewerIssue.project.name !== activeProject
+      || (releaseIssue && releaseIssue.project.name !== activeProject)
+    ) {
       return stopDecision({
         activeProject,
         evidence: [
           `${producerIssue.identifier} project: ${producerIssue.project.name}.`,
           `${reviewerIssue.identifier} project: ${reviewerIssue.project.name}.`,
+          ...(releaseIssue ? [`${releaseIssue.identifier} project: ${releaseIssue.project.name}.`] : []),
         ],
         reason: "wrong-active-project",
         nextAction: "Use issues from the declared active Linear project only.",
       });
     }
 
+    if (!releaseIssue && isDoneState(producerIssue.state?.name) && isDoneState(reviewerIssue.state?.name)) {
+      return stopDecision({
+        activeProject,
+        evidence: [
+          `${producerIssue.identifier} and ${reviewerIssue.identifier} are already Done.`,
+          "Release issue metadata was not provided.",
+        ],
+        reason: "missing-release-metadata",
+        nextAction: "Pass --release issue-id when asking live mode to promote Release readiness.",
+      });
+    }
+
     const reviewCadence = extractReviewCadence(producerIssue.description)
       || extractReviewCadence(reviewerIssue.description)
+      || extractReviewCadence(releaseIssue?.description)
       || "paired-review";
 
     return {
@@ -394,18 +433,29 @@ async function readLiveSyncState({ activeProject, config, env, fetchImpl }) {
         issues: [
           {
             ...normalizeLinearIssueForState(producerIssue),
+            comments: producerComments,
+            doneStateId: findTeamStateId(producerIssue, "Done"),
             linkedPrNumber: prNumber,
           },
           {
             ...normalizeLinearIssueForState(reviewerIssue),
             comments,
+            doneStateId: findTeamStateId(reviewerIssue, "Done"),
             inReviewStateId: findTeamStateId(reviewerIssue, "In Review"),
             producerId: producerIssue.identifier,
           },
+          ...(releaseIssue
+            ? [{
+              ...normalizeLinearIssueForState(releaseIssue),
+              automationReadyLabelId,
+              comments: releaseComments,
+              todoStateId: findTeamStateId(releaseIssue, "Todo"),
+            }]
+            : []),
         ],
         prs: [pr],
         reviewCadence,
-        syncOnly: true,
+        syncOnly: false,
       },
     };
   } catch (error) {
@@ -418,21 +468,32 @@ async function readLiveSyncState({ activeProject, config, env, fetchImpl }) {
   }
 }
 
-async function applyLiveReviewerSync({ decision, env, fetchImpl }) {
+async function applyLiveMutation({ decision, env, fetchImpl }) {
   const mutation = decision.proposedMutation;
   const linear = createLinearClient({ fetchImpl, token: env.LINEAR_API_TOKEN || env.LINEAR_API_KEY });
-  if (mutation.state === "In Review" && !mutation.stateId) {
+  if (mutation.state && !mutation.stateId) {
     return stopDecision({
       activeProject: decision.activeProject,
-      evidence: [`${mutation.issueId} is missing the Linear state id for In Review.`],
+      evidence: [`${mutation.issueId} is missing the Linear state id for ${mutation.state}.`],
       reason: "missing-linear-state",
       nextAction: "Fix Linear status metadata before running live sync.",
     });
   }
+  if (mutation.addLabels.length > 0 && mutation.labelIds.length === 0) {
+    return stopDecision({
+      activeProject: decision.activeProject,
+      evidence: [`${mutation.issueId} is missing Linear label ids for ${mutation.addLabels.join(", ")}.`],
+      reason: "missing-linear-label",
+      nextAction: "Fix Linear label metadata before running live sync.",
+    });
+  }
 
   try {
-    if (mutation.state === "In Review") {
-      await linear.updateIssueState(mutation.linearIssueId, mutation.stateId);
+    if (mutation.state || mutation.addLabels.length > 0) {
+      await linear.updateIssue(mutation.linearIssueId, {
+        ...(mutation.state ? { stateId: mutation.stateId } : {}),
+        ...(mutation.addLabels.length > 0 ? { labelIds: mutation.labelIds } : {}),
+      });
     }
     await linear.createComment(mutation.linearIssueId, mutation.comment);
     return {
@@ -442,7 +503,7 @@ async function applyLiveReviewerSync({ decision, env, fetchImpl }) {
         `Linear mutation applied to ${mutation.issueId}: ${mutation.state || "state unchanged"} plus sync comment.`,
       ],
       nextAction:
-        "Conductor applied exactly one Reviewer issue sync. Do not merge or mark Done until paired-review protocol allows it.",
+        "Conductor applied exactly one Linear sync transition. Do not merge, run another role, or continue in a loop.",
     };
   } catch (error) {
     return stopDecision({
@@ -498,7 +559,7 @@ function createLinearClient({ fetchImpl, token }) {
             url
             state { id name type }
             project { name }
-            labels { nodes { name } }
+            labels { nodes { id name } }
             team {
               states {
                 nodes { id name type }
@@ -513,6 +574,17 @@ function createLinearClient({ fetchImpl, token }) {
       }
       return data.issue;
     },
+    async getIssueLabelId(name) {
+      const data = await graphql(
+        `query GetIssueLabel($name: String!) {
+          issueLabels(filter: { name: { eq: $name } }, first: 1) {
+            nodes { id name }
+          }
+        }`,
+        { name },
+      );
+      return data.issueLabels?.nodes?.find((label) => label.name === name)?.id || "";
+    },
     async getIssueComments(issueId) {
       const data = await graphql(
         `query GetIssueComments($id: String!) {
@@ -526,7 +598,7 @@ function createLinearClient({ fetchImpl, token }) {
       );
       return data.issue?.comments?.nodes || [];
     },
-    async updateIssueState(issueId, stateId) {
+    async updateIssue(issueId, input) {
       const data = await graphql(
         `mutation UpdateIssueState($id: String!, $input: IssueUpdateInput!) {
           issueUpdate(id: $id, input: $input) {
@@ -534,12 +606,15 @@ function createLinearClient({ fetchImpl, token }) {
             issue { id }
           }
         }`,
-        { id: issueId, input: { stateId } },
+        { id: issueId, input },
       );
       if (data.issueUpdate?.success !== true) {
         throw new ConductorStepError("Linear issueUpdate did not report success.");
       }
       return data.issueUpdate.issue;
+    },
+    async updateIssueState(issueId, stateId) {
+      return this.updateIssue(issueId, { stateId });
     },
   };
 }
@@ -614,9 +689,11 @@ function normalizeCheckRuns(runs) {
 }
 
 function normalizeLinearIssueForState(issue) {
+  const labelNodes = issue.labels?.nodes || [];
   return {
     id: issue.identifier,
-    labels: normalizeLabels(issue.labels?.nodes || []),
+    labelIds: labelNodes.map((label) => label.id).filter(Boolean),
+    labels: normalizeLabels(labelNodes),
     linearId: issue.id,
     project: issue.project?.name || "",
     status: issue.state?.name || "",
@@ -674,6 +751,10 @@ function findProducerPrReadyTransitions(state, blockedTransitions) {
     const metadataBlocker = getMetadataBlocker(reviewer);
     if (metadataBlocker) {
       blockedTransitions.push(`${formatIssue(reviewer)}: ${metadataBlocker}`);
+      continue;
+    }
+    if (hasReviewerBotReview(pr)) {
+      blockedTransitions.push(`PR #${pr.number} already has a tanchiki-reviewer[bot] review; sync or triage that review before Reviewer promotion.`);
       continue;
     }
 
@@ -807,29 +888,132 @@ function findReviewerCompletedTransitions(state) {
   return transitions;
 }
 
-function findHumanMergeCompleteTransitions(state) {
+function findHumanMergeCompleteTransitions(state, blockedTransitions) {
+  if (state.reviewCadence !== "paired-review") {
+    return [];
+  }
+
   const transitions = [];
   for (const producer of state.issues.filter(isProducerIssue)) {
     const reviewer = findPairedReviewer(state.issues, producer);
     const pr = findLinkedPr(state.prs, producer);
-    if (!reviewer || !pr?.merged || !getReviewResult(reviewer)) {
+    if (!pr) {
       continue;
     }
+
+    if (pr.closedUnmerged || (pr.state === "closed" && pr.merged !== true)) {
+      blockedTransitions.push(`PR #${pr.number} is closed without merge.`);
+      continue;
+    }
+
+    if (!pr.merged) {
+      continue;
+    }
+
+    if (!reviewer) {
+      blockedTransitions.push(`${formatIssue(producer)} has merged PR #${pr.number}, but no paired Reviewer issue was found.`);
+      continue;
+    }
+
+    const producerBlocker = getMetadataBlocker(producer);
+    if (producerBlocker) {
+      blockedTransitions.push(`${formatIssue(producer)}: ${producerBlocker}`);
+      continue;
+    }
+
+    const reviewerBlocker = getMetadataBlocker(reviewer);
+    if (reviewerBlocker) {
+      blockedTransitions.push(`${formatIssue(reviewer)}: ${reviewerBlocker}`);
+      continue;
+    }
+
+    const reviewResult = getReviewResult(reviewer);
+    if (!reviewResult) {
+      blockedTransitions.push(`PR #${pr.number} is merged, but ${formatIssue(reviewer)} has no recorded paired-review outcome.`);
+      continue;
+    }
+
+    if (!isMergeAllowedReviewResult(reviewResult)) {
+      blockedTransitions.push(`${formatIssue(reviewer)} recorded ${reviewResult}; Conductor cannot mark Done for merged PR #${pr.number}.`);
+      continue;
+    }
+
     if (isTerminalIssue(producer) && isTerminalIssue(reviewer)) {
       continue;
     }
 
-    transitions.push(stopDecision({
-      activeProject: state.activeProject,
-      evidence: [
-        `PR #${pr.number} is merged.`,
-        `${formatIssue(reviewer)} recorded review result: ${getReviewResult(reviewer)}.`,
-        "Conductor v1 does not implement Linear Done transitions.",
-      ],
-      reason: "merged-pr-done-transition-not-implemented",
-      nextAction:
-        "Mark producer/reviewer Done only through the existing protocol or human/operator action, then rerun Conductor for Release.",
-    }));
+    if (!isTerminalIssue(producer)) {
+      if (hasDoneSyncComment(producer, "producer", pr)) {
+        blockedTransitions.push(`${formatIssue(producer)} already has a producer Done sync comment for PR #${pr.number}.`);
+        continue;
+      }
+
+      transitions.push({
+        activeProject: state.activeProject,
+        decision: "sync",
+        evidence: [
+          `PR #${pr.number} is merged.`,
+          `${formatIssue(reviewer)} recorded paired-review result: ${reviewResult}.`,
+          `${formatIssue(producer)} is not Done.`,
+        ],
+        nextAction:
+          "Apply the producer Done sync, then rerun conductor for the paired Reviewer Done sync.",
+        proposedMutation: {
+          addLabels: [],
+          comment: buildDoneSyncComment({
+            activeProject: state.activeProject,
+            issueRole: "producer",
+            pr,
+            reviewResult,
+          }),
+          issueId: producer.id,
+          labelIds: [],
+          linearIssueId: producer.linearId || producer.id,
+          state: "Done",
+          stateId: producer.doneStateId || "",
+        },
+        reason: "producer-merged-pr-done-sync",
+        targetIssue: producer,
+        transition: "producer-done-sync",
+      });
+      continue;
+    }
+
+    if (!isTerminalIssue(reviewer)) {
+      if (hasDoneSyncComment(reviewer, "reviewer", pr)) {
+        blockedTransitions.push(`${formatIssue(reviewer)} already has a reviewer Done sync comment for PR #${pr.number}.`);
+        continue;
+      }
+
+      transitions.push({
+        activeProject: state.activeProject,
+        decision: "sync",
+        evidence: [
+          `PR #${pr.number} is merged.`,
+          `${formatIssue(producer)} is Done.`,
+          `${formatIssue(reviewer)} recorded paired-review result: ${reviewResult}.`,
+        ],
+        nextAction:
+          "Apply the paired Reviewer Done sync, then rerun conductor for Release readiness.",
+        proposedMutation: {
+          addLabels: [],
+          comment: buildDoneSyncComment({
+            activeProject: state.activeProject,
+            issueRole: "reviewer",
+            pr,
+            reviewResult,
+          }),
+          issueId: reviewer.id,
+          labelIds: [],
+          linearIssueId: reviewer.linearId || reviewer.id,
+          state: "Done",
+          stateId: reviewer.doneStateId || "",
+        },
+        reason: "reviewer-merged-pr-done-sync",
+        targetIssue: reviewer,
+        transition: "reviewer-done-sync",
+      });
+    }
   }
   return transitions;
 }
@@ -869,7 +1053,10 @@ function findReleaseReadyTransitions(state) {
         addLabels: ["automation-ready"],
         comment: "Promoted Release issue after upstream producer/reviewer outcomes were recorded.",
         issueId: release.id,
+        labelIds: getLabelIdsWithAddedLabel(release, release.automationReadyLabelId),
+        linearIssueId: release.linearId || release.id,
         state: "Todo",
+        stateId: release.todoStateId || "",
       },
       reason: "release-ready",
       targetIssue: release,
@@ -965,6 +1152,10 @@ function selectReviewerBotReview({ pr, reviewer }) {
   };
 }
 
+function hasReviewerBotReview(pr) {
+  return normalizeList(pr.reviews).some((review) => isReviewerBotLogin(review.authorLogin));
+}
+
 function extractPairedReviewDecision(body = "") {
   const text = String(body);
   const matches = PAIRED_REVIEW_DECISION_ALIASES
@@ -1023,6 +1214,35 @@ function buildReviewerSyncComment({ activeProject, decision, pr, review }) {
   ].join("\n");
 }
 
+function buildDoneSyncComment({ activeProject, issueRole, pr, reviewResult }) {
+  return [
+    "## Conductor Done Sync",
+    "",
+    `Active Linear project: ${activeProject}`,
+    `PR: #${pr.number} ${pr.url || ""}`.trim(),
+    `Merged: ${pr.merged === true ? "yes" : "unknown"}`,
+    `Review result: ${reviewResult}`,
+    `Conductor done sync target: ${issueRole}`,
+    "",
+    `Synced the ${issueRole} issue to \`Done\` after the linked PR was merged and the paired-review outcome was recorded.`,
+    "Next action: rerun conductor for the next single transition. Conductor did not merge, apply GitHub labels, remove stop labels, run another role, or continue in a loop.",
+  ].join("\n");
+}
+
+function hasDoneSyncComment(issue, issueRole, pr) {
+  return issue.comments.some((comment) => {
+    const body = comment.body || "";
+    return body.includes("## Conductor Done Sync")
+      && body.includes(`Conductor done sync target: ${issueRole}`)
+      && body.includes(`PR: #${pr.number}`);
+  });
+}
+
+function isMergeAllowedReviewResult(result = "") {
+  const text = String(result).trim();
+  return text === "APPROVED_FOR_MERGE" || text === "APPROVED FOR MERGE";
+}
+
 function formatReviewId(review) {
   return String(review.id || review.htmlUrl || review.commitId || "UNKNOWN");
 }
@@ -1062,12 +1282,14 @@ function normalizeState(input) {
 }
 
 function normalizeIssue(issue) {
+  const comments = normalizeList(issue.comments).map(normalizeComment);
   return {
     ...issue,
     blockedBy: normalizeList(issue.blockedBy || issue.blockers),
-    comments: normalizeList(issue.comments).map(normalizeComment),
+    comments,
     labels: normalizeLabels(issue.labels),
     outcome: issue.outcome || "",
+    reviewResult: issue.reviewResult || issue.githubReviewResult || issue.review_result || extractRecordedReviewResult(comments),
     status: issue.status || issue.state || "",
     syncedReviewIds: normalizeList(issue.syncedReviewIds || issue.syncedReviews),
   };
@@ -1090,6 +1312,7 @@ function normalizeLiveConfig(config = {}) {
     dryRun: config.dryRun === true,
     pr: String(config.pr || "").trim(),
     producer: String(config.producer || "").trim(),
+    release: String(config.release || "").trim(),
     repo: String(config.repo || "").trim(),
     reviewer: String(config.reviewer || "").trim(),
   };
@@ -1116,6 +1339,31 @@ function normalizeReview(review) {
     state: review.state || "",
     submittedAt: review.submittedAt || review.submitted_at || "",
   };
+}
+
+function extractRecordedReviewResult(comments) {
+  for (const comment of comments) {
+    const body = comment.body || "";
+    if (!body.includes("Conductor Live Sync") && !body.includes("Conductor live sync review id:")) {
+      continue;
+    }
+    const decisionResult = extractPairedReviewDecision(body);
+    if (!decisionResult.blocker) {
+      return decisionResult.decision;
+    }
+  }
+  return "";
+}
+
+function getLabelIdsWithAddedLabel(issue, labelId) {
+  if (!labelId) {
+    return [];
+  }
+  return Array.from(new Set([...normalizeList(issue.labelIds), labelId]));
+}
+
+function isDoneState(stateName = "") {
+  return stateName === "Done";
 }
 
 function stopDecision({ activeProject, evidence, nextAction, reason }) {
