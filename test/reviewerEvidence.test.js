@@ -147,6 +147,14 @@ test("reviewer-agent parser supports evidence dry-run command shape", () => {
     parseArgs(["--pr=119", "--issue=MAR-312", "--dry-run"]).maxDiffChars,
     defaultMaxDiffChars,
   );
+  assert.deepEqual(parseArgs(["--pr", "1", "--issue", "MAR-321", "--dry-run"]), {
+    dryRun: true,
+    issue: "MAR-321",
+    maxDiffChars: defaultMaxDiffChars,
+    model: null,
+    pr: 1,
+    repo: "urkrass/Tanchiki",
+  });
   assert.throws(() => parseArgs([]), /--pr is required/);
   assert.throws(() => parseArgs(["--pr", "0", "--issue", "MAR-312", "--dry-run"]), /positive integer/);
   assert.throws(() => parseArgs(["--pr", "1", "--issue", "ABC-1", "--dry-run"]), /MAR-<number>/);
