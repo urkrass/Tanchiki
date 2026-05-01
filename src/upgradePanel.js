@@ -1,11 +1,22 @@
+import { createProgressionFeedback } from "./game/progressionFeedback.js";
+
 export function renderUpgradePanel({
   panel,
   contextElement = null,
   choicesContainer,
+  summaryContainer = null,
+  emptyElement = null,
   snapshot
 }) {
   const choices = snapshot.upgradeChoice?.choices ?? [];
-  if (!snapshot.upgradeChoice?.pending || choices.length === 0) {
+  const pending = Boolean(snapshot.upgradeChoice?.pending && choices.length > 0);
+  const feedback = renderProgressionSummary(summaryContainer, snapshot);
+
+  if (emptyElement) {
+    emptyElement.hidden = pending || Boolean(feedback);
+  }
+
+  if (!pending) {
     panel.hidden = true;
     if (contextElement) {
       contextElement.textContent = "";
@@ -32,6 +43,18 @@ export function describeUpgradePanelContext(snapshot) {
   }
 
   return `Pick one upgrade now; it starts on ${levelText}.`;
+}
+
+export function renderProgressionSummary(container, snapshot) {
+  if (!container) {
+    return null;
+  }
+
+  const feedback = createProgressionFeedback(snapshot);
+  const rows = feedback?.rows ?? createProgressionRows(snapshot);
+  container.hidden = rows.length === 0;
+  container.replaceChildren(...rows.map(createProgressionRow));
+  return feedback;
 }
 
 export function upgradeChoiceIndexForKey(code) {
@@ -62,6 +85,57 @@ function formatPointText(snapshot) {
   }
 
   return points === 1 ? "1 upgrade point" : `${points} upgrade points`;
+}
+
+function createProgressionRows(snapshot) {
+  const progression = snapshot.progression ?? {};
+  const xp = progression.xp ?? 0;
+  const availableUpgradePoints = progression.availableUpgradePoints ?? 0;
+  const appliedUpgradeCount = Object.values(progression.appliedUpgrades ?? {})
+    .reduce((total, rank) => total + rank, 0);
+
+  if (xp <= 0 && availableUpgradePoints <= 0 && appliedUpgradeCount <= 0) {
+    return [];
+  }
+
+  return [
+    {
+      label: "Campaign level",
+      value: `Level ${progression.level ?? 1}`
+    },
+    {
+      label: "XP",
+      value: `${xp} XP`
+    },
+    {
+      label: "Upgrade points",
+      value: formatProgressionPoints(availableUpgradePoints)
+    }
+  ];
+}
+
+function createProgressionRow(row) {
+  const item = document.createElement("p");
+  item.className = "progression-summary__row";
+
+  const label = document.createElement("span");
+  label.className = "progression-summary__label";
+  label.textContent = row.label;
+
+  const value = document.createElement("strong");
+  value.className = "progression-summary__value";
+  value.textContent = row.value;
+
+  item.append(label, value);
+  return item;
+}
+
+function formatProgressionPoints(points) {
+  if (points <= 0) {
+    return "None available";
+  }
+
+  return points === 1 ? "1 point available" : `${points} points available`;
 }
 
 function nextLevelNumber(snapshot) {

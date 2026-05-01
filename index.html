@@ -29,6 +29,12 @@
         </section>
 
         <aside class="side-panel progression-panel" aria-label="Upgrades and rewards">
+          <div class="progression-panel__intro">
+            <p class="eyebrow">Progression</p>
+            <h2>Upgrades</h2>
+            <p id="progression-empty" class="progression-panel__empty">Win the mission to choose an upgrade.</p>
+          </div>
+          <div id="progression-summary" class="progression-summary" aria-label="Campaign progression"></div>
           <section id="upgrade-panel" class="upgrade-panel" aria-labelledby="upgrade-title" hidden>
             <div class="upgrade-panel__copy">
               <p class="eyebrow">Upgrade ready</p>
@@ -37,7 +43,6 @@
             </div>
             <div id="upgrade-choices" class="upgrade-choices"></div>
           </section>
-          <p class="progression-panel__empty">Win the mission to choose an upgrade.</p>
         </aside>
       </section>
     </main>

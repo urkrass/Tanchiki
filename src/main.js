@@ -12,6 +12,8 @@ const status = document.querySelector("#status");
 const upgradePanel = document.querySelector("#upgrade-panel");
 const upgradeContext = document.querySelector("#upgrade-context");
 const upgradeChoices = document.querySelector("#upgrade-choices");
+const progressionSummary = document.querySelector("#progression-summary");
+const progressionEmpty = document.querySelector("#progression-empty");
 const context = canvas.getContext("2d");
 const input = createInput(window);
 const game = createCampaignGame();
@@ -107,6 +109,8 @@ function renderCurrentState() {
     panel: upgradePanel,
     contextElement: upgradeContext,
     choicesContainer: upgradeChoices,
+    summaryContainer: progressionSummary,
+    emptyElement: progressionEmpty,
     snapshot
   });
 }
