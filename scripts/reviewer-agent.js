@@ -37,7 +37,8 @@ const approvedForMergeMarker = "APPROVED FOR MERGE";
 const reviewerAgentIndependenceBasisMarkdown = [
   "Independence basis:",
   "- Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent.",
-  "- Reviewer path did not edit files, push commits, apply labels, merge, or mark Linear Done.",
+  "- Reviewer authority was limited to evidence analysis and GitHub review submission.",
+  "- Repository contents, GitHub labels, merge state, and Linear issue state were unchanged by this reviewer path.",
   "- Human remains responsible for merge.",
 ].join("\n");
 const policyStopLabels = new Set([

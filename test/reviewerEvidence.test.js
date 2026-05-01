@@ -17,6 +17,7 @@ import {
   defaultOpenAiModel,
   evaluateLocalPreflight,
   evaluateReviewerDecision,
+  findForbiddenModelOutputReasons,
   mapDecisionToReviewPrDecision,
   main,
   normalizeReviewBodyForDecision,
@@ -25,6 +26,7 @@ import {
   reviewerDecisionSchema,
   validateReviewerDecision,
 } from "../scripts/reviewer-agent.js";
+import { getReviewBodyRefusalReason } from "../scripts/reviewer-review-pr.js";
 
 const root = process.cwd();
 
@@ -258,7 +260,11 @@ test("reviewer-agent normalizes approval body before review-pr validation", asyn
   );
   assert.match(
     parsed.decision.review_body_markdown,
-    /Reviewer path did not edit files, push commits, apply labels, merge, or mark Linear Done\./,
+    /Reviewer authority was limited to evidence analysis and GitHub review submission\./,
+  );
+  assert.match(
+    parsed.decision.review_body_markdown,
+    /Repository contents, GitHub labels, merge state, and Linear issue state were unchanged by this reviewer path\./,
   );
   assert.match(parsed.decision.review_body_markdown, /Human remains responsible for merge\./);
   assert.match(parsed.decision.review_body_markdown, /\n\nApproved for merge\.$/);
@@ -308,7 +314,11 @@ test("reviewer-agent approval normalization is approval-only", () => {
   );
   assert.match(
     normalizedApproval.review_body_markdown,
-    /Reviewer path did not edit files, push commits, apply labels, merge, or mark Linear Done\./,
+    /Reviewer authority was limited to evidence analysis and GitHub review submission\./,
+  );
+  assert.match(
+    normalizedApproval.review_body_markdown,
+    /Repository contents, GitHub labels, merge state, and Linear issue state were unchanged by this reviewer path\./,
   );
   assert.match(normalizedApproval.review_body_markdown, /Human remains responsible for merge\./);
   assert.match(normalizedApproval.review_body_markdown, /Approved for merge\./);
@@ -326,7 +336,8 @@ test("reviewer-agent approval normalization does not duplicate complete approval
     "",
     "Independence basis:",
     "- Reviewer source: OpenAI API-backed Reviewer Agent via reviewer:agent.",
-    "- Reviewer path did not edit files, push commits, apply labels, merge, or mark Linear Done.",
+    "- Reviewer authority was limited to evidence analysis and GitHub review submission.",
+    "- Repository contents, GitHub labels, merge state, and Linear issue state were unchanged by this reviewer path.",
     "- Human remains responsible for merge.",
     "",
     "No blocking findings.",
@@ -337,6 +348,20 @@ test("reviewer-agent approval normalization does not duplicate complete approval
   });
 
   assert.equal(normalizeReviewBodyForDecision(approval), approval);
+});
+
+test("reviewer-agent normalized approval body avoids forbidden output false positives", () => {
+  const approval = normalizeReviewBodyForDecision(makeReviewerDecision({
+    decision: "APPROVED_FOR_MERGE",
+    review_body_markdown: "Approved for merge.\n\nIndependence: separate Reviewer App session.",
+  }));
+
+  assert.deepEqual(findForbiddenModelOutputReasons(approval), []);
+  assert.equal(
+    getReviewBodyRefusalReason("approve", approval.review_body_markdown),
+    null,
+  );
+  assert.doesNotMatch(approval.review_body_markdown, /did not edit files|apply labels|mark Linear Done/i);
 });
 
 test("reviewer evidence validates and trims max diff size", () => {
