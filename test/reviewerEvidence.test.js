@@ -593,6 +593,123 @@ test("reviewer evidence summarizes failing pending unavailable and absent checks
   assert.equal(summarizeChecks({ unavailableReason: "403 forbidden" }).state, "unavailable");
 });
 
+test("reviewer evidence ignores older failed check runs when a newer same-identity run passed", () => {
+  const summary = summarizeChecks({
+    checkRuns: [
+      {
+        app: { id: 15368, slug: "github-actions" },
+        completed_at: "2026-05-01T10:00:00Z",
+        conclusion: "failure",
+        id: 1001,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T09:59:00Z",
+        status: "completed",
+      },
+      {
+        app: { id: 15368, slug: "github-actions" },
+        completed_at: "2026-05-01T10:05:00Z",
+        conclusion: "success",
+        id: 1002,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T10:04:00Z",
+        status: "completed",
+      },
+    ],
+    status: { statuses: [] },
+  });
+
+  assert.equal(summary.state, "passing");
+  assert.equal(summary.check_run_count, 2);
+  assert.equal(summary.evaluated_check_run_count, 1);
+  assert.deepEqual(summary.check_runs, [
+    { conclusion: "success", name: "PR Metadata Check", status: "completed" },
+  ]);
+  assert.deepEqual(summary.findings, []);
+});
+
+test("reviewer evidence fails when the newest same-identity check run failed", () => {
+  const summary = summarizeChecks({
+    checkRuns: [
+      {
+        app: { id: 15368, slug: "github-actions" },
+        completed_at: "2026-05-01T10:00:00Z",
+        conclusion: "success",
+        id: 1001,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T09:59:00Z",
+        status: "completed",
+      },
+      {
+        app: { id: 15368, slug: "github-actions" },
+        completed_at: "2026-05-01T10:05:00Z",
+        conclusion: "failure",
+        id: 1002,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T10:04:00Z",
+        status: "completed",
+      },
+    ],
+    status: { statuses: [] },
+  });
+
+  assert.equal(summary.state, "failing");
+  assert.deepEqual(summary.findings, ["Check run PR Metadata Check concluded failure."]);
+});
+
+test("reviewer evidence is pending when the newest same-identity check run is pending", () => {
+  const summary = summarizeChecks({
+    checkRuns: [
+      {
+        completed_at: "2026-05-01T10:00:00Z",
+        conclusion: "success",
+        id: 1001,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T09:59:00Z",
+        status: "completed",
+      },
+      {
+        conclusion: null,
+        id: 1002,
+        name: "PR Metadata Check",
+        started_at: "2026-05-01T10:05:00Z",
+        status: "in_progress",
+      },
+    ],
+    status: { statuses: [] },
+  });
+
+  assert.equal(summary.state, "pending");
+  assert.deepEqual(summary.check_runs, [
+    { conclusion: null, name: "PR Metadata Check", status: "in_progress" },
+  ]);
+  assert.deepEqual(summary.findings, ["Check run PR Metadata Check is in_progress."]);
+});
+
+test("reviewer evidence uses check run id when same-identity timestamps are unavailable", () => {
+  const summary = summarizeChecks({
+    checkRuns: [
+      {
+        conclusion: "failure",
+        id: 1001,
+        name: "PR Metadata Check",
+        status: "completed",
+      },
+      {
+        conclusion: "success",
+        id: 1002,
+        name: "PR Metadata Check",
+        status: "completed",
+      },
+    ],
+    status: { statuses: [] },
+  });
+
+  assert.equal(summary.state, "passing");
+  assert.deepEqual(summary.check_runs, [
+    { conclusion: "success", name: "PR Metadata Check", status: "completed" },
+  ]);
+});
+
 test("GitHub evidence client uses read-only PR evidence endpoints", async () => {
   const requests = [];
   const fetchImpl = async (url, init = {}) => {
