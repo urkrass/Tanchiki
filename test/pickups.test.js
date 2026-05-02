@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createGame } from "../src/game.js";
 import { createInput } from "../src/input.js";
-import { createPickup } from "../src/game/pickups.js";
+import { PICKUP_FEEDBACK_DURATION_SECONDS, createPickup } from "../src/game/pickups.js";
 import { createTarget } from "../src/game/targets.js";
 
 const step = 1 / 60;
@@ -20,6 +20,7 @@ test("repair pickup restores HP without exceeding max", () => {
   const state = harness.debugState();
   assert.equal(state.player.hp, 3);
   assert.equal(state.pickups[0].active, false);
+  assertPickupFeedbackActive(state.player.pickupFeedback, "repair");
 });
 
 test("repair upgrade increases repair pickup amount and caps at upgraded max HP", () => {
@@ -86,8 +87,9 @@ test("pickup is consumed once", () => {
   harness.moveRightOneCell();
   assert.equal(harness.debugState().player.hp, 2);
 
-  harness.moveLeftOneCell();
-  harness.moveRightOneCell();
+  harness.holdKeyFor("ArrowLeft", 0.3);
+  assert.equal(harness.debugState().player.gridX, 1);
+  harness.holdKeyFor("ArrowRight", 0.3);
 
   const state = harness.debugState();
   assert.equal(state.player.hp, 2);
@@ -108,6 +110,7 @@ test("ammo pickup increases reserve without limiting shooting", () => {
   const state = harness.debugState();
   assert.equal(state.player.ammoReserve, 4);
   assert.equal(state.projectiles.length, 1);
+  assertPickupFeedbackActive(state.player.pickupFeedback, "ammo");
 });
 
 test("shield pickup blocks one enemy hit", () => {
@@ -127,12 +130,36 @@ test("shield pickup blocks one enemy hit", () => {
   });
 
   harness.moveRightOneCell();
+  assertPickupFeedbackActive(harness.debugState().player.pickupFeedback, "shield");
   harness.advance(1.2);
 
   const state = harness.debugState();
   assert.equal(state.player.hp, 3);
   assert.equal(state.player.shieldCharges, 0);
   assert.ok(state.player.invulnerabilityRemaining > 0);
+});
+
+test("pickup feedback is exposed in snapshots and expires deterministically", () => {
+  const harness = createHarness({
+    playerHp: 2,
+    pickups: [
+      createPickup({ id: "repair", type: "repair", gridX: 2, gridY: 1, amount: 1 })
+    ]
+  });
+
+  harness.moveRightOneCell();
+
+  const snapshotFeedback = harness.snapshot().player.pickupFeedback;
+  assertPickupFeedbackActive(snapshotFeedback, "repair");
+  assert.ok(snapshotFeedback.remainingSeconds <= PICKUP_FEEDBACK_DURATION_SECONDS);
+
+  harness.advance(PICKUP_FEEDBACK_DURATION_SECONDS + 0.05);
+
+  const feedback = harness.debugState().player.pickupFeedback;
+  assert.equal(feedback.active, false);
+  assert.equal(feedback.type, null);
+  assert.equal(feedback.remainingSeconds, 0);
+  assert.equal(feedback.durationSeconds, PICKUP_FEEDBACK_DURATION_SECONDS);
 });
 
 test("pickup collection happens only when movement reaches the cell boundary", () => {
@@ -189,6 +216,12 @@ function createHarness({
       target.dispatchEvent(keyEvent("keyup", code));
     },
 
+    holdKeyFor(code, seconds) {
+      this.keyDown(code);
+      this.advance(seconds);
+      this.keyUp(code);
+    },
+
     advance(seconds) {
       const steps = Math.ceil(seconds / step);
       for (let index = 0; index < steps; index += 1) {
@@ -210,8 +243,20 @@ function createHarness({
 
     debugState() {
       return game.debugState();
+    },
+
+    snapshot() {
+      return game.snapshot();
     }
   };
+}
+
+function assertPickupFeedbackActive(feedback, type) {
+  assert.equal(feedback.active, true);
+  assert.equal(feedback.type, type);
+  assert.ok(feedback.remainingSeconds > 0);
+  assert.ok(feedback.remainingSeconds <= PICKUP_FEEDBACK_DURATION_SECONDS);
+  assert.equal(feedback.durationSeconds, PICKUP_FEEDBACK_DURATION_SECONDS);
 }
 
 function keyEvent(type, code, repeat = false) {

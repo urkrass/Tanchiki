@@ -46,7 +46,11 @@ import { getPursuitVisualPosition, updateEnemyPursuit } from "./game/pursuit.js"
 import { validateMissionSpawn } from "./game/spawnValidation.js";
 import {
   collectPickupAtCell,
-  consumeShieldCharge
+  consumeShieldCharge,
+  createPickupFeedbackSnapshot,
+  createPickupFeedbackState,
+  startPickupFeedback,
+  updatePickupFeedback
 } from "./game/pickups.js";
 import {
   createProgressionState
@@ -205,12 +209,14 @@ export function createGame(options = {}) {
     ...options,
     progression
   });
+  const pickupFeedback = createPickupFeedbackState();
   let missionStatus = "playing";
   let lastShotAccepted = false;
 
   return {
     update(deltaSeconds, input) {
       lastShotAccepted = false;
+      updatePickupFeedback(pickupFeedback, deltaSeconds);
       if (missionStatus === "won" || missionStatus === "lost") {
         updateProjectileStore(projectiles, deltaSeconds, isBlocked);
         input.consumeMoveDirection();
@@ -227,7 +233,15 @@ export function createGame(options = {}) {
       updateMovement(player, deltaSeconds, canEnterWithEntities);
       const justFinishedMove = wasMoving && !player.isMoving;
       if (justFinishedMove) {
-        collectPickupAtCell(pickups, playerState, player.gridX, player.gridY);
+        const collectedPickup = collectPickupAtCell(
+          pickups,
+          playerState,
+          player.gridX,
+          player.gridY
+        );
+        if (collectedPickup) {
+          startPickupFeedback(pickupFeedback, collectedPickup.type);
+        }
       }
       updateEnemyPursuit({
         level,
@@ -333,6 +347,7 @@ export function createGame(options = {}) {
           effectiveStats: { ...effectiveStats },
           ammoReserve: playerState.ammoReserve,
           shieldCharges: playerState.shieldCharges,
+          pickupFeedback: createPickupFeedbackSnapshot(pickupFeedback),
           damageFlashSeconds: playerState.damageFlashSeconds,
           invulnerabilityRemaining: playerState.invulnerabilityRemaining
         },
@@ -410,6 +425,7 @@ export function createGame(options = {}) {
           effectiveStats: { ...effectiveStats },
           ammoReserve: playerState.ammoReserve,
           shieldCharges: playerState.shieldCharges,
+          pickupFeedback: createDebugPickupFeedbackSnapshot(pickupFeedback),
           damageFlashSeconds: Number(playerState.damageFlashSeconds.toFixed(3)),
           invulnerabilityRemaining: Number(playerState.invulnerabilityRemaining.toFixed(3))
         },
@@ -455,6 +471,15 @@ export function createGame(options = {}) {
         })
       };
     }
+  };
+}
+
+function createDebugPickupFeedbackSnapshot(feedbackState) {
+  const feedback = createPickupFeedbackSnapshot(feedbackState);
+  return {
+    ...feedback,
+    remainingSeconds: Number(feedback.remainingSeconds.toFixed(3)),
+    durationSeconds: Number(feedback.durationSeconds.toFixed(3))
   };
 }
 
