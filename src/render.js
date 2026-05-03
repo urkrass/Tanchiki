@@ -187,6 +187,7 @@ function drawTank(context, player, tileSize, spriteAssets = null) {
 
   context.save();
   context.translate(centerX, centerY);
+  drawPickupFeedback(context, player.pickupFeedback);
   if (player.damageFlashSeconds <= 0 && drawManifestSprite(
     context,
     spriteAssets?.getFrame("player_tank", "idle", player.facing),
@@ -199,6 +200,89 @@ function drawTank(context, player, tileSize, spriteAssets = null) {
   context.rotate(rotationFor(player.facing));
   drawPlayerTankPrimitive(context, player.damageFlashSeconds > 0);
 
+  context.restore();
+}
+
+function drawPickupFeedback(context, feedback) {
+  if (!feedback?.active || feedback.durationSeconds <= 0 || feedback.remainingSeconds <= 0) {
+    return;
+  }
+
+  const life = Math.max(0, Math.min(1, feedback.remainingSeconds / feedback.durationSeconds));
+  const progress = 1 - life;
+
+  if (feedback.type === "shield") {
+    drawShieldFeedback(context, life, progress);
+    return;
+  }
+
+  if (feedback.type === "ammo") {
+    drawAmmoFeedback(context, life, progress);
+    return;
+  }
+
+  if (feedback.type === "repair") {
+    drawRepairFeedback(context, life, progress);
+  }
+}
+
+function drawShieldFeedback(context, life, progress) {
+  const radius = 24 + progress * 7;
+
+  context.save();
+  context.beginPath();
+  context.arc(0, 0, radius, 0, Math.PI * 2);
+  context.fillStyle = `rgba(63, 111, 143, ${0.08 + life * 0.16})`;
+  context.fill();
+  context.strokeStyle = `rgba(69, 152, 211, ${0.28 + life * 0.42})`;
+  context.lineWidth = 3;
+  context.stroke();
+  context.beginPath();
+  context.arc(0, 0, radius - 6, 0, Math.PI * 2);
+  context.strokeStyle = `rgba(207, 235, 255, ${0.18 + life * 0.3})`;
+  context.lineWidth = 1.5;
+  context.stroke();
+  context.restore();
+}
+
+function drawAmmoFeedback(context, life, progress) {
+  const radius = 20 + progress * 6;
+
+  context.save();
+  context.beginPath();
+  context.arc(0, 0, radius, 0, Math.PI * 2);
+  context.strokeStyle = `rgba(224, 182, 77, ${0.22 + life * 0.38})`;
+  context.lineWidth = 3;
+  context.stroke();
+  context.fillStyle = `rgba(231, 211, 124, ${0.26 + life * 0.34})`;
+  context.fillRect(-15, -27, 30, 5);
+  context.fillStyle = `rgba(138, 106, 47, ${0.3 + life * 0.36})`;
+  context.fillRect(-5, -31, 10, 13);
+  context.fillStyle = `rgba(247, 244, 234, ${0.22 + life * 0.36})`;
+  context.fillRect(-3, -33, 6, 4);
+  context.restore();
+}
+
+function drawRepairFeedback(context, life, progress) {
+  const radius = 21 + progress * 6;
+
+  context.save();
+  context.beginPath();
+  context.arc(0, 0, radius, 0, Math.PI * 2);
+  context.fillStyle = `rgba(79, 127, 88, ${0.08 + life * 0.14})`;
+  context.fill();
+  context.strokeStyle = `rgba(79, 164, 101, ${0.24 + life * 0.38})`;
+  context.lineWidth = 3;
+  context.stroke();
+  context.strokeStyle = `rgba(220, 248, 224, ${0.28 + life * 0.4})`;
+  context.lineWidth = 4;
+  context.lineCap = "round";
+  context.beginPath();
+  context.moveTo(-11, -25);
+  context.lineTo(11, -25);
+  context.moveTo(0, -36);
+  context.lineTo(0, -14);
+  context.stroke();
   context.restore();
 }
 

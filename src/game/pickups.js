@@ -2,6 +2,7 @@ export const PICKUP_TYPES = new Set(["repair", "ammo", "shield"]);
 export const DEFAULT_REPAIR_AMOUNT = 1;
 export const DEFAULT_AMMO_AMOUNT = 3;
 export const DEFAULT_SHIELD_CHARGES = 1;
+export const PICKUP_FEEDBACK_DURATION_SECONDS = 0.6;
 
 export function createPickup({
   id,
@@ -51,6 +52,52 @@ export function consumeShieldCharge(playerState) {
 
   playerState.shieldCharges -= 1;
   return true;
+}
+
+export function createPickupFeedbackState() {
+  return {
+    active: false,
+    type: null,
+    remainingSeconds: 0,
+    durationSeconds: PICKUP_FEEDBACK_DURATION_SECONDS
+  };
+}
+
+export function startPickupFeedback(feedbackState, pickupType) {
+  if (!PICKUP_TYPES.has(pickupType)) {
+    throw new Error(`Unknown pickup feedback type ${pickupType}.`);
+  }
+
+  feedbackState.active = true;
+  feedbackState.type = pickupType;
+  feedbackState.remainingSeconds = PICKUP_FEEDBACK_DURATION_SECONDS;
+  feedbackState.durationSeconds = PICKUP_FEEDBACK_DURATION_SECONDS;
+  return feedbackState;
+}
+
+export function updatePickupFeedback(feedbackState, deltaSeconds) {
+  if (!feedbackState.active) {
+    return feedbackState;
+  }
+
+  feedbackState.remainingSeconds = Math.max(0, feedbackState.remainingSeconds - deltaSeconds);
+  if (feedbackState.remainingSeconds <= 0) {
+    feedbackState.active = false;
+    feedbackState.type = null;
+    feedbackState.remainingSeconds = 0;
+    feedbackState.durationSeconds = PICKUP_FEEDBACK_DURATION_SECONDS;
+  }
+
+  return feedbackState;
+}
+
+export function createPickupFeedbackSnapshot(feedbackState) {
+  return {
+    active: feedbackState.active,
+    type: feedbackState.type,
+    remainingSeconds: feedbackState.remainingSeconds,
+    durationSeconds: feedbackState.durationSeconds
+  };
 }
 
 function applyPickup(pickup, playerState) {
