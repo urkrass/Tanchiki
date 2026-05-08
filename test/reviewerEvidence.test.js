@@ -10,6 +10,7 @@ import {
   createGitHubEvidenceClient,
   defaultMaxDiffChars,
   gitHubEvidenceAuthGuidance,
+  summarizePrMetadata,
   summarizeChecks,
   trimDiff,
   validateMaxDiffChars,
@@ -45,10 +46,10 @@ function makePrBody(overrides = {}) {
     "Active Linear project: Tanchiki — Playable Tank RPG Prototype",
     "",
     "## Role / Type / Risk / Validation",
-    "- Role: role:coder",
-    "- Type: type:harness",
-    "- Risk: risk:medium",
-    "- Validation profile: validation:harness",
+    `- Role: ${overrides.role || "role:coder"}`,
+    `- Type: ${overrides.type || "type:harness"}`,
+    `- Risk: ${overrides.risk || "risk:medium"}`,
+    `- Validation profile: ${overrides.validation || "validation:harness"}`,
     "",
     "## Summary",
     "- Adds evidence collection.",
@@ -656,6 +657,91 @@ test("reviewer evidence packet contains compact PR state metadata and policy con
   assert.equal(evidence.safety.reviewer_app_token_requested, false);
   assert.ok(evidence.policy_snippets.pr_acceptance.length > 0);
   assert.ok(evidence.protected_surfaces.protected_files.includes("src/game/movement.js"));
+});
+
+test("reviewer evidence normalizes canonical and human-readable PR metadata", async () => {
+  const humanReadableBody = makePrBody({
+    issue: "MAR-136",
+    role: "Coder",
+    type: "ui",
+    risk: "medium",
+    validation: "ui",
+  });
+  const humanReadableMetadata = summarizePrMetadata(humanReadableBody, "MAR-136");
+
+  assert.equal(humanReadableMetadata.role_type_risk_validation_ok, true);
+  assert.equal(humanReadableMetadata.role, "role:coder");
+  assert.equal(humanReadableMetadata.type, "type:ui");
+  assert.equal(humanReadableMetadata.risk, "risk:medium");
+  assert.equal(humanReadableMetadata.validation, "validation:ui");
+  assert.deepEqual(humanReadableMetadata.role_type_risk_validation_findings, []);
+
+  const canonicalMetadata = summarizePrMetadata(makePrBody({ issue: "MAR-312" }), "MAR-312");
+  assert.equal(canonicalMetadata.role_type_risk_validation_ok, true);
+  assert.equal(canonicalMetadata.role, "role:coder");
+  assert.equal(canonicalMetadata.type, "type:harness");
+  assert.equal(canonicalMetadata.risk, "risk:medium");
+  assert.equal(canonicalMetadata.validation, "validation:harness");
+
+  const evidence = await collectPrEvidence({
+    client: makeFakeClient({
+      issue: "MAR-136",
+      pullRequest: {
+        body: humanReadableBody,
+      },
+    }),
+    issue: "MAR-136",
+    maxDiffChars: 2000,
+    pr: 136,
+  });
+  assert.deepEqual(evidence.role_type_risk_validation, {
+    role: "role:coder",
+    type: "type:ui",
+    risk: "risk:medium",
+    validation: "validation:ui",
+  });
+  assert.equal(evidence.pr_metadata.role_type_risk_validation_ok, true);
+});
+
+test("reviewer evidence fail-closes invalid PR metadata values", () => {
+  const cases = [
+    {
+      body: makePrBody().replace("## Role / Type / Risk / Validation", "## Role Metadata"),
+      expected: /missing required metadata section/,
+      name: "missing metadata section",
+    },
+    {
+      body: makePrBody().replace("- Role: role:coder", "- Role: role:coder\n- Role: role:coder"),
+      expected: /duplicate metadata field: Role/,
+      name: "duplicate role",
+    },
+    {
+      body: makePrBody({ role: "engineer" }),
+      expected: /unknown metadata value for Role: engineer/,
+      name: "unknown role",
+    },
+    {
+      body: makePrBody({ role: "role:tester" }),
+      expected: /unknown metadata value for Role: role:tester/,
+      name: "malformed prefixed role",
+    },
+    {
+      body: makePrBody({ risk: "medium risk" }),
+      expected: /unknown metadata value for Risk: medium risk/,
+      name: "ambiguous risk prose",
+    },
+    {
+      body: makePrBody({ validation: "validation:browser" }),
+      expected: /unknown metadata value for Validation profile: validation:browser/,
+      name: "unknown validation prefix",
+    },
+  ];
+
+  for (const scenario of cases) {
+    const metadata = summarizePrMetadata(scenario.body, "MAR-312");
+    assert.equal(metadata.role_type_risk_validation_ok, false, scenario.name);
+    assert.match(metadata.role_type_risk_validation_findings.join("\n"), scenario.expected, scenario.name);
+  }
 });
 
 test("reviewer evidence records forbidden file findings without refusing collection", async () => {
