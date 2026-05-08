@@ -15,8 +15,20 @@ const automationReadyLabel = "automation-ready";
 const defaultMaxSteps = 10;
 const hardMaxSteps = 20;
 const roleOrder = ["architect", "coder", "test", "reviewer", "release"];
-const terminalStatuses = new Set(["Done", "Canceled", "Cancelled", "Abandoned", "Skipped"]);
-const canceledStatuses = new Set(["Canceled", "Cancelled", "Abandoned", "Skipped"]);
+const completedStatuses = new Set(["Done"]);
+const outcomeTerminalStatuses = new Set(["Canceled", "Cancelled", "Abandoned", "Skipped"]);
+const terminalOutcomeEvidencePatterns = [
+  /\brecorded\s+(?:pr\s+)?abandon(?:ed|ment)\b/i,
+  /\bexplicit(?:ly)?\s+abandon(?:ed|ment)\b/i,
+  /\babandon(?:ed|ment)\s+(?:recorded|accepted|approved)\b/i,
+  /\brecorded\s+outcome:\s*(?:abandoned|skipped|stopped)\b/i,
+  /\bskip\s+reason\b/i,
+  /\bskipped\s+because\b/i,
+  /\bexplicit\s+skip\b/i,
+  /\bcampaign\s+stop\b/i,
+  /\bcampaign\s+stopped\b/i,
+  /\bexplicit\s+campaign\s+stop\b/i,
+];
 const metadataLabels = {
   role: ["role:architect", "role:coder", "role:test", "role:reviewer", "role:release"],
   type: [
@@ -397,6 +409,19 @@ export function decideNextCampaignAction(state) {
 
   const roleIssueIds = collectRoleIssueIds(campaignIssues);
   const testerRequired = isTesterRequired(campaignIssues, roleIssues);
+  const roleOutcomeBlocker = getRequiredRoleOutcomeBlocker({ roleIssues, testerRequired });
+  if (roleOutcomeBlocker) {
+    return stopAction({
+      activeProject: state.activeProject,
+      campaignName,
+      currentState: "terminal-outcome-evidence-required",
+      nextAction: "Record explicit abandonment, skip reason, or campaign-stop evidence in Linear comments before continuing.",
+      reason: "missing-terminal-outcome-evidence",
+      roleIssueIds,
+      stopReason: roleOutcomeBlocker,
+    });
+  }
+
   const architect = roleIssues.architect[0];
   const coder = roleIssues.coder[0];
   const tester = roleIssues.test[0] || null;
@@ -1091,6 +1116,22 @@ function getRoleShapeBlocker(roleIssues) {
     const nonTerminal = issues.filter((issue) => !isTerminalOrAbandoned(issue));
     if (nonTerminal.length > 1) {
       return `Multiple non-terminal ${role} issues are present: ${nonTerminal.map((issue) => issue.id).join(", ")}.`;
+    }
+  }
+  return "";
+}
+
+function getRequiredRoleOutcomeBlocker({ roleIssues, testerRequired }) {
+  const requiredRoles = ["coder", "reviewer"];
+  if (testerRequired) {
+    requiredRoles.splice(1, 0, "test");
+  }
+
+  for (const role of requiredRoles) {
+    for (const issue of roleIssues[role] || []) {
+      if (isOutcomeTerminalIssue(issue) && !hasRecordedTerminalOutcomeEvidence(issue)) {
+        return `${issue.id} is ${formatIssueState(issue)} without recorded abandonment, skip reason, or explicit campaign-stop evidence in Linear comments.`;
+      }
     }
   }
   return "";
@@ -1902,11 +1943,36 @@ function isActiveOrInReview(issue) {
 }
 
 function isTerminalIssue(issue) {
-  return terminalStatuses.has(issue.status) || issue.statusType === "completed";
+  if (!issue) {
+    return false;
+  }
+  if (isOutcomeTerminalIssue(issue)) {
+    return hasRecordedTerminalOutcomeEvidence(issue);
+  }
+  return completedStatuses.has(issue.status) || issue.statusType === "completed";
 }
 
 function isTerminalOrAbandoned(issue) {
-  return isTerminalIssue(issue) || issue.abandoned === true || issue.outcome === "abandoned" || canceledStatuses.has(issue.status);
+  return isTerminalIssue(issue);
+}
+
+function isOutcomeTerminalIssue(issue) {
+  return Boolean(issue)
+    && (
+      outcomeTerminalStatuses.has(issue.status)
+      || issue.statusType === "canceled"
+      || issue.abandoned === true
+      || issue.outcome === "abandoned"
+    );
+}
+
+function hasRecordedTerminalOutcomeEvidence(issue) {
+  const text = issue.comments.map((comment) => comment.body || "").join("\n");
+  return terminalOutcomeEvidencePatterns.some((pattern) => pattern.test(text));
+}
+
+function formatIssueState(issue) {
+  return issue.status || issue.statusType || "a terminal outcome state";
 }
 
 function hasAutomationReady(issue) {

@@ -351,6 +351,99 @@ test("PR readiness stops for missing multiple draft and failing-check PRs", asyn
   }
 });
 
+test("required role outcome states stop without recorded Linear evidence", async () => {
+  const scenarios = [
+    {
+      issueId: "MAR-362",
+      name: "Coder Canceled",
+      overrides: { coder: { status: "Canceled" } },
+      status: "Canceled",
+    },
+    {
+      issueId: "MAR-362",
+      name: "Coder Skipped",
+      overrides: { coder: { status: "Skipped" } },
+      status: "Skipped",
+    },
+    {
+      issueId: "MAR-363",
+      name: "Tester Canceled",
+      overrides: {
+        coder: { status: "In Review" },
+        test: { status: "Canceled" },
+        prs: [readyPr()],
+      },
+      status: "Canceled",
+    },
+    {
+      issueId: "MAR-363",
+      name: "Tester Skipped",
+      overrides: {
+        coder: { status: "In Review" },
+        test: { status: "Skipped" },
+        prs: [readyPr()],
+      },
+      status: "Skipped",
+    },
+    {
+      issueId: "MAR-364",
+      name: "Reviewer Canceled",
+      overrides: {
+        coder: { status: "In Review" },
+        test: { status: "Done" },
+        reviewer: { status: "Canceled" },
+        prs: [readyPr()],
+      },
+      status: "Canceled",
+    },
+    {
+      issueId: "MAR-364",
+      name: "Reviewer Skipped",
+      overrides: {
+        coder: { status: "In Review" },
+        test: { status: "Done" },
+        reviewer: { status: "Skipped" },
+        prs: [readyPr()],
+      },
+      status: "Skipped",
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    const result = await runCampaignStateMachine({
+      dryRun: true,
+      maxSteps: 1,
+      state: state(scenario.overrides),
+    });
+
+    assert.equal(result.reason, "missing-terminal-outcome-evidence", scenario.name);
+    assert.equal(result.steps.length, 0, scenario.name);
+    assert.match(result.stopReason, new RegExp(`${scenario.issueId} is ${scenario.status}`), scenario.name);
+    assert.match(result.stopReason, /recorded abandonment, skip reason, or explicit campaign-stop evidence/, scenario.name);
+  }
+});
+
+test("recorded outcome evidence allows a canceled required Tester to count as resolved", async () => {
+  const result = await runCampaignStateMachine({
+    dryRun: true,
+    maxSteps: 1,
+    state: state({
+      coder: { status: "In Review" },
+      test: {
+        comments: [
+          "Recorded abandonment: Tester verification was explicitly abandoned because the campaign stopped.",
+        ],
+        status: "Canceled",
+      },
+      prs: [readyPr()],
+    }),
+  });
+
+  assert.equal(result.steps[0].action, "promote");
+  assert.equal(result.steps[0].issue, "MAR-364");
+  assert.equal(result.reason, "max-steps-reached");
+});
+
 test("Reviewer App review sync rejects stale reviews and duplicate bridge sync", async () => {
   const stale = await runCampaignStateMachine({
     dryRun: true,
