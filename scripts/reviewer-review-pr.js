@@ -7,24 +7,13 @@ import {
   readReviewerAppEnvironment,
   validatePrivateKeyPath,
 } from "./reviewer-app-token.js";
+import {
+  requiredPrBodyHeadings,
+  summarizePrMetadata,
+} from "./reviewer-evidence.js";
 
 const defaultRepo = "urkrass/Tanchiki";
 const repoRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
-
-const requiredPrBodyHeadings = [
-  "## Linked Linear Issue",
-  "## Role / Type / Risk / Validation",
-  "## Summary",
-  "## Files Changed",
-  "## Tests Run",
-  "## Manual QA",
-  "## Broad Scan Reason",
-  "## Conflict Risk",
-  "## Acceptance Labels",
-  "## PR Readiness",
-  "## Visible UI Expectation",
-  "## Known Limitations",
-];
 
 const forbiddenFileMatchers = [
   { pattern: /(^|\/)\.env($|\.)/i, reason: "local env file" },
@@ -271,16 +260,17 @@ export function evaluateReviewGates({ options, body, inspection }) {
   const approvalOnlyRefusals = [];
   const { pullRequest, issue, files, checks } = inspection;
   const prBody = pullRequest.body || "";
+  const metadata = summarizePrMetadata(prBody, options.issue);
 
   for (const reason of getHardPrRefusalReasons({ options, pullRequest, prBody })) {
     refusalReasons.push(reason);
   }
 
-  for (const reason of getMetadataFindings(prBody)) {
+  for (const reason of getMetadataFindings(metadata)) {
     approvalOnlyRefusals.push(reason);
   }
 
-  for (const reason of getForbiddenFileFindings(files, prBody)) {
+  for (const reason of getForbiddenFileFindings(files, metadata)) {
     approvalOnlyRefusals.push(reason);
   }
 
@@ -416,34 +406,32 @@ function getHardPrRefusalReasons({ options, pullRequest, prBody }) {
   return reasons;
 }
 
-function getMetadataFindings(prBody) {
+function getMetadataFindings(metadata) {
   const reasons = [];
 
   for (const heading of requiredPrBodyHeadings) {
-    if (!prBody.includes(heading)) {
+    if (metadata.missing_headings.includes(heading)) {
       reasons.push(`PR body is missing required heading: ${heading}.`);
     }
   }
 
-  for (const marker of [
-    /- Role:\s*role:[a-z-]+/i,
-    /- Type:\s*type:[a-z-]+/i,
-    /- Risk:\s*risk:[a-z-]+/i,
-    /- Validation profile:\s*validation:[a-z-]+/i,
-  ]) {
-    if (!marker.test(prBody)) {
+  if (metadata.role_type_risk_validation_ok !== true) {
+    const findings = metadata.role_type_risk_validation_findings || [];
+    if (findings.length === 0) {
       reasons.push("PR body is missing role/type/risk/validation metadata.");
-      break;
+    } else {
+      for (const finding of findings) {
+        reasons.push(`PR body metadata is invalid: ${finding}.`);
+      }
     }
   }
 
   return reasons;
 }
 
-function getForbiddenFileFindings(files, prBody) {
+function getForbiddenFileFindings(files, metadata) {
   const reasons = [];
-  const typeMatch = prBody.match(/- Type:\s*(type:[a-z-]+)/i);
-  const type = typeMatch?.[1]?.toLowerCase();
+  const type = metadata.role_type_risk_validation_ok === true ? metadata.type : null;
 
   for (const file of files) {
     const path = normalizePath(file.filename);

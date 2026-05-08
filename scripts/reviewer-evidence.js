@@ -26,6 +26,41 @@ const requiredPrBodyHeadings = [
   "## Known Limitations",
 ];
 
+const metadataSectionHeading = "## Role / Type / Risk / Validation";
+const metadataFieldDefinitions = {
+  role: {
+    aliases: new Map([
+      ["architect", "architect"],
+      ["coder", "coder"],
+      ["test", "test"],
+      ["tester", "test"],
+      ["reviewer", "reviewer"],
+      ["release", "release"],
+    ]),
+    canonicalSuffixes: new Set(["architect", "coder", "test", "reviewer", "release"]),
+    fieldName: "Role",
+    prefix: "role:",
+  },
+  type: {
+    aliases: identityAliasMap(["architecture", "docs", "gameplay", "harness", "movement", "progression", "test", "ui"]),
+    canonicalSuffixes: new Set(["architecture", "docs", "gameplay", "harness", "movement", "progression", "test", "ui"]),
+    fieldName: "Type",
+    prefix: "type:",
+  },
+  risk: {
+    aliases: identityAliasMap(["low", "medium", "high", "human-only"]),
+    canonicalSuffixes: new Set(["low", "medium", "high", "human-only"]),
+    fieldName: "Risk",
+    prefix: "risk:",
+  },
+  validation: {
+    aliases: identityAliasMap(["docs", "gameplay", "harness", "movement", "progression", "test", "ui"]),
+    canonicalSuffixes: new Set(["docs", "gameplay", "harness", "movement", "progression", "test", "ui"]),
+    fieldName: "Validation profile",
+    prefix: "validation:",
+  },
+};
+
 const forbiddenFileMatchers = [
   { pattern: /(^|\/)\.env($|\.)/i, reason: "local env file" },
   { pattern: /\.pem$/i, reason: "private key file" },
@@ -247,20 +282,19 @@ export function createGitHubEvidenceClient({ fetchImpl = fetch, repo = defaultRe
 
 export function summarizePrMetadata(prBody, issue) {
   const missing_headings = requiredPrBodyHeadings.filter((heading) => !prBody.includes(heading));
-  const role = matchMetadata(prBody, /- Role:\s*(role:[a-z-]+)/i);
-  const type = matchMetadata(prBody, /- Type:\s*(type:[a-z-]+)/i);
-  const risk = matchMetadata(prBody, /- Risk:\s*(risk:[a-z-]+)/i);
-  const validation = matchMetadata(prBody, /- Validation profile:\s*(validation:[a-z-]+)/i);
+  const metadata = parsePrRoleTypeRiskValidation(prBody);
 
   return {
     mentions_linked_issue: prBody.includes(issue),
     required_headings_ok: missing_headings.length === 0,
     missing_headings,
-    role,
-    type,
-    risk,
-    validation,
-    role_type_risk_validation_ok: Boolean(role && type && risk && validation),
+    metadata_section_found: metadata.sectionFound,
+    role: metadata.role,
+    type: metadata.type,
+    risk: metadata.risk,
+    validation: metadata.validation,
+    role_type_risk_validation_ok: metadata.ok,
+    role_type_risk_validation_findings: metadata.findings,
     validation_evidence: {
       tests_run: extractSection(prBody, "## Tests Run"),
       manual_qa: extractSection(prBody, "## Manual QA"),
@@ -269,6 +303,53 @@ export function summarizePrMetadata(prBody, issue) {
       visible_ui_expectation: extractSection(prBody, "## Visible UI Expectation"),
       known_limitations: extractSection(prBody, "## Known Limitations"),
     },
+  };
+}
+
+export function parsePrRoleTypeRiskValidation(prBody) {
+  const section = extractMetadataSection(prBody);
+  const findings = [];
+  const values = {
+    risk: null,
+    role: null,
+    type: null,
+    validation: null,
+  };
+
+  if (!section.found) {
+    return {
+      ...values,
+      findings: [`missing required metadata section: ${metadataSectionHeading}`],
+      ok: false,
+      sectionFound: false,
+    };
+  }
+
+  const entries = collectMetadataEntries(section.body);
+  for (const [field, definition] of Object.entries(metadataFieldDefinitions)) {
+    const fieldEntries = entries[field] || [];
+    if (fieldEntries.length === 0) {
+      findings.push(`missing required metadata field: ${definition.fieldName}`);
+      continue;
+    }
+    if (fieldEntries.length > 1) {
+      findings.push(`duplicate metadata field: ${definition.fieldName}`);
+      continue;
+    }
+
+    const normalized = normalizeMetadataValue(fieldEntries[0].value, definition);
+    if (normalized.finding) {
+      findings.push(normalized.finding);
+      continue;
+    }
+    values[field] = normalized.value;
+  }
+
+  return {
+    ...values,
+    findings,
+    ok: findings.length === 0 && Object.values(values).every(Boolean),
+    sectionFound: true,
   };
 }
 
@@ -502,8 +583,112 @@ function findForbiddenFiles(files) {
   return findings;
 }
 
-function matchMetadata(text, pattern) {
-  return text.match(pattern)?.[1]?.toLowerCase() || null;
+function identityAliasMap(values) {
+  return new Map(values.map((value) => [value, value]));
+}
+
+function extractMetadataSection(body) {
+  const start = body.indexOf(metadataSectionHeading);
+  if (start === -1) {
+    return {
+      body: "",
+      found: false,
+    };
+  }
+
+  const contentStart = start + metadataSectionHeading.length;
+  const nextHeadingMatch = body.slice(contentStart).match(/\n##\s+/);
+  const contentEnd = nextHeadingMatch ? contentStart + nextHeadingMatch.index : body.length;
+  return {
+    body: body.slice(contentStart, contentEnd),
+    found: true,
+  };
+}
+
+function collectMetadataEntries(sectionBody) {
+  const entries = {
+    risk: [],
+    role: [],
+    type: [],
+    validation: [],
+  };
+  const fieldPattern = /^\s*-\s*(Role|Type|Risk|Validation profile)\s*:\s*(.*?)\s*$/i;
+
+  for (const line of String(sectionBody).split(/\r?\n/)) {
+    const match = line.match(fieldPattern);
+    if (!match) {
+      continue;
+    }
+
+    const field = normalizeMetadataFieldName(match[1]);
+    entries[field].push({
+      line,
+      value: match[2],
+    });
+  }
+
+  return entries;
+}
+
+function normalizeMetadataFieldName(name) {
+  const normalized = String(name).toLowerCase();
+  if (normalized === "validation profile") {
+    return "validation";
+  }
+  return normalized;
+}
+
+function normalizeMetadataValue(rawValue, definition) {
+  const raw = stripOptionalBackticks(rawValue).trim();
+  const lower = raw.toLowerCase();
+  if (!lower) {
+    return {
+      finding: `empty metadata value for ${definition.fieldName}`,
+    };
+  }
+  if (/[,/]/.test(lower)) {
+    return {
+      finding: `ambiguous metadata value for ${definition.fieldName}: ${raw}`,
+    };
+  }
+
+  if (lower.startsWith(definition.prefix)) {
+    const suffix = lower.slice(definition.prefix.length);
+    if (definition.canonicalSuffixes.has(suffix)) {
+      return {
+        value: `${definition.prefix}${suffix}`,
+      };
+    }
+    return {
+      finding: `unknown metadata value for ${definition.fieldName}: ${raw}`,
+    };
+  }
+
+  if (/^[a-z]+:/.test(lower)) {
+    return {
+      finding: `unknown metadata value for ${definition.fieldName}: ${raw}`,
+    };
+  }
+
+  const aliasKey = lower.replace(/[\s_]+/g, "-");
+  const suffix = definition.aliases.get(aliasKey);
+  if (suffix) {
+    return {
+      value: `${definition.prefix}${suffix}`,
+    };
+  }
+
+  return {
+    finding: `unknown metadata value for ${definition.fieldName}: ${raw}`,
+  };
+}
+
+function stripOptionalBackticks(value) {
+  let text = String(value || "").trim();
+  if (text.startsWith("`") && text.endsWith("`") && text.length >= 2) {
+    text = text.slice(1, -1).trim();
+  }
+  return text;
 }
 
 function extractSection(body, heading) {

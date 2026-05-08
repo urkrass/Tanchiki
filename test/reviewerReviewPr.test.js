@@ -31,6 +31,28 @@ function makeOptions(overrides = {}) {
   };
 }
 
+function makePrBody(overrides = {}) {
+  return [
+    "## Linked Linear Issue",
+    `Closes: ${overrides.issue || "MAR-296"}`,
+    "## Role / Type / Risk / Validation",
+    `- Role: ${overrides.role || "role:coder"}`,
+    `- Type: ${overrides.type || "type:harness"}`,
+    `- Risk: ${overrides.risk || "risk:medium"}`,
+    `- Validation profile: ${overrides.validation || "validation:harness"}`,
+    "## Summary",
+    "## Files Changed",
+    "## Tests Run",
+    "## Manual QA",
+    "## Broad Scan Reason",
+    "## Conflict Risk",
+    "## Acceptance Labels",
+    "## PR Readiness",
+    "## Visible UI Expectation",
+    "## Known Limitations",
+  ].join("\n");
+}
+
 function makeInspection(overrides = {}) {
   return {
     checks: {
@@ -56,25 +78,7 @@ function makeInspection(overrides = {}) {
     },
     pullRequest: {
       base: { ref: "main" },
-      body: [
-        "## Linked Linear Issue",
-        "Closes: MAR-296",
-        "## Role / Type / Risk / Validation",
-        "- Role: role:coder",
-        "- Type: type:harness",
-        "- Risk: risk:medium",
-        "- Validation profile: validation:harness",
-        "## Summary",
-        "## Files Changed",
-        "## Tests Run",
-        "## Manual QA",
-        "## Broad Scan Reason",
-        "## Conflict Risk",
-        "## Acceptance Labels",
-        "## PR Readiness",
-        "## Visible UI Expectation",
-        "## Known Limitations",
-      ].join("\n"),
+      body: makePrBody(),
       draft: false,
       head: { sha: "abc123" },
       html_url: "https://github.com/urkrass/Tanchiki/pull/123",
@@ -297,6 +301,80 @@ test("review-pr approval gates require safe PR state metadata files labels and c
     options: makeOptions(),
   });
   assert.match(stopLabel.refusalReasons.join("\n"), /stop label/);
+});
+
+test("review-pr approval gates accept human-readable metadata after normalization", () => {
+  const result = evaluateReviewGates({
+    body: "APPROVED FOR MERGE\n\nIndependence: separate Reviewer App session.",
+    inspection: makeInspection({
+      pullRequest: {
+        ...makeInspection().pullRequest,
+        body: makePrBody({
+          role: "Coder",
+          type: "harness",
+          risk: "medium",
+          validation: "harness",
+        }),
+      },
+    }),
+    options: makeOptions(),
+  });
+
+  assert.deepEqual(result.refusalReasons, []);
+  assert.deepEqual(result.approvalOnlyRefusals, []);
+});
+
+test("review-pr approval gates use normalized type for source scope checks", () => {
+  const result = evaluateReviewGates({
+    body: "APPROVED FOR MERGE\n\nIndependence: separate Reviewer App session.",
+    inspection: makeInspection({
+      files: [{ filename: "src/game.js" }],
+      pullRequest: {
+        ...makeInspection().pullRequest,
+        body: makePrBody({
+          type: "test",
+        }),
+      },
+    }),
+    options: makeOptions(),
+  });
+
+  assert.match(result.refusalReasons.join("\n"), /outside docs\/harness\/test issue scope/);
+});
+
+test("review-pr approval gates fail closed for invalid normalized metadata", () => {
+  const cases = [
+    {
+      body: makePrBody({ role: "engineer" }),
+      expected: /unknown metadata value for Role: engineer/,
+      name: "unknown role",
+    },
+    {
+      body: makePrBody().replace("- Type: type:harness", "- Type: type:harness\n- Type: type:harness"),
+      expected: /duplicate metadata field: Type/,
+      name: "duplicate type",
+    },
+    {
+      body: makePrBody({ validation: "browser" }),
+      expected: /unknown metadata value for Validation profile: browser/,
+      name: "unknown validation",
+    },
+  ];
+
+  for (const scenario of cases) {
+    const result = evaluateReviewGates({
+      body: "APPROVED FOR MERGE\n\nIndependence: separate Reviewer App session.",
+      inspection: makeInspection({
+        pullRequest: {
+          ...makeInspection().pullRequest,
+          body: scenario.body,
+        },
+      }),
+      options: makeOptions(),
+    });
+
+    assert.match(result.refusalReasons.join("\n"), scenario.expected, scenario.name);
+  }
 });
 
 test("review-pr hard PR gates refuse closed merged non-main and unlinked PRs", () => {
