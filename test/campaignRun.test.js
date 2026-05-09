@@ -251,6 +251,69 @@ test("dry-run promotes Coder after Architect Done then stops at Coder prompt", a
   assert.equal(result.reason, "coder-operator-required");
 });
 
+test("Clean Autopilot Run v1 promotes only the proof Coder after Architect evidence is Done", async () => {
+  const cleanCampaign = "Clean Autopilot Run v1 — caveat-free foreground campaign proof";
+  const description = [
+    "## Campaign",
+    "",
+    cleanCampaign,
+    "",
+    "review_cadence: paired-review",
+    "Shape A with Tester. Tester is required and must not be skipped.",
+  ].join("\n");
+  const cleanIssue = ({ id, labels, status = "Backlog", title }) => ({
+    id,
+    title,
+    description,
+    labels,
+    project: activeProject,
+    status,
+  });
+
+  const result = await runCampaignStateMachine({
+    dryRun: true,
+    maxSteps: 3,
+    state: {
+      activeProject,
+      automationReadyLabelId: "label-auto",
+      issues: [
+        cleanIssue({
+          id: "MAR-398",
+          labels: ["role:architect", "type:architecture", "risk:medium", "validation:harness", "automation-ready"],
+          status: "Done",
+          title: "Clean Autopilot Run v1: architect evidence contract and clean-run scope",
+        }),
+        cleanIssue({
+          id: "MAR-399",
+          labels: ["role:coder", "type:harness", "risk:medium", "validation:harness"],
+          title: "Clean Autopilot Run v1: implement tiny proof change through campaign runner",
+        }),
+        cleanIssue({
+          id: "MAR-400",
+          labels: ["role:test", "type:test", "risk:medium", "validation:harness"],
+          title: "Clean Autopilot Run v1: verify proof PR and campaign-run evidence",
+        }),
+        cleanIssue({
+          id: "MAR-401",
+          labels: ["role:reviewer", "type:harness", "risk:medium", "validation:harness"],
+          title: "Reviewer: paired-review PR for Clean Autopilot Run v1",
+        }),
+        cleanIssue({
+          id: "MAR-402",
+          labels: ["role:release", "type:docs", "risk:low", "validation:docs"],
+          title: "Clean Autopilot Run v1: release clean-run summary and next gate",
+        }),
+      ],
+      prs: [],
+    },
+  });
+
+  assert.equal(result.campaignName, cleanCampaign);
+  assert.deepEqual(result.steps.map(({ action, issue: issueId }) => `${action}:${issueId}`), ["promote:MAR-399"]);
+  assert.equal(result.reason, "coder-operator-required");
+  assert.equal(result.roleIssueIds.test, "MAR-400");
+});
+
 test("Shape A promotes Tester from a ready Coder PR and does not skip Tester", async () => {
   const result = await runCampaignStateMachine({
     dryRun: true,
