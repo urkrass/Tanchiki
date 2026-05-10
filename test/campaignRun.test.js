@@ -624,6 +624,10 @@ test("missing auth stops before mutation and sanitizes errors", async () => {
     argv: ["--active-project", activeProject],
     env: {
       GH_TOKEN: "secret-gh-token",
+      GITHUB_REVIEWER_APP_ID: "reviewer-app-id",
+      GITHUB_REVIEWER_INSTALLATION_ID: "reviewer-installation-id",
+      GITHUB_REVIEWER_PRIVATE_KEY_PATH: "C:\\Users\\Legion\\.config\\reviewer.pem",
+      OPENAI_API_KEY: "secret-openai-token",
     },
     stderr: () => {},
     stdout: (line) => stdout.push(line),
@@ -632,8 +636,70 @@ test("missing auth stops before mutation and sanitizes errors", async () => {
   const output = stdout.join("\n");
   assert.equal(exitCode, 0);
   assert.match(output, /missing-auth/);
+  assert.match(output, /LINEAR_API_TOKEN or LINEAR_API_KEY/);
   assert.match(output, /Mutation applied: false/);
-  assert.doesNotMatch(output, /secret-gh-token/);
+  assert.doesNotMatch(output, /secret-gh-token|secret-openai-token|reviewer-app-id|reviewer-installation-id|reviewer\.pem/);
+});
+
+test("live read failures redact secret-bearing diagnostics", async () => {
+  const stdout = [];
+  const env = {
+    GH_TOKEN: "secret-gh-token",
+    GITHUB_REVIEWER_PRIVATE_KEY: "secret-reviewer-private-key",
+    LINEAR_API_TOKEN: "secret-linear-token",
+    OPENAI_API_KEY: "secret-openai-token",
+  };
+  const exitCode = await main({
+    argv: ["--active-project", activeProject],
+    env,
+    fetchImpl: async () => {
+      throw new Error([
+        `Authorization: Bearer ${env.GH_TOKEN}`,
+        `LINEAR_API_TOKEN=${env.LINEAR_API_TOKEN}`,
+        `OPENAI_API_KEY=${env.OPENAI_API_KEY}`,
+        "-----BEGIN PRIVATE KEY-----",
+        env.GITHUB_REVIEWER_PRIVATE_KEY,
+        "-----END PRIVATE KEY-----",
+      ].join(" "));
+    },
+    stderr: () => {},
+    stdout: (line) => stdout.push(line),
+  });
+
+  const output = stdout.join("\n");
+  assert.equal(exitCode, 0);
+  assert.match(output, /api-unavailable/);
+  assert.match(output, /\[redacted/);
+  assert.doesNotMatch(
+    output,
+    /secret-gh-token|secret-linear-token|secret-openai-token|secret-reviewer-private-key|BEGIN PRIVATE KEY/,
+  );
+});
+
+test("reviewer-agent live path preflights auth before execution", async () => {
+  const reviewerCalls = [];
+  const result = await runCampaignStateMachine({
+    env: {
+      GH_TOKEN: "secret-gh-token",
+    },
+    reviewerAgentMainImpl: async () => {
+      reviewerCalls.push("called");
+      return 1;
+    },
+    state: state({
+      coder: { status: "In Review" },
+      test: { status: "Done" },
+      reviewer: { labels: [...issue("reviewer").labels, "automation-ready"], status: "Todo" },
+      prs: [readyPr()],
+    }),
+  });
+
+  assert.equal(reviewerCalls.length, 0);
+  assert.equal(result.reason, "missing-auth");
+  assert.match(result.stopReason, /OPENAI_API_KEY/);
+  assert.match(result.stopReason, /GITHUB_REVIEWER_APP_ID/);
+  assert.equal(result.mutationApplied, false);
+  assert.doesNotMatch(JSON.stringify(result), /secret-gh-token/);
 });
 
 test("dry-run performs no mutation or Reviewer submission and max steps stops safely", async () => {

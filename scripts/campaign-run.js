@@ -8,6 +8,19 @@ import {
   defaultRepo,
   summarizePrMetadata,
 } from "./reviewer-evidence.js";
+import {
+  formatMissingAuthChannels,
+  getMissingAuthChannels,
+  githubAuthChannel,
+  githubAuthEnvNames,
+  linearAuthChannel,
+  linearAuthEnvNames,
+  openAiAuthChannel,
+  readFirstEnv,
+  redactSecureText,
+  reviewerAppAuthChannel,
+  sanitizeSecureError,
+} from "./secure-runner.js";
 
 const githubApiUrl = "https://api.github.com";
 const linearApiUrl = "https://api.linear.app/graphql";
@@ -153,13 +166,13 @@ export async function main({
       reviewerAgentMainImpl,
       state: inputState,
     });
-    stdout(formatCampaignRunResult(result));
+    stdout(redactSecureText(formatCampaignRunResult(result), { env }));
     return 0;
   } catch (error) {
     if (!(error instanceof CampaignRunError) && !(error instanceof SyntaxError)) {
       throw error;
     }
-    stderr(`Campaign run failed: ${sanitizeErrorMessage(error)}`);
+    stderr(`Campaign run failed: ${sanitizeSecureError(error, { env })}`);
     return 1;
   }
 }
@@ -187,13 +200,8 @@ export async function readInputState({ env = process.env, fetchImpl = globalThis
     };
   }
 
-  const linearToken = readLinearToken(env);
-  const githubToken = readGitHubToken(env);
-  if (!linearToken || !githubToken) {
-    const missing = [
-      !linearToken ? "Linear API token" : "",
-      !githubToken ? "GitHub token" : "",
-    ].filter(Boolean).join("; ");
+  const missingAuth = getMissingAuthChannels(env, [linearAuthChannel, githubAuthChannel]);
+  if (missingAuth.length > 0) {
     return {
       activeProject,
       liveReadStop: stopResult({
@@ -201,7 +209,7 @@ export async function readInputState({ env = process.env, fetchImpl = globalThis
         nextAction:
           "Provide Linear and GitHub auth through process environment. Do not print, commit, or write tokens.",
         reason: "missing-auth",
-        stopReason: `Missing required auth: ${missing}.`,
+        stopReason: `Missing required auth: ${formatMissingAuthChannels(missingAuth)}.`,
       }),
     };
   }
@@ -219,8 +227,8 @@ export async function readInputState({ env = process.env, fetchImpl = globalThis
 
   try {
     const [owner, repoName] = parseRepo(options.repo);
-    const linear = createLinearClient({ fetchImpl, token: linearToken });
-    const github = createGitHubClient({ fetchImpl, owner, repo: repoName, token: githubToken });
+    const linear = createLinearClient({ fetchImpl, token: readLinearToken(env) });
+    const github = createGitHubClient({ fetchImpl, owner, repo: repoName, token: readGitHubToken(env) });
     const [issues, automationReadyLabelId, pullRequests] = await Promise.all([
       linear.listProjectIssues(activeProject),
       linear.getIssueLabelId(automationReadyLabel),
@@ -240,7 +248,7 @@ export async function readInputState({ env = process.env, fetchImpl = globalThis
         activeProject,
         nextAction: "Fix live Linear/GitHub access or rerun with --fixture/--json for deterministic validation.",
         reason: "api-unavailable",
-        stopReason: sanitizeErrorMessage(error),
+        stopReason: sanitizeSecureError(error, { env }),
       }),
     };
   }
@@ -314,6 +322,20 @@ export async function runCampaignStateMachine({
       result.stopReason = "Dry-run stopped before Reviewer Agent execution.";
       result.nextAction = "Rerun without --dry-run only when Reviewer Agent execution is intended.";
       return result;
+    }
+
+    if (decision.kind === "reviewer-agent") {
+      const missingAuth = getMissingAuthChannels(env, [
+        githubAuthChannel,
+        openAiAuthChannel,
+        reviewerAppAuthChannel,
+      ]);
+      if (missingAuth.length > 0) {
+        result.reason = "missing-auth";
+        result.stopReason = `Missing required auth: ${formatMissingAuthChannels(missingAuth)}.`;
+        result.nextAction = "Provide Reviewer Agent auth through process environment, or rerun with --dry-run to avoid live Reviewer App submission.";
+        return result;
+      }
     }
 
     if (dryRun) {
@@ -1404,11 +1426,11 @@ async function applyLiveDecision({ decision, env, fetchImpl, reviewerAgentMainIm
     return runReviewerAgentForDecision({ decision, env, fetchImpl, reviewerAgentMainImpl, state });
   }
 
-  const linearToken = readLinearToken(env);
-  if (!linearToken) {
+  const missingAuth = getMissingAuthChannels(env, [linearAuthChannel]);
+  if (missingAuth.length > 0) {
     throw new CampaignRunError("Linear API token is required before live mutation.");
   }
-  const linear = createLinearClient({ fetchImpl, token: linearToken });
+  const linear = createLinearClient({ fetchImpl, token: readLinearToken(env) });
   const mutation = decision.mutation;
   const issue = mutation.issue;
   const update = {};
@@ -2033,11 +2055,11 @@ function findStateId(issue, stateName) {
 }
 
 function readLinearToken(env) {
-  return env.LINEAR_API_TOKEN || env.LINEAR_API_KEY || "";
+  return readFirstEnv(env, linearAuthEnvNames);
 }
 
 function readGitHubToken(env) {
-  return env.GH_TOKEN || env.GITHUB_TOKEN || "";
+  return readFirstEnv(env, githubAuthEnvNames);
 }
 
 function parseMaxSteps(value) {
@@ -2064,21 +2086,13 @@ function escapeRegExp(text) {
   return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function sanitizeErrorMessage(error) {
-  const message = error?.message || String(error);
-  return message
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [redacted]")
-    .replace(/Authorization:\s*[^\s]+/gi, "Authorization: [redacted]")
-    .replace(/(GH_TOKEN|GITHUB_TOKEN|LINEAR_API_TOKEN|LINEAR_API_KEY|OPENAI_API_KEY)=\S+/gi, "$1=[redacted]");
-}
-
 if (process.argv[1] && process.argv[1].endsWith("campaign-run.js")) {
   main().then(
     (code) => {
       process.exitCode = code;
     },
     (error) => {
-      console.error(`Campaign run failed: ${sanitizeErrorMessage(error)}`);
+      console.error(`Campaign run failed: ${sanitizeSecureError(error, { env: process.env })}`);
       process.exitCode = 1;
     },
   );

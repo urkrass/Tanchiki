@@ -959,8 +959,43 @@ test("conductor bridge live mode fails closed on missing Linear auth", async () 
   assert.equal(exitCode, 0);
   const output = stdout.join("\n");
   assert.match(output, /missing-auth/);
-  assert.match(output, /Linear API token/);
+  assert.match(output, /LINEAR_API_TOKEN or LINEAR_API_KEY/);
   assert.doesNotMatch(output, /github-token/);
+});
+
+test("conductor live sync redacts secret-bearing API failures", async () => {
+  const stdout = [];
+  const env = {
+    GITHUB_TOKEN: "secret-github-token",
+    LINEAR_API_TOKEN: "secret-linear-token",
+    OPENAI_API_KEY: "secret-openai-token",
+  };
+  const exitCode = await main({
+    argv: [
+      "--active-project", activeProject,
+      "--sync-review-outcome",
+      "--repo", "urkrass/Tanchiki",
+      "--pr", "144",
+      "--producer", "MAR-328",
+      "--reviewer", "MAR-329",
+    ],
+    env,
+    fetchImpl: async () => {
+      throw new Error([
+        `authorization: Bearer ${env.GITHUB_TOKEN}`,
+        `LINEAR_API_TOKEN=${env.LINEAR_API_TOKEN}`,
+        `OPENAI_API_KEY=${env.OPENAI_API_KEY}`,
+      ].join(" "));
+    },
+    stderr: () => {},
+    stdout: (line) => stdout.push(line),
+  });
+
+  const output = stdout.join("\n");
+  assert.equal(exitCode, 0);
+  assert.match(output, /api-unavailable/);
+  assert.match(output, /\[redacted/);
+  assert.doesNotMatch(output, /secret-github-token|secret-linear-token|secret-openai-token/);
 });
 
 test("conductor step CLI prints required fields from a fixture", () => {
