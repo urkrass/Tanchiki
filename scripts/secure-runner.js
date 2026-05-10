@@ -36,6 +36,7 @@ export const openAiAuthChannel = {
 export const reviewerAppAuthChannel = {
   envNames: reviewerAppAuthEnvNames,
   label: "Reviewer App environment",
+  required: "all",
   reason: "missing-reviewer-app-auth",
 };
 
@@ -50,11 +51,17 @@ export function readFirstEnv(env = {}, names = []) {
 }
 
 export function getMissingAuthChannels(env = {}, channels = []) {
-  return channels.filter((channel) => !readFirstEnv(env, channel.envNames));
+  return channels.filter((channel) => {
+    if (channel.required === "all") {
+      return channel.envNames.some((name) => !readFirstEnv(env, [name]));
+    }
+    return !readFirstEnv(env, channel.envNames);
+  });
 }
 
 export function formatAuthChannel(channel) {
-  return `${channel.label} (${channel.envNames.join(" or ")})`;
+  const joiner = channel.required === "all" ? " and " : " or ";
+  return `${channel.label} (${channel.envNames.join(joiner)})`;
 }
 
 export function formatMissingAuthChannels(channels = []) {

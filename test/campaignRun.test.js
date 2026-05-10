@@ -702,6 +702,35 @@ test("reviewer-agent live path preflights auth before execution", async () => {
   assert.doesNotMatch(JSON.stringify(result), /secret-gh-token/);
 });
 
+test("reviewer-agent live path requires complete Reviewer App auth set", async () => {
+  const reviewerCalls = [];
+  const result = await runCampaignStateMachine({
+    env: {
+      GH_TOKEN: "secret-gh-token",
+      OPENAI_API_KEY: "secret-openai-token",
+      GITHUB_REVIEWER_APP_ID: "secret-reviewer-app-id",
+    },
+    reviewerAgentMainImpl: async () => {
+      reviewerCalls.push("called");
+      return 1;
+    },
+    state: state({
+      coder: { status: "In Review" },
+      test: { status: "Done" },
+      reviewer: { labels: [...issue("reviewer").labels, "automation-ready"], status: "Todo" },
+      prs: [readyPr()],
+    }),
+  });
+
+  assert.equal(reviewerCalls.length, 0);
+  assert.equal(result.reason, "missing-auth");
+  assert.match(result.stopReason, /GITHUB_REVIEWER_APP_ID/);
+  assert.match(result.stopReason, /GITHUB_REVIEWER_INSTALLATION_ID/);
+  assert.match(result.stopReason, /GITHUB_REVIEWER_PRIVATE_KEY_PATH/);
+  assert.equal(result.mutationApplied, false);
+  assert.doesNotMatch(JSON.stringify(result), /secret-gh-token|secret-openai-token|secret-reviewer-app-id/);
+});
+
 test("dry-run performs no mutation or Reviewer submission and max steps stops safely", async () => {
   const reviewerCalls = [];
   const result = await runCampaignStateMachine({
