@@ -1,6 +1,18 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import {
+  formatMissingAuthChannels,
+  getMissingAuthChannels,
+  githubAuthChannel,
+  githubAuthEnvNames,
+  linearAuthChannel,
+  linearAuthEnvNames,
+  readFirstEnv,
+  redactSecureText,
+  sanitizeSecureError,
+} from "./secure-runner.js";
+
 const GITHUB_API_URL = "https://api.github.com";
 const LINEAR_API_URL = "https://api.linear.app/graphql";
 const ROLE_LABELS = ["role:architect", "role:coder", "role:test", "role:reviewer", "role:release"];
@@ -517,19 +529,19 @@ export async function main({
       const report = state.liveMode
         ? await runLiveCandidateReport({ env, fetchImpl, state })
         : decideCandidateReport(state);
-      stdout(formatCandidateReport(report, { includeHistorical: options.includeHistorical }));
+      stdout(redactSecureText(formatCandidateReport(report, { includeHistorical: options.includeHistorical }), { env }));
       return 0;
     }
     const decision = state.liveMode
       ? await runLiveConductorStep({ env, fetchImpl, state })
       : decideConductorStep(state);
-    stdout(formatDecision(decision));
+    stdout(redactSecureText(formatDecision(decision), { env }));
     return 0;
   } catch (error) {
     if (!(error instanceof ConductorStepError) && !(error instanceof SyntaxError)) {
       throw error;
     }
-    stderr(`Conductor step failed: ${error.message}`);
+    stderr(`Conductor step failed: ${sanitizeSecureError(error, { env })}`);
     return 1;
   }
 }
@@ -545,18 +557,13 @@ export async function runLiveConductorStep({ env = process.env, fetchImpl = glob
     });
   }
 
-  const linearToken = env.LINEAR_API_TOKEN || env.LINEAR_API_KEY || "";
-  const githubToken = env.GITHUB_TOKEN || env.GH_TOKEN || "";
-  if (!linearToken || !githubToken) {
-    const missing = [
-      !linearToken ? "Linear API token" : "",
-      !githubToken ? "GitHub token" : "",
-    ].filter(Boolean).join("; ");
+  const missingAuth = getMissingAuthChannels(env, [linearAuthChannel, githubAuthChannel]);
+  if (missingAuth.length > 0) {
     return stopDecision({
       activeProject: normalized.activeProject,
       evidence: [
         "Live Linear/GitHub sync requires auth scoped to this process.",
-        `Missing required auth: ${missing}.`,
+        `Missing required auth: ${formatMissingAuthChannels(missingAuth)}.`,
       ],
       reason: "missing-auth",
       nextAction:
@@ -632,13 +639,13 @@ export async function runLiveCandidateReport({ env = process.env, fetchImpl = gl
     });
   }
 
-  const linearToken = env.LINEAR_API_TOKEN || env.LINEAR_API_KEY || "";
-  if (!linearToken) {
+  const missingAuth = getMissingAuthChannels(env, [linearAuthChannel]);
+  if (missingAuth.length > 0) {
     return candidateReportStop({
       activeProject: normalized.activeProject,
       evidence: [
         "Live candidate reporting requires Linear read auth scoped to this process.",
-        "Missing required auth: Linear API token.",
+        `Missing required auth: ${formatMissingAuthChannels(missingAuth)}.`,
       ],
       reason: "missing-linear-auth",
       nextAction:
@@ -656,7 +663,7 @@ export async function runLiveCandidateReport({ env = process.env, fetchImpl = gl
   }
 
   try {
-    const linear = createLinearClient({ fetchImpl, token: linearToken });
+    const linear = createLinearClient({ fetchImpl, token: readLinearToken(env) });
     const issues = await linear.listAutomationReadyIssues(normalized.activeProject);
     return decideCandidateReport({
       activeProject: normalized.activeProject,
@@ -665,7 +672,7 @@ export async function runLiveCandidateReport({ env = process.env, fetchImpl = gl
   } catch (error) {
     return candidateReportStop({
       activeProject: normalized.activeProject,
-      evidence: [sanitizeErrorMessage(error)],
+      evidence: [sanitizeSecureError(error, { env })],
       reason: "api-unavailable",
       nextAction: "Fix live Linear API access or rerun in --fixture/--json mode.",
     });
@@ -692,8 +699,8 @@ async function readLiveSyncState({ activeProject, config, env, fetchImpl }) {
       });
     }
 
-    const linear = createLinearClient({ fetchImpl, token: env.LINEAR_API_TOKEN || env.LINEAR_API_KEY });
-    const github = createGitHubClient({ fetchImpl, owner, repo: repoName, token: env.GITHUB_TOKEN || env.GH_TOKEN });
+    const linear = createLinearClient({ fetchImpl, token: readLinearToken(env) });
+    const github = createGitHubClient({ fetchImpl, owner, repo: repoName, token: readGitHubToken(env) });
 
     const producerIssue = await linear.getIssue(config.producer);
     const reviewerIssue = await linear.getIssue(config.reviewer);
@@ -771,7 +778,7 @@ async function readLiveSyncState({ activeProject, config, env, fetchImpl }) {
   } catch (error) {
     return stopDecision({
       activeProject,
-      evidence: [sanitizeErrorMessage(error)],
+      evidence: [sanitizeSecureError(error, { env })],
       reason: "api-unavailable",
       nextAction: "Fix live Linear/GitHub API access or rerun in --fixture/--json mode.",
     });
@@ -780,7 +787,19 @@ async function readLiveSyncState({ activeProject, config, env, fetchImpl }) {
 
 async function applyLiveMutation({ decision, env, fetchImpl }) {
   const mutation = decision.proposedMutation;
-  const linear = createLinearClient({ fetchImpl, token: env.LINEAR_API_TOKEN || env.LINEAR_API_KEY });
+  const missingAuth = getMissingAuthChannels(env, [linearAuthChannel]);
+  if (missingAuth.length > 0) {
+    return stopDecision({
+      activeProject: decision.activeProject,
+      evidence: [
+        "Linear mutation requires auth scoped to this process.",
+        `Missing required auth: ${formatMissingAuthChannels(missingAuth)}.`,
+      ],
+      reason: "missing-linear-auth",
+      nextAction: "Provide Linear auth through the process environment or rerun with --dry-run.",
+    });
+  }
+  const linear = createLinearClient({ fetchImpl, token: readLinearToken(env) });
   if (mutation.state && !mutation.stateId) {
     return stopDecision({
       activeProject: decision.activeProject,
@@ -819,7 +838,7 @@ async function applyLiveMutation({ decision, env, fetchImpl }) {
   } catch (error) {
     return stopDecision({
       activeProject: decision.activeProject,
-      evidence: [sanitizeErrorMessage(error)],
+      evidence: [sanitizeSecureError(error, { env })],
       reason: "linear-mutation-failed",
       nextAction: "Inspect the paired Reviewer issue before rerunning; avoid duplicate comments or broader mutation.",
     });
@@ -1088,11 +1107,12 @@ function parseRepo(repo) {
   return parts;
 }
 
-function sanitizeErrorMessage(error) {
-  const message = error?.message || String(error);
-  return message
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [redacted]")
-    .replace(/Authorization:\s*[^\s]+/gi, "Authorization: [redacted]");
+function readLinearToken(env) {
+  return readFirstEnv(env, linearAuthEnvNames);
+}
+
+function readGitHubToken(env) {
+  return readFirstEnv(env, githubAuthEnvNames);
 }
 
 function findProducerPrReadyTransitions(state, blockedTransitions) {
