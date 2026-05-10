@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   campaignFactorySchemaVersion,
+  createLiveCampaignFromPlan,
   defaultActiveProject,
   defaultActiveRepo,
+  defaultLinearTeamName,
   defaultMilestone,
   defaultReviewCadence,
   formatCampaignPlan,
+  getLiveCampaignPreflightFindings,
+  hashCampaignPlan,
   planCampaignIdea,
   redactCampaignFactoryText,
   requiredValidationCommands,
@@ -49,13 +53,14 @@ function safeHarnessIdea(overrides = {}) {
 }
 
 test("safe harness ideas produce a deterministic five-issue dry-run campaign plan", async () => {
-  const plan = await runCampaignFactory({ fixture: safeHarnessIdea() });
+  const plan = await runCampaignFactory({ env: {}, fixture: safeHarnessIdea() });
 
   assert.equal(plan.schema_version, campaignFactorySchemaVersion);
   assert.equal(plan.status, "planned");
   assert.equal(plan.mode, "fixture");
   assert.equal(plan.active_linear_project, defaultActiveProject);
   assert.equal(plan.active_repo, defaultActiveRepo);
+  assert.equal(plan.linear_team, defaultLinearTeamName);
   assert.equal(plan.milestone, defaultMilestone);
   assert.equal(plan.campaign.review_cadence, "paired-review");
   assert.equal(plan.campaign.validation_profile, "validation:harness");
@@ -262,6 +267,170 @@ test("fixture mode remains local and does not call mutation clients", async () =
   assert.equal(calls, 0);
 });
 
+test("dry-run preview exposes live gate hash and confirmation without allowing mutation", () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const markdown = formatCampaignPlan(plan);
+
+  assert.equal(plan.status, "planned");
+  assert.equal(plan.live_creation.allowed, false);
+  assert.equal(plan.live_creation.preview_hash, hashCampaignPlan(plan));
+  assert.equal(
+    plan.live_creation.confirmation_phrase,
+    `CREATE LIVE CAMPAIGN: ${plan.campaign.name} IN ${defaultActiveProject}`,
+  );
+  assert.equal(plan.live_creation.required_flags.includes("--live"), true);
+  assert.equal(markdown.includes(plan.live_creation.preview_hash), true);
+});
+
+test("live creation stops before mutation without explicit operator confirmation", async () => {
+  let calls = 0;
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const result = await runCampaignFactory({
+    env: { LINEAR_API_TOKEN: fakeToken },
+    fixture: safeHarnessIdea(),
+    linearClient: mutationCountingClient(() => {
+      calls += 1;
+    }),
+    options: {
+      live: true,
+      previewHash: plan.live_creation.preview_hash,
+    },
+  });
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.live_creation.allowed, false);
+  assert.equal(calls, 0);
+  assert.ok(result.unsafe_findings.some((finding) => finding.id === "operator-confirmation-required"));
+});
+
+test("live creation stops before mutation when Linear auth is missing", async () => {
+  let calls = 0;
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const result = await runCampaignFactory({
+    env: {},
+    fixture: safeHarnessIdea(),
+    linearClient: mutationCountingClient(() => {
+      calls += 1;
+    }),
+    options: liveOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.live_creation.allowed, false);
+  assert.equal(calls, 0);
+  assert.ok(result.unsafe_findings.some((finding) => finding.id === "missing-linear-auth"));
+  assert.equal(JSON.stringify(result).includes(fakeToken), false);
+});
+
+test("live creation fails closed for wrong project before mutation", async () => {
+  let calls = 0;
+  const fixture = safeHarnessIdea({ activeProject: "Wrong Project" });
+  const plan = planCampaignIdea(fixture, { mode: "dry-run" });
+  const result = await runCampaignFactory({
+    env: { LINEAR_API_TOKEN: fakeToken },
+    fixture,
+    linearClient: mutationCountingClient(() => {
+      calls += 1;
+    }),
+    options: liveOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.live_creation.allowed, false);
+  assert.equal(calls, 0);
+  assert.ok(result.unsafe_findings.some((finding) => finding.id === "wrong-active-project"));
+});
+
+test("live creation preflight revalidates labels, state, dependencies, and unsafe findings", () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const badPlan = structuredClone(plan);
+  badPlan.issues[1].labels.push("role:extra");
+  badPlan.issues[2].state = "Todo";
+  badPlan.issues[3].blocked_by = ["missing-issue"];
+  badPlan.unsafe_findings.push({ id: "unsafe", message: "unsafe", evidence: "unsafe" });
+  const findings = getLiveCampaignPreflightFindings(badPlan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    options: liveOptionsFor(badPlan),
+  });
+
+  assert.ok(findings.some((finding) => finding.id === "label-cardinality"));
+  assert.ok(findings.some((finding) => finding.id === "invalid-downstream-state"));
+  assert.ok(findings.some((finding) => finding.id === "unknown-blocker"));
+  assert.ok(findings.some((finding) => finding.id === "unsafe-findings-present"));
+});
+
+test("live creation preflight binds mutation to the reviewed Linear team", () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const findings = getLiveCampaignPreflightFindings(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    options: { ...liveOptionsFor(plan), team: "Different Team" },
+  });
+
+  assert.ok(findings.some((finding) => finding.id === "linear-team-mismatch"));
+});
+
+test("confirmed live creation uses only the injected Linear mutation client", async () => {
+  const calls = [];
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async createIssue(issue, context) {
+        calls.push({ context, issue, type: "createIssue" });
+        return {
+          id: `live-${issue.temporary_id}`,
+          url: `https://linear.app/marsel/issue/live-${issue.temporary_id}`,
+        };
+      },
+      async createRelation(relation) {
+        calls.push({ relation, type: "createRelation" });
+        return { id: `${relation.blockingIssueId}->${relation.blockedIssueId}` };
+      },
+    },
+    options: liveOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "live-created");
+  assert.equal(result.mode, "live");
+  assert.equal(result.live_creation.allowed, true);
+  assert.equal(result.live_creation.created_issues.length, 5);
+  assert.equal(result.live_creation.relation_count, 4);
+  assert.equal(calls.filter((call) => call.type === "createIssue").length, 5);
+  assert.equal(calls.filter((call) => call.type === "createRelation").length, 4);
+  assert.equal(JSON.stringify(result).includes(fakeToken), false);
+  assert.equal(result.live_creation.dogfood_evidence.forbidden_side_effects.github_label_mutation, false);
+  assert.equal(result.live_creation.dogfood_evidence.forbidden_side_effects.movement_file_touched, false);
+});
+
+test("partial live failures report created issues without cleanup or continuation", async () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  let issueCalls = 0;
+  let relationCalls = 0;
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async createIssue(issue) {
+        issueCalls += 1;
+        if (issueCalls === 3) {
+          throw new Error(`Linear API failed with ${fakeToken}`);
+        }
+        return { id: `live-${issue.temporary_id}` };
+      },
+      async createRelation() {
+        relationCalls += 1;
+        return { id: "relation" };
+      },
+    },
+    options: liveOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "partial-failure");
+  assert.equal(result.live_creation.allowed, false);
+  assert.equal(result.live_creation.created_issues.length, 2);
+  assert.equal(relationCalls, 0);
+  assert.equal(JSON.stringify(result).includes(fakeToken), false);
+});
+
 function issueByRole(plan, role) {
   const issue = plan.issues.find((candidate) => candidate.role === role);
   assert.ok(issue, `${role} issue missing`);
@@ -270,4 +439,26 @@ function issueByRole(plan, role) {
 
 function countPrefixedLabels(issue, prefix) {
   return issue.labels.filter((label) => label.startsWith(prefix)).length;
+}
+
+function liveOptionsFor(plan) {
+  return {
+    confirmCreateLiveCampaign: true,
+    confirmationPhrase: plan.live_creation.confirmation_phrase,
+    live: true,
+    previewHash: plan.live_creation.preview_hash,
+  };
+}
+
+function mutationCountingClient(onMutation) {
+  return {
+    async createIssue() {
+      onMutation();
+      return { id: "unexpected" };
+    },
+    async createRelation() {
+      onMutation();
+      return { id: "unexpected" };
+    },
+  };
 }
