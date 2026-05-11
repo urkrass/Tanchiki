@@ -340,7 +340,15 @@ export async function createLiveCampaignFromPlan(plan, {
       team: plan.linear_team,
     };
     const duplicateCheck = await getDuplicateCampaignCheck(client, plan, context);
-    if (duplicateCheck.status === "already_exists" || duplicateCheck.status === "partial_exists") {
+    if (options.repairRelations === true) {
+      return redactPlan(await repairLiveCampaignRelations({
+        client,
+        context,
+        duplicateCheck,
+        plan,
+      }), redactionOptions);
+    }
+    if (duplicateCheck.status !== "none") {
       return redactPlan(buildDuplicateRejectedPlan(plan, duplicateCheck), redactionOptions);
     }
 
@@ -355,21 +363,37 @@ export async function createLiveCampaignFromPlan(plan, {
     }
 
     const createdByTempId = new Map(createdIssues.map((issue) => [issue.temporary_id, issue]));
-    for (const edge of collectPlanEdges(plan.issues)) {
-      const blockingIssue = createdByTempId.get(edge.from);
-      const blockedIssue = createdByTempId.get(edge.to);
-      if (!blockingIssue || !blockedIssue) {
-        throw new CampaignFactoryError("live-relation-resolution-failed", `Could not resolve relation ${edge.from} -> ${edge.to}.`);
-      }
-      const relation = await client.createRelation({
-        blockedIssueId: blockedIssue.id,
-        blockingIssueId: blockingIssue.id,
-      });
-      createdRelations.push({
-        blocked_issue_id: blockedIssue.id,
-        blocking_issue_id: blockingIssue.id,
-        id: relation?.id || `${edge.from}->${edge.to}`,
-      });
+    createdRelations.push(...await createExpectedBlockingRelations({
+      client,
+      edges: collectPlanEdges(plan.issues),
+      issueByTempId: createdByTempId,
+    }));
+
+    const postMutationCheck = await getDuplicateCampaignCheck(client, plan, context);
+    if (postMutationCheck.status !== "already_exists") {
+      return redactPlan({
+        ...plan,
+        live_creation: {
+          ...plan.live_creation,
+          allowed: false,
+          created_issues: createdIssues,
+          created_relations: createdRelations,
+          duplicate_check: duplicateCheck,
+          failure: liveFinding(
+            "relation-verification-failed",
+            "Linear machine-state relation graph could not be verified after mutation.",
+            postMutationCheck.relation_check?.missing_relation_edges?.join(",") || "relation-verification-failed",
+          ),
+          missing_expected_issues: [],
+          post_mutation_duplicate_check: postMutationCheck,
+          reason: "live campaign creation stopped after relation read-back failed; no cleanup was attempted",
+          relation_count: postMutationCheck.relation_check?.actual_relation_count || 0,
+          relation_verification: postMutationCheck.relation_check,
+          requested: true,
+        },
+        mode: "live",
+        status: "partial-failure",
+      }, redactionOptions);
     }
 
     return redactPlan({
@@ -377,6 +401,7 @@ export async function createLiveCampaignFromPlan(plan, {
       live_creation: {
         ...plan.live_creation,
         allowed: true,
+        created_relations: createdRelations,
         created_issues: createdIssues,
         dogfood_evidence: {
           created_issue_count: createdIssues.length,
@@ -391,14 +416,19 @@ export async function createLiveCampaignFromPlan(plan, {
             stop_label_removal: false,
             workflow_changes: false,
           },
-          relation_count: createdRelations.length,
+          post_mutation_duplicate_check: postMutationCheck,
+          relation_count: postMutationCheck.relation_check.actual_relation_count,
+          relation_verification: postMutationCheck.relation_check,
         },
         reason: "live campaign creation completed after explicit confirmation and pre-mutation revalidation",
-        relation_count: createdRelations.length,
+        relation_count: postMutationCheck.relation_check.actual_relation_count,
+        relation_verification: postMutationCheck.relation_check,
         requested: true,
         schema_audit: {
+          actual_relation_graph: postMutationCheck.relation_check.actual_relation_graph,
           finding_count: 0,
           machine_state_relation_schema: plan.live_schema?.expected_relation_graph || plan.dependency_graph,
+          relation_source: postMutationCheck.relation_check.relation_source,
         },
       },
       mode: "live",
@@ -410,6 +440,7 @@ export async function createLiveCampaignFromPlan(plan, {
       live_creation: {
         ...plan.live_creation,
         allowed: false,
+        created_relations: createdRelations,
         created_issues: createdIssues,
         failure: sanitizeCampaignFactoryError(error, { env }),
         missing_expected_issues: plan.issues
@@ -430,16 +461,22 @@ export async function createLiveCampaignFromPlan(plan, {
 export function getLiveCampaignPreflightFindings(plan, { env = {}, options = {} } = {}) {
   const findings = [];
   const liveRequested = options.live === true || options.mode === "live";
+  const repairRequested = options.repairRelations === true;
   if (!liveRequested) {
     findings.push(liveFinding("live-flag-required", "Live campaign creation requires an explicit live mode flag."));
   }
-  if (options.confirmCreateLiveCampaign !== true) {
+  if (!repairRequested && options.confirmCreateLiveCampaign !== true) {
     findings.push(liveFinding("operator-confirmation-required", "Live campaign creation requires explicit operator confirmation."));
   }
+  if (repairRequested && options.confirmRepairRelations !== true) {
+    findings.push(liveFinding("operator-repair-confirmation-required", "Live relation repair requires explicit operator confirmation."));
+  }
 
-  const expectedPhrase = plan?.live_creation?.confirmation_phrase || buildLiveConfirmationPhrase(plan);
+  const expectedPhrase = repairRequested
+    ? buildRepairConfirmationPhrase(plan)
+    : plan?.live_creation?.confirmation_phrase || buildLiveConfirmationPhrase(plan);
   if (stringValue(options.confirmationPhrase) !== expectedPhrase) {
-    findings.push(liveFinding("confirmation-phrase-mismatch", "Live campaign confirmation phrase does not match the planned campaign and active project."));
+    findings.push(liveFinding("confirmation-phrase-mismatch", "Live campaign confirmation phrase does not match the planned campaign, action, and active project."));
   }
 
   const expectedHash = hashCampaignPlan(plan);
@@ -472,6 +509,10 @@ export function hashCampaignPlan(plan) {
 
 export function buildLiveConfirmationPhrase(plan) {
   return `CREATE LIVE CAMPAIGN: ${plan?.campaign?.name || ""} IN ${plan?.active_linear_project || ""}`;
+}
+
+export function buildRepairConfirmationPhrase(plan) {
+  return `REPAIR LIVE CAMPAIGN RELATIONS: ${plan?.campaign?.name || ""} IN ${plan?.active_linear_project || ""}`;
 }
 
 export function formatCampaignPlanMarkdown(plan) {
@@ -566,6 +607,12 @@ export function parseArgs(argv = []) {
       case "--confirm-create-live-campaign":
         options.confirmCreateLiveCampaign = true;
         break;
+      case "--repair-relations":
+        options.repairRelations = true;
+        break;
+      case "--confirm-repair-relations":
+        options.confirmRepairRelations = true;
+        break;
       case "--confirmation-phrase":
         options.confirmationPhrase = readArgValue(argv, index, arg);
         index += 1;
@@ -610,7 +657,7 @@ export async function main(argv = process.argv.slice(2), {
       ? JSON.stringify(plan, null, 2)
       : formatCampaignPlanMarkdown(plan);
     stdout(redactCampaignFactoryText(output, { env, extraSecrets: collectInputSecrets(fixture) }));
-    return { ok: ["already_exists", "live-created", "planned"].includes(plan.status), plan };
+    return { ok: ["already_exists", "live-created", "planned", "relations-repaired"].includes(plan.status), plan };
   } catch (error) {
     stderr(`Campaign Factory v2 failed: ${sanitizeCampaignFactoryError(error, { env })}`);
     return { ok: false, error };
@@ -695,8 +742,10 @@ function buildLiveRejectedPlan(plan, { findings, reason }) {
 
 function buildDuplicateRejectedPlan(plan, duplicateCheck) {
   const reason = duplicateCheck.status === "already_exists"
-    ? "matching campaign already exists; no live mutation was performed"
-    : "partial matching campaign exists; no live mutation was performed";
+    ? "matching campaign already exists with verified Linear relation graph; no live mutation was performed"
+    : duplicateCheck.status === "issues_only"
+      ? "matching campaign issues exist but Linear relation graph is incomplete; no live mutation was performed"
+      : "partial matching campaign exists; no live mutation was performed";
   const finding = liveFinding(
     duplicateCheck.status,
     reason,
@@ -708,15 +757,93 @@ function buildDuplicateRejectedPlan(plan, duplicateCheck) {
     live_creation: {
       ...plan.live_creation,
       allowed: false,
+      created_relations: [],
       created_issues: [],
       duplicate_check: duplicateCheck,
       findings: [finding],
+      relation_verification: duplicateCheck.relation_check,
       reason,
       requested: true,
     },
     mode: "live",
     status: duplicateCheck.status,
     unsafe_findings: [...(plan.unsafe_findings || []), finding],
+  };
+}
+
+async function repairLiveCampaignRelations({ client, context, duplicateCheck, plan }) {
+  if (duplicateCheck.status === "already_exists") {
+    return buildDuplicateRejectedPlan(plan, duplicateCheck);
+  }
+  if (duplicateCheck.status !== "issues_only") {
+    const finding = liveFinding(
+      "repair-requires-issues-only",
+      "Relation repair requires all campaign issues to exist with only expected Linear relations missing.",
+      duplicateCheck.status,
+    );
+    return buildLiveRejectedPlan(plan, {
+      findings: [finding],
+      reason: "live relation repair gate failed before mutation",
+    });
+  }
+
+  const issueByTempId = new Map(duplicateCheck.matches
+    .filter((issue) => issue.temporary_id)
+    .map((issue) => [issue.temporary_id, issue]));
+  const missingEdges = collectPlanEdges(plan.issues)
+    .filter((edge) => duplicateCheck.relation_check.missing_relation_edges.includes(formatRelationEdge(edge)));
+  const createdRelations = await createExpectedBlockingRelations({
+    client,
+    edges: missingEdges,
+    issueByTempId,
+  });
+  const postRepairCheck = await getDuplicateCampaignCheck(client, plan, context);
+  if (postRepairCheck.status !== "already_exists") {
+    return {
+      ...plan,
+      live_creation: {
+        ...plan.live_creation,
+        allowed: false,
+        created_issues: [],
+        created_relations: createdRelations,
+        duplicate_check: duplicateCheck,
+        post_mutation_duplicate_check: postRepairCheck,
+        reason: "live relation repair stopped after relation read-back failed; no cleanup was attempted",
+        relation_count: postRepairCheck.relation_check?.actual_relation_count || 0,
+        relation_verification: postRepairCheck.relation_check,
+        requested: true,
+      },
+      mode: "live",
+      status: "partial-failure",
+    };
+  }
+
+  return {
+    ...plan,
+    live_creation: {
+      ...plan.live_creation,
+      allowed: true,
+      created_issues: [],
+      created_relations: createdRelations,
+      duplicate_check: duplicateCheck,
+      post_mutation_duplicate_check: postRepairCheck,
+      reason: "live campaign relations repaired after explicit operator confirmation and machine-state verification",
+      relation_count: postRepairCheck.relation_check.actual_relation_count,
+      relation_repair: {
+        created_relation_count: createdRelations.length,
+        repaired_edges: createdRelations.map((relation) => relation.edge),
+      },
+      relation_verification: postRepairCheck.relation_check,
+      requested: true,
+      schema_audit: {
+        actual_relation_graph: postRepairCheck.relation_check.actual_relation_graph,
+        finding_count: 0,
+        machine_state_relation_schema: plan.live_schema?.expected_relation_graph || plan.dependency_graph,
+        relation_source: postRepairCheck.relation_check.relation_source,
+      },
+    },
+    mode: "live",
+    status: "relations-repaired",
   };
 }
 
@@ -732,35 +859,120 @@ async function getDuplicateCampaignCheck(client, plan, context) {
 }
 
 export function detectDuplicateCampaign(plan, existingIssues = []) {
+  const expectedIssues = plan.issues || [];
+  const expectedByTitle = new Map(expectedIssues
+    .map((issue) => [normalizeComparableText(issue.title), issue]));
   const matches = existingIssues
     .filter((issue) => existingIssueMatchesCampaign(plan, issue))
-    .map((issue) => ({
-      id: issue.id || null,
-      identifier: issue.identifier || null,
-      state: issue.state?.name || issue.state || null,
-      state_type: issue.state?.type || issue.state_type || null,
-      title: issue.title || "",
-      url: issue.url || null,
-    }));
+    .map((issue) => {
+      const expectedIssue = expectedByTitle.get(normalizeComparableText(issue.title));
+      return {
+        id: issue.id || null,
+        identifier: issue.identifier || null,
+        relations: issue.relations || null,
+        inverseRelations: issue.inverseRelations || null,
+        state: issue.state?.name || issue.state || null,
+        state_type: issue.state?.type || issue.state_type || null,
+        temporary_id: expectedIssue?.temporary_id || null,
+        title: issue.title || "",
+        url: issue.url || null,
+      };
+    });
 
-  const expectedTitles = new Set((plan.issues || []).map((issue) => normalizeComparableText(issue.title)));
-  const matchedTitles = new Set(matches
-    .map((issue) => normalizeComparableText(issue.title))
-    .filter((title) => expectedTitles.has(title)));
+  const matchedTemporaryIds = new Set(matches
+    .map((issue) => issue.temporary_id)
+    .filter(Boolean));
+  const relationCheck = buildLinearRelationGraphCheck(plan, matches);
+  const hasAllExpectedIssues = expectedIssues.length > 0 && matchedTemporaryIds.size >= expectedIssues.length;
+  const hasCompleteRelationGraph = relationCheck.missing_relation_edges.length === 0
+    && relationCheck.extra_relation_edges.length === 0;
   const status = matches.length === 0
     ? "none"
-    : matchedTitles.size >= expectedTitles.size
-      ? "already_exists"
+    : hasAllExpectedIssues
+      ? hasCompleteRelationGraph
+        ? "already_exists"
+        : relationCheck.extra_relation_edges.length > 0
+          ? "inconsistent"
+          : "issues_only"
       : "partial_exists";
 
   return {
-    expected_issue_count: (plan.issues || []).length,
+    expected_issue_count: expectedIssues.length,
     matched_issue_count: matches.length,
-    matched_title_count: matchedTitles.size,
+    matched_title_count: matchedTemporaryIds.size,
     matching_issue_ids: matches.map((issue) => issue.identifier || issue.id).filter(Boolean),
     matches,
+    relation_check: relationCheck,
     status,
   };
+}
+
+function buildLinearRelationGraphCheck(plan, matches) {
+  const expectedEdges = collectPlanEdges(plan.issues).map(formatRelationEdge);
+  const actualEdges = collectLinearMachineRelationEdges(matches);
+  const missingRelationEdges = expectedEdges.filter((edge) => !actualEdges.includes(edge));
+  const extraRelationEdges = actualEdges.filter((edge) => !expectedEdges.includes(edge));
+  return {
+    actual_relation_count: actualEdges.length,
+    actual_relation_graph: actualEdges,
+    expected_relation_count: expectedEdges.length,
+    expected_relation_graph: expectedEdges,
+    extra_relation_edges: extraRelationEdges,
+    missing_relation_edges: missingRelationEdges,
+    relation_source: "Linear machine-state relations",
+  };
+}
+
+function collectLinearMachineRelationEdges(matches) {
+  const issueIdToTempId = new Map();
+  const edges = [];
+  for (const issue of matches) {
+    if (!issue.temporary_id) {
+      continue;
+    }
+    for (const id of [issue.id, issue.identifier]) {
+      if (id) {
+        issueIdToTempId.set(id, issue.temporary_id);
+      }
+    }
+  }
+
+  for (const issue of matches) {
+    if (!issue.temporary_id) {
+      continue;
+    }
+    for (const relation of issue.relations?.nodes || []) {
+      const relatedTemporaryId = tempIdForLinearIssue(relation.relatedIssue, issueIdToTempId);
+      if (!relatedTemporaryId) {
+        continue;
+      }
+      if (isBlockingRelationType(relation.type)) {
+        edges.push(formatRelationEdge({ from: issue.temporary_id, to: relatedTemporaryId }));
+      } else if (isBlockedByRelationType(relation.type)) {
+        edges.push(formatRelationEdge({ from: relatedTemporaryId, to: issue.temporary_id }));
+      }
+    }
+    for (const relation of issue.inverseRelations?.nodes || []) {
+      const sourceTemporaryId = tempIdForLinearIssue(relation.issue, issueIdToTempId);
+      if (!sourceTemporaryId) {
+        continue;
+      }
+      if (isBlockingRelationType(relation.type)) {
+        edges.push(formatRelationEdge({ from: sourceTemporaryId, to: issue.temporary_id }));
+      } else if (isBlockedByRelationType(relation.type)) {
+        edges.push(formatRelationEdge({ from: issue.temporary_id, to: sourceTemporaryId }));
+      }
+    }
+  }
+
+  return uniqueStrings(edges).sort();
+}
+
+function tempIdForLinearIssue(issue, issueIdToTempId) {
+  if (!issue) {
+    return "";
+  }
+  return issueIdToTempId.get(issue.id) || issueIdToTempId.get(issue.identifier) || "";
 }
 
 function existingIssueMatchesCampaign(plan, issue) {
@@ -1255,6 +1467,14 @@ function attachLiveCreationPreview(plan) {
       confirmation_phrase: buildLiveConfirmationPhrase(plan),
       preview_hash: previewHash,
       reason: plan.live_creation?.reason || "dry-run output must be reviewed before live creation",
+      repair_confirmation_phrase: buildRepairConfirmationPhrase(plan),
+      repair_required_flags: [
+        "--live",
+        "--repair-relations",
+        "--confirm-repair-relations",
+        "--confirmation-phrase",
+        "--preview-hash",
+      ],
       required_flags: [
         "--live",
         "--confirm-create-live-campaign",
@@ -1442,6 +1662,59 @@ function collectPlanEdges(issues = []) {
   return edges;
 }
 
+async function createExpectedBlockingRelations({ client, edges, issueByTempId }) {
+  const createdRelations = [];
+  for (const edge of edges) {
+    const blockingIssue = issueByTempId.get(edge.from);
+    const blockedIssue = issueByTempId.get(edge.to);
+    if (!blockingIssue || !blockedIssue) {
+      throw new CampaignFactoryError("live-relation-resolution-failed", `Could not resolve relation ${edge.from} -> ${edge.to}.`);
+    }
+    let alreadyExisted = false;
+    let relation;
+    try {
+      relation = await createBlockingRelationWithClient(client, {
+        blockedIssueId: blockedIssue.id,
+        blockingIssueId: blockingIssue.id,
+      });
+    } catch (error) {
+      if (!isDuplicateRelationError(error)) {
+        throw error;
+      }
+      alreadyExisted = true;
+      relation = { id: `already-existing:${edge.from}->${edge.to}` };
+    }
+    createdRelations.push({
+      already_existed: alreadyExisted,
+      blocked_issue_id: blockedIssue.id,
+      blocking_issue_id: blockingIssue.id,
+      edge: formatRelationEdge(edge),
+      id: relation?.id || `${edge.from}->${edge.to}`,
+    });
+  }
+  return createdRelations;
+}
+
+function isDuplicateRelationError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("already exists")
+    || message.includes("duplicate")
+    || message.includes("relation already");
+}
+
+async function createBlockingRelationWithClient(client, input) {
+  if (typeof client.createBlockingRelation === "function") {
+    return client.createBlockingRelation(input);
+  }
+  if (typeof client.createRelation === "function") {
+    return client.createRelation(input);
+  }
+  throw new CampaignFactoryError(
+    "relation-create-unavailable",
+    "Live campaign creation requires a Linear relation creation adapter.",
+  );
+}
+
 function collectPlanBlockEdges(issues = []) {
   const edges = [];
   for (const issue of issues) {
@@ -1493,13 +1766,29 @@ function liveFinding(id, message, evidence = id) {
   return { evidence, id, message };
 }
 
+function isBlockedByRelationType(type = "") {
+  const normalized = String(type).toLowerCase().replace(/[^a-z]/g, "");
+  return normalized === "blockedby" || normalized === "isblockedby";
+}
+
+function isBlockingRelationType(type = "") {
+  const normalized = String(type).toLowerCase().replace(/[^a-z]/g, "");
+  return normalized === "blocks" || normalized === "isblocking";
+}
+
 function stripHashFields(value) {
   if (Array.isArray(value)) {
     return value.map(stripHashFields);
   }
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value)
-      .filter(([key]) => !["confirmation_phrase", "preview_hash", "required_flags"].includes(key))
+      .filter(([key]) => ![
+        "confirmation_phrase",
+        "preview_hash",
+        "repair_confirmation_phrase",
+        "repair_required_flags",
+        "required_flags",
+      ].includes(key))
       .map(([key, entry]) => [key, stripHashFields(entry)]));
   }
   return value;
@@ -1590,6 +1879,18 @@ export function createLinearCampaignClient({ fetchImpl = fetch, token }) {
               url
               state { name type }
               projectMilestone { name }
+              relations(first: 50) {
+                nodes {
+                  type
+                  relatedIssue { id identifier title state { name type } }
+                }
+              }
+              inverseRelations(first: 50) {
+                nodes {
+                  type
+                  issue { id identifier title state { name type } }
+                }
+              }
             }
           }
         }`,
@@ -1633,7 +1934,7 @@ export function createLinearCampaignClient({ fetchImpl = fetch, token }) {
       }
       return data.issueCreate.issue;
     },
-    async createRelation({ blockedIssueId, blockingIssueId }) {
+    async createBlockingRelation({ blockedIssueId, blockingIssueId }) {
       const data = await graphql(
         `mutation CampaignFactoryCreateRelation($input: IssueRelationCreateInput!) {
           issueRelationCreate(input: $input) {
@@ -1653,6 +1954,9 @@ export function createLinearCampaignClient({ fetchImpl = fetch, token }) {
         throw new CampaignFactoryError("linear-relation-create-failed", "Linear issueRelationCreate did not report success.");
       }
       return data.issueRelationCreate.relation;
+    },
+    async createRelation(input) {
+      return this.createBlockingRelation(input);
     },
   };
 }
@@ -1858,8 +2162,9 @@ function usageText() {
     "  node scripts/campaign-factory-v2.js --fixture path/to/fixture.json [--json]",
     "  node scripts/campaign-factory-v2.js --input path/to/input.json [--markdown]",
     "  node scripts/campaign-factory-v2.js --fixture path/to/fixture.json --live --confirm-create-live-campaign --confirmation-phrase <phrase> --preview-hash <hash>",
+    "  node scripts/campaign-factory-v2.js --fixture path/to/fixture.json --live --repair-relations --confirm-repair-relations --confirmation-phrase <phrase> --preview-hash <hash>",
     "",
-    "Campaign Factory v2 defaults to fixture/dry-run planning. Live Linear campaign creation is gated by reviewed preview hash, explicit confirmation, process-scoped Linear auth, and pre-mutation revalidation.",
+    "Campaign Factory v2 defaults to fixture/dry-run planning. Live Linear campaign creation and relation repair are gated by reviewed preview hash, explicit confirmation, process-scoped Linear auth, and pre-mutation revalidation.",
   ].join("\n");
 }
 
