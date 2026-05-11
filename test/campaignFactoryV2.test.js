@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   campaignFactorySchemaVersion,
   createLiveCampaignFromPlan,
+  createLinearCampaignClient,
   defaultActiveProject,
   defaultActiveRepo,
   defaultLinearTeamName,
@@ -359,6 +360,19 @@ test("live creation preflight revalidates labels, state, dependencies, and unsaf
   assert.ok(findings.some((finding) => finding.id === "unsafe-findings-present"));
 });
 
+test("live creation preflight recomputes hash instead of trusting embedded preview hash", () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const tamperedPlan = structuredClone(plan);
+  tamperedPlan.campaign.goal = "Tampered after dry-run preview was reviewed.";
+  tamperedPlan.live_creation.preview_hash = plan.live_creation.preview_hash;
+  const findings = getLiveCampaignPreflightFindings(tamperedPlan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    options: liveOptionsFor(tamperedPlan),
+  });
+
+  assert.ok(findings.some((finding) => finding.id === "preview-hash-mismatch"));
+});
+
 test("live creation preflight binds mutation to the reviewed Linear team", () => {
   const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
   const findings = getLiveCampaignPreflightFindings(plan, {
@@ -367,6 +381,45 @@ test("live creation preflight binds mutation to the reviewed Linear team", () =>
   });
 
   assert.ok(findings.some((finding) => finding.id === "linear-team-mismatch"));
+});
+
+test("Linear live client fails closed when requested team is missing", async () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const linear = linearFetchFixture(plan, {
+    projectTeamName: "Fallback Team",
+    teamName: "Different Team",
+  });
+  const client = createLinearCampaignClient({
+    fetchImpl: linear.fetchImpl,
+    token: fakeToken,
+  });
+
+  await assert.rejects(
+    () => client.createIssue(issueByRole(plan, "Architect"), {
+      activeProject: defaultActiveProject,
+      milestone: defaultMilestone,
+      team: defaultLinearTeamName,
+    }),
+    (error) => error.reason === "linear-team-not-found",
+  );
+  assert.equal(linear.issueCreateCount(), 0);
+});
+
+test("confirmed live creation passes with exact reviewed Linear team", async () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const linear = linearFetchFixture(plan);
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    fetchImpl: linear.fetchImpl,
+    options: liveOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "live-created");
+  assert.equal(result.live_creation.created_issues.length, 5);
+  assert.equal(result.live_creation.relation_count, 4);
+  assert.equal(linear.contextTeamName(), defaultLinearTeamName);
+  assert.equal(linear.issueCreateCount(), 5);
+  assert.equal(linear.relationCreateCount(), 4);
 });
 
 test("confirmed live creation uses only the injected Linear mutation client", async () => {
@@ -447,6 +500,97 @@ function liveOptionsFor(plan) {
     confirmationPhrase: plan.live_creation.confirmation_phrase,
     live: true,
     previewHash: plan.live_creation.preview_hash,
+  };
+}
+
+function linearFetchFixture(plan, {
+  projectTeamName = defaultLinearTeamName,
+  teamName = defaultLinearTeamName,
+} = {}) {
+  const requests = [];
+  let issueCount = 0;
+  let relationCount = 0;
+  return {
+    contextTeamName() {
+      return requests.find((request) => request.query.includes("CampaignFactoryLiveContext"))
+        ?.variables?.team;
+    },
+    async fetchImpl(_url, request) {
+      const body = JSON.parse(request.body);
+      requests.push(body);
+      if (body.query.includes("CampaignFactoryLiveContext")) {
+        return jsonResponse({ data: linearContextData(plan, { projectTeamName, teamName }) });
+      }
+      if (body.query.includes("CampaignFactoryCreateIssue")) {
+        issueCount += 1;
+        return jsonResponse({
+          data: {
+            issueCreate: {
+              issue: {
+                id: `linear-issue-${issueCount}`,
+                identifier: `MAR-X${issueCount}`,
+                title: body.variables.input.title,
+                url: `https://linear.app/marsel/issue/MAR-X${issueCount}`,
+              },
+              success: true,
+            },
+          },
+        });
+      }
+      if (body.query.includes("CampaignFactoryCreateRelation")) {
+        relationCount += 1;
+        return jsonResponse({
+          data: {
+            issueRelationCreate: {
+              relation: { id: `linear-relation-${relationCount}` },
+              success: true,
+            },
+          },
+        });
+      }
+      throw new Error("Unexpected Linear fixture query.");
+    },
+    issueCreateCount() {
+      return issueCount;
+    },
+    relationCreateCount() {
+      return relationCount;
+    },
+  };
+}
+
+function linearContextData(plan, { projectTeamName, teamName }) {
+  const states = [
+    { id: "state-todo", name: "Todo", type: "unstarted" },
+    { id: "state-backlog", name: "Backlog", type: "backlog" },
+  ];
+  const labels = [...new Set(plan.issues.flatMap((issue) => issue.labels))]
+    .map((label, index) => ({ id: `label-${index}`, name: label }));
+  return {
+    issueLabels: { nodes: labels },
+    projectMilestones: { nodes: [{ id: "milestone-1", name: defaultMilestone }] },
+    projects: {
+      nodes: [{
+        id: "project-1",
+        name: defaultActiveProject,
+        teams: {
+          nodes: [{ id: "project-team-1", name: projectTeamName, states: { nodes: states } }],
+        },
+      }],
+    },
+    teams: {
+      nodes: [{ id: "team-1", name: teamName, states: { nodes: states } }],
+    },
+  };
+}
+
+function jsonResponse(payload) {
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return payload;
+    },
   };
 }
 

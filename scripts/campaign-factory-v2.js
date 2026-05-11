@@ -416,7 +416,7 @@ export function getLiveCampaignPreflightFindings(plan, { env = {}, options = {} 
     findings.push(liveFinding("confirmation-phrase-mismatch", "Live campaign confirmation phrase does not match the planned campaign and active project."));
   }
 
-  const expectedHash = plan?.live_creation?.preview_hash || hashCampaignPlan(plan);
+  const expectedHash = hashCampaignPlan(plan);
   if (stringValue(options.previewHash) !== expectedHash) {
     findings.push(liveFinding("preview-hash-mismatch", "Live campaign preview hash does not match the plan that would be created."));
   }
@@ -1374,8 +1374,7 @@ function normalizeLinearContext(data, { activeProject, milestone, team }) {
     throw new CampaignFactoryError("linear-project-not-found", `Linear project not found: ${activeProject}`);
   }
   const teamNode = data.teams?.nodes?.find((candidate) => candidate.name === team)
-    || project.teams?.nodes?.find((candidate) => candidate.name === team)
-    || project.teams?.nodes?.[0];
+    || project.teams?.nodes?.find((candidate) => candidate.name === team);
   if (!teamNode) {
     throw new CampaignFactoryError("linear-team-not-found", `Linear team not found: ${team}`);
   }
