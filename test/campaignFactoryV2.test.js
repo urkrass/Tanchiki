@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   campaignFactorySchemaVersion,
+  buildRepairConfirmationPhrase,
   createLiveCampaignFromPlan,
   createLinearCampaignClient,
   defaultActiveProject,
@@ -441,26 +442,23 @@ test("Linear live client fails closed when requested team is missing", async () 
 
 test("duplicate detection identifies full and partial generated campaigns", () => {
   const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
-  const existing = plan.issues.map((issue, index) => ({
-    description: issue.description,
-    id: `issue-${index}`,
-    identifier: `MAR-D${index}`,
-    projectMilestone: { name: defaultMilestone },
-    state: { name: issue.state, type: issue.state === "Done" ? "completed" : "unstarted" },
-    title: issue.title,
-    url: `https://linear.app/marsel/issue/MAR-D${index}`,
-  }));
+  const existingIssuesOnly = existingCampaignIssues(plan);
+  const existingWithRelations = withMachineRelations(plan, existingIssuesOnly);
 
   assert.equal(detectDuplicateCampaign(plan, []).status, "none");
-  assert.equal(detectDuplicateCampaign(plan, existing).status, "already_exists");
-  assert.equal(detectDuplicateCampaign(plan, existing.slice(0, 2)).status, "partial_exists");
+  assert.equal(detectDuplicateCampaign(plan, existingIssuesOnly).status, "issues_only");
+  assert.equal(detectDuplicateCampaign(plan, existingWithRelations).status, "already_exists");
+  assert.equal(detectDuplicateCampaign(plan, existingIssuesOnly.slice(0, 2)).status, "partial_exists");
   assert.equal(
-    detectDuplicateCampaign(plan, existing.map((issue) => ({
+    detectDuplicateCampaign(plan, existingIssuesOnly.map((issue) => ({
       ...issue,
       projectMilestone: { name: "Other milestone" },
     }))).status,
     "none",
   );
+  const relationCheck = detectDuplicateCampaign(plan, existingWithRelations).relation_check;
+  assert.equal(relationCheck.actual_relation_count, 7);
+  assert.deepEqual(relationCheck.missing_relation_edges, []);
 });
 
 test("confirmed live creation returns already_exists without mutation for duplicate campaigns", async () => {
@@ -470,14 +468,7 @@ test("confirmed live creation returns already_exists without mutation for duplic
     env: { LINEAR_API_TOKEN: fakeToken },
     linearClient: {
       async findExistingCampaignIssues() {
-        return plan.issues.map((issue, index) => ({
-          description: issue.description,
-          id: `existing-${index}`,
-          identifier: `MAR-E${index}`,
-          projectMilestone: { name: defaultMilestone },
-          state: { name: issue.state, type: "unstarted" },
-          title: issue.title,
-        }));
+        return withMachineRelations(plan, existingCampaignIssues(plan, "MAR-E", "existing"));
       },
       async createIssue() {
         issueCalls += 1;
@@ -493,7 +484,9 @@ test("confirmed live creation returns already_exists without mutation for duplic
   assert.equal(result.status, "already_exists");
   assert.equal(result.live_creation.allowed, false);
   assert.equal(result.live_creation.duplicate_check.status, "already_exists");
+  assert.equal(result.live_creation.duplicate_check.relation_check.actual_relation_count, 7);
   assert.equal(result.live_creation.created_issues.length, 0);
+  assert.equal(result.live_creation.created_relations.length, 0);
   assert.equal(issueCalls, 0);
 });
 
@@ -531,6 +524,34 @@ test("partial existing campaigns fail closed before live mutation", async () => 
   assert.equal(issueCalls, 0);
 });
 
+test("issues-only existing campaigns fail closed without explicit repair mode", async () => {
+  let mutationCalls = 0;
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async findExistingCampaignIssues() {
+        return existingCampaignIssues(plan, "MAR-I", "issues-only");
+      },
+      async createIssue() {
+        mutationCalls += 1;
+        return { id: "unexpected" };
+      },
+      async createRelation() {
+        mutationCalls += 1;
+        return { id: "unexpected" };
+      },
+    },
+    options: liveOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "issues_only");
+  assert.equal(result.live_creation.allowed, false);
+  assert.equal(result.live_creation.duplicate_check.status, "issues_only");
+  assert.equal(result.live_creation.duplicate_check.relation_check.missing_relation_edges.length, 7);
+  assert.equal(mutationCalls, 0);
+});
+
 test("confirmed live creation passes with exact reviewed Linear team", async () => {
   const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
   const linear = linearFetchFixture(plan);
@@ -544,30 +565,46 @@ test("confirmed live creation passes with exact reviewed Linear team", async () 
   assert.equal(result.live_creation.created_issues.length, 5);
   assert.equal(result.live_creation.relation_count, 7);
   assert.equal(result.live_creation.dogfood_evidence.duplicate_check.status, "none");
+  assert.equal(result.live_creation.dogfood_evidence.post_mutation_duplicate_check.status, "already_exists");
+  assert.deepEqual(result.live_creation.relation_verification.missing_relation_edges, []);
   assert.equal(linear.contextTeamName(), defaultLinearTeamName);
   assert.equal(linear.issueCreateCount(), 5);
   assert.equal(linear.relationCreateCount(), 7);
+  assert.equal(linear.relationInputs().every((input) => input.type === "blocks"), true);
 });
 
 test("confirmed live creation uses only the injected Linear mutation client", async () => {
   const calls = [];
+  const createdIssues = [];
+  const relationEdges = [];
   const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
   const result = await createLiveCampaignFromPlan(plan, {
     env: { LINEAR_API_TOKEN: fakeToken },
     linearClient: {
       async findExistingCampaignIssues() {
         calls.push({ type: "findExistingCampaignIssues" });
-        return [];
+        return withMachineRelations(plan, createdIssues, relationEdges);
       },
       async createIssue(issue, context) {
         calls.push({ context, issue, type: "createIssue" });
-        return {
+        const created = {
+          description: issue.description,
           id: `live-${issue.temporary_id}`,
+          identifier: `MAR-${createdIssues.length + 1}`,
+          projectMilestone: { name: defaultMilestone },
+          state: { name: issue.state, type: "unstarted" },
+          title: issue.title,
           url: `https://linear.app/marsel/issue/live-${issue.temporary_id}`,
         };
+        createdIssues.push(created);
+        return created;
       },
       async createRelation(relation) {
         calls.push({ relation, type: "createRelation" });
+        relationEdges.push({
+          blockedIssueId: relation.blockedIssueId,
+          blockingIssueId: relation.blockingIssueId,
+        });
         return { id: `${relation.blockingIssueId}->${relation.blockedIssueId}` };
       },
     },
@@ -579,12 +616,111 @@ test("confirmed live creation uses only the injected Linear mutation client", as
   assert.equal(result.live_creation.allowed, true);
   assert.equal(result.live_creation.created_issues.length, 5);
   assert.equal(result.live_creation.relation_count, 7);
-  assert.equal(calls.filter((call) => call.type === "findExistingCampaignIssues").length, 1);
+  assert.equal(calls.filter((call) => call.type === "findExistingCampaignIssues").length, 2);
   assert.equal(calls.filter((call) => call.type === "createIssue").length, 5);
   assert.equal(calls.filter((call) => call.type === "createRelation").length, 7);
   assert.equal(JSON.stringify(result).includes(fakeToken), false);
   assert.equal(result.live_creation.dogfood_evidence.forbidden_side_effects.github_label_mutation, false);
   assert.equal(result.live_creation.dogfood_evidence.forbidden_side_effects.movement_file_touched, false);
+});
+
+test("live creation is blocked when relation read-back cannot prove the graph", async () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const createdIssues = [];
+  let relationCalls = 0;
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async findExistingCampaignIssues() {
+        return createdIssues;
+      },
+      async createIssue(issue) {
+        const created = {
+          description: issue.description,
+          id: `live-${issue.temporary_id}`,
+          identifier: `MAR-R${createdIssues.length + 1}`,
+          projectMilestone: { name: defaultMilestone },
+          state: { name: issue.state, type: "unstarted" },
+          title: issue.title,
+        };
+        createdIssues.push(created);
+        return created;
+      },
+      async createRelation() {
+        relationCalls += 1;
+        return { id: `relation-${relationCalls}` };
+      },
+    },
+    options: liveOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "partial-failure");
+  assert.equal(result.live_creation.allowed, false);
+  assert.equal(result.live_creation.created_issues.length, 5);
+  assert.equal(result.live_creation.created_relations.length, 7);
+  assert.equal(result.live_creation.relation_verification.missing_relation_edges.length, 7);
+});
+
+test("explicit relation repair mode repairs only issues-only campaigns", async () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const existingIssues = existingCampaignIssues(plan, "MAR-F", "repair");
+  const relationEdges = [];
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async findExistingCampaignIssues() {
+        return withMachineRelations(plan, existingIssues, relationEdges);
+      },
+      async createIssue() {
+        throw new Error("repair mode must not create issues");
+      },
+      async createRelation(relation) {
+        relationEdges.push({
+          blockedIssueId: relation.blockedIssueId,
+          blockingIssueId: relation.blockingIssueId,
+        });
+        return { id: `${relation.blockingIssueId}->${relation.blockedIssueId}` };
+      },
+    },
+    options: repairOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "relations-repaired");
+  assert.equal(result.live_creation.allowed, true);
+  assert.equal(result.live_creation.created_issues.length, 0);
+  assert.equal(result.live_creation.created_relations.length, 7);
+  assert.equal(result.live_creation.relation_verification.actual_relation_count, 7);
+  assert.deepEqual(result.live_creation.relation_verification.missing_relation_edges, []);
+});
+
+test("relation repair mode requires exact repair confirmation", async () => {
+  let mutationCalls = 0;
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async findExistingCampaignIssues() {
+        return existingCampaignIssues(plan, "MAR-G", "repair-missing-confirmation");
+      },
+      async createIssue() {
+        mutationCalls += 1;
+        return { id: "unexpected" };
+      },
+      async createRelation() {
+        mutationCalls += 1;
+        return { id: "unexpected" };
+      },
+    },
+    options: {
+      ...repairOptionsFor(plan),
+      confirmationPhrase: plan.live_creation.confirmation_phrase,
+    },
+  });
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.live_creation.allowed, false);
+  assert.ok(result.live_creation.findings.some((finding) => finding.id === "confirmation-phrase-mismatch"));
+  assert.equal(mutationCalls, 0);
 });
 
 test("partial live failures report created issues without cleanup or continuation", async () => {
@@ -638,6 +774,75 @@ function liveOptionsFor(plan) {
   };
 }
 
+function repairOptionsFor(plan) {
+  return {
+    confirmRepairRelations: true,
+    confirmationPhrase: buildRepairConfirmationPhrase(plan),
+    live: true,
+    previewHash: plan.live_creation.preview_hash,
+    repairRelations: true,
+  };
+}
+
+function existingCampaignIssues(plan, identifierPrefix = "MAR-D", idPrefix = "issue") {
+  return plan.issues.map((issue, index) => ({
+    description: issue.description,
+    id: `${idPrefix}-${index}`,
+    identifier: `${identifierPrefix}${index}`,
+    projectMilestone: { name: defaultMilestone },
+    state: { name: issue.state, type: issue.state === "Done" ? "completed" : "unstarted" },
+    title: issue.title,
+    url: `https://linear.app/marsel/issue/${identifierPrefix}${index}`,
+  }));
+}
+
+function withMachineRelations(plan, issues, relationEdges = null) {
+  const issueByTempId = new Map();
+  const clonedIssues = issues.map((issue) => ({
+    ...issue,
+    inverseRelations: { nodes: [] },
+    relations: { nodes: [] },
+  }));
+  for (const issue of plan.issues) {
+    const existingIssue = clonedIssues.find((candidate) => candidate.title === issue.title);
+    if (existingIssue) {
+      issueByTempId.set(issue.temporary_id, existingIssue);
+    }
+  }
+
+  const edges = relationEdges || plan.issues.flatMap((issue) => (issue.blocked_by || []).map((blocker) => ({
+    blockedIssueId: issueByTempId.get(issue.temporary_id)?.id,
+    blockingIssueId: issueByTempId.get(blocker)?.id,
+  }))).filter((edge) => edge.blockedIssueId && edge.blockingIssueId);
+
+  for (const edge of edges) {
+    const blockingIssue = clonedIssues.find((issue) => issue.id === edge.blockingIssueId);
+    const blockedIssue = clonedIssues.find((issue) => issue.id === edge.blockedIssueId);
+    if (!blockingIssue || !blockedIssue) {
+      continue;
+    }
+    blockingIssue.relations.nodes.push({
+      relatedIssue: minimalLinearIssue(blockedIssue),
+      type: "blocks",
+    });
+    blockedIssue.inverseRelations.nodes.push({
+      issue: minimalLinearIssue(blockingIssue),
+      type: "blocks",
+    });
+  }
+
+  return clonedIssues;
+}
+
+function minimalLinearIssue(issue) {
+  return {
+    id: issue.id,
+    identifier: issue.identifier,
+    state: issue.state,
+    title: issue.title,
+  };
+}
+
 function linearFetchFixture(plan, {
   projectTeamName = defaultLinearTeamName,
   teamName = defaultLinearTeamName,
@@ -645,6 +850,8 @@ function linearFetchFixture(plan, {
   const requests = [];
   let issueCount = 0;
   let relationCount = 0;
+  const createdIssues = [];
+  const relationEdges = [];
   return {
     contextTeamName() {
       return requests.find((request) => request.query.includes("CampaignFactoryLiveContext"))
@@ -657,19 +864,25 @@ function linearFetchFixture(plan, {
         return jsonResponse({ data: linearContextData(plan, { projectTeamName, teamName }) });
       }
       if (body.query.includes("CampaignFactoryFindDuplicateIssues")) {
-        return jsonResponse({ data: { issues: { nodes: [] } } });
+        return jsonResponse({ data: { issues: { nodes: withMachineRelations(plan, createdIssues, relationEdges) } } });
       }
       if (body.query.includes("CampaignFactoryCreateIssue")) {
         issueCount += 1;
+        const issue = plan.issues.find((candidate) => candidate.title === body.variables.input.title);
+        const createdIssue = {
+          description: issue?.description || body.variables.input.description,
+          id: `linear-issue-${issueCount}`,
+          identifier: `MAR-X${issueCount}`,
+          projectMilestone: { name: defaultMilestone },
+          state: { name: issue?.state || "Backlog", type: "unstarted" },
+          title: body.variables.input.title,
+          url: `https://linear.app/marsel/issue/MAR-X${issueCount}`,
+        };
+        createdIssues.push(createdIssue);
         return jsonResponse({
           data: {
             issueCreate: {
-              issue: {
-                id: `linear-issue-${issueCount}`,
-                identifier: `MAR-X${issueCount}`,
-                title: body.variables.input.title,
-                url: `https://linear.app/marsel/issue/MAR-X${issueCount}`,
-              },
+              issue: createdIssue,
               success: true,
             },
           },
@@ -677,6 +890,11 @@ function linearFetchFixture(plan, {
       }
       if (body.query.includes("CampaignFactoryCreateRelation")) {
         relationCount += 1;
+        relationEdges.push({
+          blockedIssueId: body.variables.input.relatedIssueId,
+          blockingIssueId: body.variables.input.issueId,
+          type: body.variables.input.type,
+        });
         return jsonResponse({
           data: {
             issueRelationCreate: {
@@ -693,6 +911,9 @@ function linearFetchFixture(plan, {
     },
     relationCreateCount() {
       return relationCount;
+    },
+    relationInputs() {
+      return relationEdges;
     },
   };
 }
