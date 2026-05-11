@@ -20,6 +20,8 @@ export const defaultLinearTeamName = "Marsel";
 export const linearApiUrl = "https://api.linear.app/graphql";
 
 export const defaultHardRules = [
+  "no live campaign creation without explicit operator confirmation",
+  "no duplicate campaign creation",
   "no auto-merge",
   "no GitHub label mutation",
   "no stop-label removal",
@@ -42,6 +44,7 @@ const allowedRoles = ["Architect", "Coder", "Tester", "Reviewer", "Release"];
 const defaultSequence = ["Architect", "Coder", "Tester", "Reviewer", "Release"];
 const docsFinalAuditSequence = ["Architect", "Coder", "Reviewer", "Release"];
 const requiredInputFields = ["campaign", "milestone", "activeProject", "activeRepo", "goal"];
+const idempotencyMarker = "Campaign Factory idempotency key:";
 
 const allowedValidationProfiles = new Set([
   "validation:docs",
@@ -242,10 +245,14 @@ export function planCampaign(rawInput = {}, { env = {}, mode = "dry-run" } = {})
   const reviewCadence = selectReviewCadence(normalized, validationProfile, risk);
   const sequence = selectIssueSequence(normalized, validationProfile, reviewCadence);
   const hardRules = uniqueStrings([...defaultHardRules, ...normalized.hardRules]);
+  const relationEdges = buildRelationEdgesForSequence(sequence, reviewCadence);
+  const campaignIdentity = buildCampaignIdentity(normalized, { relationEdges, reviewCadence, sequence });
   const issues = sequence.map((role, index) => buildIssue({
+    campaignIdentity,
     hardRules,
     index,
     input: normalized,
+    relationEdges,
     reviewCadence,
     risk,
     sequence,
@@ -258,6 +265,7 @@ export function planCampaign(rawInput = {}, { env = {}, mode = "dry-run" } = {})
     campaign: {
       brief: normalized.brief || normalized.goal,
       goal: normalized.goal,
+      idempotency_key: campaignIdentity.key,
       name: normalized.campaign,
       review_cadence: reviewCadence,
       risk,
@@ -266,6 +274,10 @@ export function planCampaign(rawInput = {}, { env = {}, mode = "dry-run" } = {})
     dependency_graph: buildDependencyGraph(issues),
     first_runnable_issue: issues[0]?.temporary_id || null,
     issues,
+    live_schema: {
+      expected_relation_graph: relationEdges.map(formatRelationEdge),
+      relation_count: relationEdges.length,
+    },
     linear_team: normalized.linearTeam,
     live_creation: {
       allowed: false,
@@ -327,6 +339,11 @@ export async function createLiveCampaignFromPlan(plan, {
       milestone: plan.milestone,
       team: plan.linear_team,
     };
+    const duplicateCheck = await getDuplicateCampaignCheck(client, plan, context);
+    if (duplicateCheck.status === "already_exists" || duplicateCheck.status === "partial_exists") {
+      return redactPlan(buildDuplicateRejectedPlan(plan, duplicateCheck), redactionOptions);
+    }
+
     for (const issue of plan.issues) {
       const created = await client.createIssue(issue, context);
       createdIssues.push({
@@ -364,6 +381,8 @@ export async function createLiveCampaignFromPlan(plan, {
         dogfood_evidence: {
           created_issue_count: createdIssues.length,
           first_runnable_issue: plan.first_runnable_issue,
+          duplicate_check: duplicateCheck,
+          expected_relation_graph: plan.live_schema?.expected_relation_graph || plan.dependency_graph,
           forbidden_side_effects: {
             dependency_changes: false,
             gameplay_changes: false,
@@ -377,6 +396,10 @@ export async function createLiveCampaignFromPlan(plan, {
         reason: "live campaign creation completed after explicit confirmation and pre-mutation revalidation",
         relation_count: createdRelations.length,
         requested: true,
+        schema_audit: {
+          finding_count: 0,
+          machine_state_relation_schema: plan.live_schema?.expected_relation_graph || plan.dependency_graph,
+        },
       },
       mode: "live",
       status: "live-created",
@@ -389,6 +412,9 @@ export async function createLiveCampaignFromPlan(plan, {
         allowed: false,
         created_issues: createdIssues,
         failure: sanitizeCampaignFactoryError(error, { env }),
+        missing_expected_issues: plan.issues
+          .slice(createdIssues.length)
+          .map((issue) => issue.temporary_id),
         reason: createdIssues.length > 0
           ? "live campaign creation stopped after a partial mutation; no cleanup was attempted"
           : "live campaign creation failed before any issue was created",
@@ -584,7 +610,7 @@ export async function main(argv = process.argv.slice(2), {
       ? JSON.stringify(plan, null, 2)
       : formatCampaignPlanMarkdown(plan);
     stdout(redactCampaignFactoryText(output, { env, extraSecrets: collectInputSecrets(fixture) }));
-    return { ok: ["live-created", "planned"].includes(plan.status), plan };
+    return { ok: ["already_exists", "live-created", "planned"].includes(plan.status), plan };
   } catch (error) {
     stderr(`Campaign Factory v2 failed: ${sanitizeCampaignFactoryError(error, { env })}`);
     return { ok: false, error };
@@ -603,6 +629,7 @@ function normalizeInput(rawInput = {}) {
     campaign: stringValue(input.campaign || input.campaignName || input.name),
     goal: stringValue(input.goal || input.idea),
     hardRules: normalizeStringArray(input.hardRules || input.hard_rules),
+    idempotencyKey: stringValue(input.idempotencyKey || input.idempotency_key || input.campaignIdempotencyKey || input.campaign_idempotency_key),
     ideaType: normalizeToken(input.ideaType || input.idea_type || input.type),
     linearTeam: stringValue(input.linearTeam || input.linear_team || input.team || defaultLinearTeamName),
     liveCreationRequested: Boolean(input.liveCreationRequested || input.live_creation_requested),
@@ -664,6 +691,98 @@ function buildLiveRejectedPlan(plan, { findings, reason }) {
     status: "rejected",
     unsafe_findings: [...(sourcePlan.unsafe_findings || []), ...findings],
   };
+}
+
+function buildDuplicateRejectedPlan(plan, duplicateCheck) {
+  const reason = duplicateCheck.status === "already_exists"
+    ? "matching campaign already exists; no live mutation was performed"
+    : "partial matching campaign exists; no live mutation was performed";
+  const finding = liveFinding(
+    duplicateCheck.status,
+    reason,
+    duplicateCheck.matching_issue_ids.join(",") || duplicateCheck.status,
+  );
+
+  return {
+    ...plan,
+    live_creation: {
+      ...plan.live_creation,
+      allowed: false,
+      created_issues: [],
+      duplicate_check: duplicateCheck,
+      findings: [finding],
+      reason,
+      requested: true,
+    },
+    mode: "live",
+    status: duplicateCheck.status,
+    unsafe_findings: [...(plan.unsafe_findings || []), finding],
+  };
+}
+
+async function getDuplicateCampaignCheck(client, plan, context) {
+  if (typeof client.findExistingCampaignIssues !== "function") {
+    throw new CampaignFactoryError(
+      "duplicate-check-unavailable",
+      "Live campaign creation requires a duplicate/idempotency lookup before mutation.",
+    );
+  }
+  const existingIssues = await client.findExistingCampaignIssues(plan, context);
+  return detectDuplicateCampaign(plan, existingIssues);
+}
+
+export function detectDuplicateCampaign(plan, existingIssues = []) {
+  const matches = existingIssues
+    .filter((issue) => existingIssueMatchesCampaign(plan, issue))
+    .map((issue) => ({
+      id: issue.id || null,
+      identifier: issue.identifier || null,
+      state: issue.state?.name || issue.state || null,
+      state_type: issue.state?.type || issue.state_type || null,
+      title: issue.title || "",
+      url: issue.url || null,
+    }));
+
+  const expectedTitles = new Set((plan.issues || []).map((issue) => normalizeComparableText(issue.title)));
+  const matchedTitles = new Set(matches
+    .map((issue) => normalizeComparableText(issue.title))
+    .filter((title) => expectedTitles.has(title)));
+  const status = matches.length === 0
+    ? "none"
+    : matchedTitles.size >= expectedTitles.size
+      ? "already_exists"
+      : "partial_exists";
+
+  return {
+    expected_issue_count: (plan.issues || []).length,
+    matched_issue_count: matches.length,
+    matched_title_count: matchedTitles.size,
+    matching_issue_ids: matches.map((issue) => issue.identifier || issue.id).filter(Boolean),
+    matches,
+    status,
+  };
+}
+
+function existingIssueMatchesCampaign(plan, issue) {
+  const expectedTitles = new Set((plan.issues || []).map((candidate) => normalizeComparableText(candidate.title)));
+  const title = normalizeComparableText(issue?.title);
+  const description = stringValue(issue?.description);
+  const campaignName = stringValue(plan?.campaign?.name);
+  const idempotencyKey = stringValue(plan?.campaign?.idempotency_key);
+  const milestoneName = stringValue(
+    issue?.projectMilestone?.name
+      || issue?.project_milestone?.name
+      || issue?.milestone?.name
+      || issue?.milestone,
+  );
+
+  if (milestoneName && milestoneName !== plan.milestone) {
+    return false;
+  }
+  if (idempotencyKey && description.includes(`${idempotencyMarker} ${idempotencyKey}`)) {
+    return true;
+  }
+  return expectedTitles.has(title) && campaignName && description.includes(campaignName);
 }
 
 function findUnsafeScope(input, redactionOptions) {
@@ -783,10 +902,66 @@ function selectIssueSequence(input, validationProfile, reviewCadence) {
   return [...defaultSequence];
 }
 
+function buildRelationEdgesForSequence(sequence, reviewCadence) {
+  const temporaryIdForRole = (role) => `campaign-${roleSlug(role)}`;
+  const hasRole = (role) => sequence.includes(role);
+  const edge = (fromRole, toRole) => ({
+    from: temporaryIdForRole(fromRole),
+    to: temporaryIdForRole(toRole),
+  });
+
+  if (
+    reviewCadence === "paired-review"
+    && hasRole("Architect")
+    && hasRole("Coder")
+    && hasRole("Tester")
+    && hasRole("Reviewer")
+    && hasRole("Release")
+  ) {
+    return [
+      edge("Architect", "Coder"),
+      edge("Coder", "Tester"),
+      edge("Coder", "Reviewer"),
+      edge("Tester", "Reviewer"),
+      edge("Coder", "Release"),
+      edge("Tester", "Release"),
+      edge("Reviewer", "Release"),
+    ];
+  }
+
+  return sequence.slice(1).map((role, index) => edge(sequence[index], role));
+}
+
+function buildCampaignIdentity(input, { relationEdges, reviewCadence, sequence }) {
+  const basis = {
+    active_linear_project: input.activeProject,
+    active_repo: input.activeRepo,
+    campaign_name: input.campaign,
+    issue_titles: sequence.map((role) => titleForRole(input.campaign, role)),
+    milestone: input.milestone,
+    relation_graph: relationEdges.map(formatRelationEdge),
+    review_cadence: reviewCadence,
+    role_sequence: sequence,
+  };
+  const derivedKey = `cfv2:${createHash("sha256")
+    .update(JSON.stringify(canonicalizeForHash(basis)))
+    .digest("hex")}`;
+  const operatorKey = input.idempotencyKey
+    ? `cfv2:operator:${createHash("sha256").update(input.idempotencyKey).digest("hex")}`
+    : "";
+
+  return {
+    basis,
+    key: operatorKey || derivedKey,
+  };
+}
+
 function buildIssue({
+  campaignIdentity,
   hardRules,
   index,
   input,
+  relationEdges,
   reviewCadence,
   risk,
   sequence,
@@ -794,18 +969,21 @@ function buildIssue({
 }) {
   const role = sequence[index];
   const temporaryId = `campaign-${roleSlug(role)}`;
-  const previousRole = sequence[index - 1];
-  const nextRole = sequence[index + 1];
   const labels = roleLabels(role, validationProfile, risk);
   const state = index === 0 ? "Todo" : "Backlog";
-  const blockedBy = previousRole ? [`campaign-${roleSlug(previousRole)}`] : [];
-  const blocks = nextRole ? [`campaign-${roleSlug(nextRole)}`] : [];
+  const blockedBy = relationEdges
+    .filter((edge) => edge.to === temporaryId)
+    .map((edge) => edge.from);
+  const blocks = relationEdges
+    .filter((edge) => edge.from === temporaryId)
+    .map((edge) => edge.to);
 
   return {
     acceptance_criteria: acceptanceCriteriaForRole(role),
     blocked_by: blockedBy,
     blocks,
     description: issueDescription({
+      campaignIdentity,
       hardRules,
       input,
       labels,
@@ -859,6 +1037,7 @@ function roleLabels(role, validationProfile, campaignRisk) {
 }
 
 function issueDescription({
+  campaignIdentity,
   hardRules,
   input,
   labels,
@@ -902,6 +1081,7 @@ function issueDescription({
     `Active GitHub repo: ${input.activeRepo}`,
     `review_cadence: ${reviewCadence}`,
     `model_hint: ${input.modelHint || defaultModelHint}`,
+    `${idempotencyMarker} ${campaignIdentity.key}`,
     "Campaign context pack: generated by Campaign Factory v2 dry-run.",
     "",
     "## Goal",
@@ -1062,7 +1242,7 @@ function roleOutputFor(role) {
 }
 
 function buildDependencyGraph(issues) {
-  return issues.slice(1).map((issue, index) => `${issues[index].temporary_id} -> ${issue.temporary_id}`);
+  return collectPlanEdges(issues).map(formatRelationEdge);
 }
 
 function attachLiveCreationPreview(plan) {
@@ -1083,6 +1263,10 @@ function attachLiveCreationPreview(plan) {
       ],
     },
   };
+}
+
+function formatRelationEdge(edge) {
+  return `${edge.from} -> ${edge.to}`;
 }
 
 function validateLiveCampaignPlan(plan) {
@@ -1111,6 +1295,9 @@ function validateLiveCampaignPlan(plan) {
   if (!stringValue(plan.campaign?.name) || !stringValue(plan.campaign?.goal)) {
     findings.push(liveFinding("missing-campaign-fields", "Live campaign creation requires a campaign name and goal."));
   }
+  if (!stringValue(plan.campaign?.idempotency_key)) {
+    findings.push(liveFinding("missing-idempotency-key", "Live campaign creation requires a campaign idempotency key."));
+  }
   if ((plan.unsafe_findings || []).length > 0) {
     findings.push(liveFinding("unsafe-findings-present", "Live campaign creation requires zero unsafe findings."));
   }
@@ -1129,12 +1316,7 @@ function validateLiveCampaignPlan(plan) {
     findings.push(...validateLiveIssue(issue, { index, temporaryIds }));
   }
 
-  const graphEdges = new Set(plan.dependency_graph || []);
-  for (const edge of collectPlanEdges(plan.issues)) {
-    if (!graphEdges.has(`${edge.from} -> ${edge.to}`)) {
-      findings.push(liveFinding("dependency-graph-mismatch", `Dependency graph is missing ${edge.from} -> ${edge.to}.`));
-    }
-  }
+  findings.push(...verifyGeneratedCampaignSchema(plan));
 
   const serialized = JSON.stringify(plan);
   if (containsUnredactedSecret(serialized)) {
@@ -1142,6 +1324,53 @@ function validateLiveCampaignPlan(plan) {
   }
 
   return findings;
+}
+
+export function verifyGeneratedCampaignSchema(plan) {
+  if (!plan || !Array.isArray(plan.issues)) {
+    return [liveFinding("invalid-plan", "Campaign schema audit requires generated issues.")];
+  }
+
+  const findings = [];
+  const actualBlockedByEdges = collectPlanEdges(plan.issues).map(formatRelationEdge);
+  const actualBlocksEdges = collectPlanBlockEdges(plan.issues).map(formatRelationEdge);
+  const declaredEdges = Array.isArray(plan.dependency_graph) ? plan.dependency_graph : [];
+  const expectedEdges = expectedRelationEdgesForPlan(plan).map(formatRelationEdge);
+
+  findings.push(...compareRelationSets({
+    actual: actualBlockedByEdges,
+    expected: expectedEdges,
+    extraId: "unexpected-relation-edge",
+    missingId: "required-relation-missing",
+    source: "blocked_by",
+  }));
+  findings.push(...compareRelationSets({
+    actual: actualBlocksEdges,
+    expected: expectedEdges,
+    extraId: "blocks-relation-mismatch",
+    missingId: "blocks-relation-missing",
+    source: "blocks",
+  }));
+  findings.push(...compareRelationSets({
+    actual: declaredEdges,
+    expected: actualBlockedByEdges,
+    extraId: "dependency-graph-extra-edge",
+    missingId: "dependency-graph-mismatch",
+    source: "dependency_graph",
+  }));
+
+  const liveSchemaEdges = plan.live_schema?.expected_relation_graph;
+  if (liveSchemaEdges) {
+    findings.push(...compareRelationSets({
+      actual: liveSchemaEdges,
+      expected: expectedEdges,
+      extraId: "live-schema-extra-edge",
+      missingId: "live-schema-missing-edge",
+      source: "live_schema.expected_relation_graph",
+    }));
+  }
+
+  return uniqueFindings(findings);
 }
 
 function validateLiveIssue(issue, { index, temporaryIds }) {
@@ -1211,6 +1440,40 @@ function collectPlanEdges(issues = []) {
     }
   }
   return edges;
+}
+
+function collectPlanBlockEdges(issues = []) {
+  const edges = [];
+  for (const issue of issues) {
+    for (const blocked of issue.blocks || []) {
+      edges.push({ from: issue.temporary_id, to: blocked });
+    }
+  }
+  return edges;
+}
+
+function expectedRelationEdgesForPlan(plan) {
+  const sequence = (plan.issues || []).map((issue) => issue.role);
+  return buildRelationEdgesForSequence(sequence, plan.campaign?.review_cadence || defaultReviewCadence);
+}
+
+function compareRelationSets({ actual, expected, extraId, missingId, source }) {
+  const findings = [];
+  const actualSet = new Set(actual);
+  const expectedSet = new Set(expected);
+
+  for (const edge of expectedSet) {
+    if (!actualSet.has(edge)) {
+      findings.push(liveFinding(missingId, `${source} is missing required relation ${edge}.`, `${source}:${edge}`));
+    }
+  }
+  for (const edge of actualSet) {
+    if (!expectedSet.has(edge)) {
+      findings.push(liveFinding(extraId, `${source} contains unexpected relation ${edge}.`, `${source}:${edge}`));
+    }
+  }
+
+  return findings;
 }
 
 function countLabelsWithPrefix(labels = [], prefix) {
@@ -1308,6 +1571,32 @@ export function createLinearCampaignClient({ fetchImpl = fetch, token }) {
   }
 
   return {
+    async findExistingCampaignIssues(_plan, contextInput) {
+      await resolveContext(contextInput);
+      const data = await graphql(
+        `query CampaignFactoryFindDuplicateIssues($project: String!, $milestone: String!) {
+          issues(
+            filter: {
+              project: { name: { eq: $project } }
+              projectMilestone: { name: { eq: $milestone } }
+            }
+            first: 100
+          ) {
+            nodes {
+              id
+              identifier
+              title
+              description
+              url
+              state { name type }
+              projectMilestone { name }
+            }
+          }
+        }`,
+        { milestone: contextInput.milestone, project: contextInput.activeProject },
+      );
+      return data.issues?.nodes || [];
+    },
     async createIssue(issue, contextInput) {
       const context = await resolveContext(contextInput);
       const labelIds = issue.labels.map((label) => {
@@ -1473,6 +1762,10 @@ function normalizeModelHint(value) {
 
 function stringValue(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeComparableText(value) {
+  return stringValue(value).toLowerCase().replace(/\s+/g, " ");
 }
 
 function capitalize(value) {

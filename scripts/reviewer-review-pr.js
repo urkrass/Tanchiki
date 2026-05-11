@@ -86,16 +86,22 @@ export async function main({
       body,
       event,
     };
+    const duplicateReview = findDuplicateReview(inspection.reviews, {
+      body,
+      event,
+      headSha: inspection.pullRequest.head?.sha,
+    });
 
-    if (!options.dryRun) {
+    if (!options.dryRun && !duplicateReview) {
       await client.submitReview(options.pr, reviewRequest);
     }
 
     printResultSummary({
+      duplicateReview,
       options,
       inspection,
       event,
-      submitted: !options.dryRun,
+      submitted: !options.dryRun && !duplicateReview,
       stdout,
     });
     return 0;
@@ -237,7 +243,7 @@ export function getReviewBodyRefusalReason(decision, body) {
 
 export async function inspectPullRequest(options, client) {
   const pullRequest = await client.getPullRequest(options.pr);
-  const [issue, files, checks] = await Promise.all([
+  const [issue, files, checks, reviews] = await Promise.all([
     client.getIssue(options.pr),
     client.listPullRequestFiles(options.pr),
     client.getChecks(pullRequest.head.sha).catch((error) => ({
@@ -245,6 +251,7 @@ export async function inspectPullRequest(options, client) {
       status: { statuses: [] },
       unavailableReason: error.message,
     })),
+    client.listPullRequestReviews(options.pr),
   ]);
 
   return {
@@ -252,6 +259,7 @@ export async function inspectPullRequest(options, client) {
     files,
     issue,
     pullRequest,
+    reviews,
   };
 }
 
@@ -354,6 +362,9 @@ export function createGitHubClient({ fetchImpl, repo, token }) {
         checkRuns: checkRuns.check_runs || [],
         status,
       };
+    },
+    listPullRequestReviews(pr) {
+      return request(`/pulls/${pr}/reviews?per_page=100`);
     },
     submitReview(pr, review) {
       return request(`/pulls/${pr}/reviews`, {
@@ -499,7 +510,35 @@ function getCheckFindings(checks) {
   return reasons;
 }
 
-function printResultSummary({ options, inspection, event, submitted, stdout }) {
+export function findDuplicateReview(reviews = [], { body, event, headSha }) {
+  const normalizedBody = normalizeReviewBody(body);
+  const expectedState = reviewStateForEvent(event);
+  return (reviews || []).find((review) => (
+    review.commit_id === headSha
+    && normalizeReviewBody(review.body) === normalizedBody
+    && reviewStateForEvent(review.state) === expectedState
+  )) || null;
+}
+
+function reviewStateForEvent(value) {
+  const normalized = String(value || "").toUpperCase();
+  if (normalized === "APPROVE" || normalized === "APPROVED") {
+    return "APPROVED";
+  }
+  if (normalized === "REQUEST_CHANGES" || normalized === "CHANGES_REQUESTED") {
+    return "CHANGES_REQUESTED";
+  }
+  if (normalized === "COMMENT" || normalized === "COMMENTED") {
+    return "COMMENTED";
+  }
+  return normalized;
+}
+
+function normalizeReviewBody(value) {
+  return String(value || "").trim().replace(/\r\n/g, "\n");
+}
+
+function printResultSummary({ duplicateReview, options, inspection, event, submitted, stdout }) {
   const pr = inspection.pullRequest;
   const files = inspection.files || [];
   const checks = inspection.checks || {};
@@ -510,7 +549,10 @@ function printResultSummary({ options, inspection, event, submitted, stdout }) {
   stdout(`Issue: ${options.issue}`);
   stdout(`Decision: ${options.decision}`);
   stdout(`Review event: ${event}`);
-  stdout(`Review submitted: ${submitted ? "yes" : "no, dry-run only"}`);
+  stdout(`Review submitted: ${submitted ? "yes" : duplicateReview ? "no, duplicate review already exists for this head" : "no, dry-run only"}`);
+  if (duplicateReview) {
+    stdout(`Existing review: ${duplicateReview.id || "unknown"}`);
+  }
   stdout(`Changed files inspected: ${files.length}`);
   stdout(`Checks inspected: ${checkRunCount} check runs, ${statusCount} commit statuses`);
   stdout("No merge, labels, branch updates, issue edits, workflows, settings, or secrets were changed.");

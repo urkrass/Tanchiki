@@ -9,6 +9,7 @@ import {
   defaultLinearTeamName,
   defaultMilestone,
   defaultReviewCadence,
+  detectDuplicateCampaign,
   formatCampaignPlan,
   getLiveCampaignPreflightFindings,
   hashCampaignPlan,
@@ -17,6 +18,7 @@ import {
   requiredValidationCommands,
   runCampaignFactory,
   sanitizeCampaignFactoryError,
+  verifyGeneratedCampaignSchema,
 } from "../scripts/campaign-factory-v2.js";
 
 const fakeToken = "fake-campaign-token-for-tests-only-123456";
@@ -79,25 +81,39 @@ test("safe harness ideas produce a deterministic five-issue dry-run campaign pla
   assert.deepEqual(plan.dependency_graph, [
     "campaign-architect -> campaign-coder",
     "campaign-coder -> campaign-tester",
+    "campaign-coder -> campaign-reviewer",
     "campaign-tester -> campaign-reviewer",
+    "campaign-coder -> campaign-release",
+    "campaign-tester -> campaign-release",
     "campaign-reviewer -> campaign-release",
   ]);
+  assert.deepEqual(plan.live_schema.expected_relation_graph, plan.dependency_graph);
 });
 
 test("only Architect is Todo and automation-ready; downstream issues are blocked", () => {
   const plan = planCampaignIdea(safeHarnessIdea(), { mode: "fixture" });
   const architect = issueByRole(plan, "Architect");
+  const coder = issueByRole(plan, "Coder");
+  const tester = issueByRole(plan, "Tester");
+  const reviewer = issueByRole(plan, "Reviewer");
   const release = issueByRole(plan, "Release");
 
   assert.equal(architect.state, "Todo");
   assert.deepEqual(architect.blocked_by, []);
   assert.deepEqual(architect.blocks, ["campaign-coder"]);
   assert.equal(architect.labels.includes("automation-ready"), true);
+  assert.deepEqual(coder.blocked_by, ["campaign-architect"]);
+  assert.deepEqual(coder.blocks, ["campaign-tester", "campaign-reviewer", "campaign-release"]);
+  assert.deepEqual(tester.blocked_by, ["campaign-coder"]);
+  assert.deepEqual(tester.blocks, ["campaign-reviewer", "campaign-release"]);
+  assert.deepEqual(reviewer.blocked_by, ["campaign-coder", "campaign-tester"]);
+  assert.deepEqual(reviewer.blocks, ["campaign-release"]);
+  assert.deepEqual(release.blocked_by, ["campaign-coder", "campaign-tester", "campaign-reviewer"]);
 
   for (const issue of plan.issues.filter((candidate) => candidate.role !== "Architect")) {
     assert.equal(issue.state, "Backlog");
     assert.equal(issue.labels.includes("automation-ready"), false);
-    assert.equal(issue.blocked_by.length, 1);
+    assert.ok(issue.blocked_by.length >= 1);
   }
   assert.deepEqual(release.blocks, []);
 
@@ -120,6 +136,7 @@ test("generated role descriptions carry required campaign metadata and PR headin
     `Active GitHub repo: ${defaultActiveRepo}`,
     "review_cadence: paired-review",
     "model_hint: frontier",
+    "Campaign Factory idempotency key: cfv2:",
     "No visible UI changes.",
     "no auto-merge",
     "do not touch src/game/movement.js",
@@ -360,6 +377,23 @@ test("live creation preflight revalidates labels, state, dependencies, and unsaf
   assert.ok(findings.some((finding) => finding.id === "unsafe-findings-present"));
 });
 
+test("generated campaign schema audit requires machine relation graph correctness", () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  assert.deepEqual(verifyGeneratedCampaignSchema(plan), []);
+
+  const missingRelation = structuredClone(plan);
+  missingRelation.issues.find((issue) => issue.role === "Release").blocked_by = ["campaign-reviewer"];
+  missingRelation.dependency_graph = missingRelation.dependency_graph.filter((edge) => edge !== "campaign-coder -> campaign-release");
+  const missingFindings = verifyGeneratedCampaignSchema(missingRelation);
+  assert.ok(missingFindings.some((finding) => finding.id === "required-relation-missing"));
+  assert.ok(missingFindings.some((finding) => finding.id === "dependency-graph-extra-edge"));
+
+  const descriptionOnlyGraph = structuredClone(plan);
+  descriptionOnlyGraph.dependency_graph.push("campaign-architect -> campaign-release");
+  const descriptionFindings = verifyGeneratedCampaignSchema(descriptionOnlyGraph);
+  assert.ok(descriptionFindings.some((finding) => finding.id === "dependency-graph-extra-edge"));
+});
+
 test("live creation preflight recomputes hash instead of trusting embedded preview hash", () => {
   const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
   const tamperedPlan = structuredClone(plan);
@@ -405,6 +439,98 @@ test("Linear live client fails closed when requested team is missing", async () 
   assert.equal(linear.issueCreateCount(), 0);
 });
 
+test("duplicate detection identifies full and partial generated campaigns", () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const existing = plan.issues.map((issue, index) => ({
+    description: issue.description,
+    id: `issue-${index}`,
+    identifier: `MAR-D${index}`,
+    projectMilestone: { name: defaultMilestone },
+    state: { name: issue.state, type: issue.state === "Done" ? "completed" : "unstarted" },
+    title: issue.title,
+    url: `https://linear.app/marsel/issue/MAR-D${index}`,
+  }));
+
+  assert.equal(detectDuplicateCampaign(plan, []).status, "none");
+  assert.equal(detectDuplicateCampaign(plan, existing).status, "already_exists");
+  assert.equal(detectDuplicateCampaign(plan, existing.slice(0, 2)).status, "partial_exists");
+  assert.equal(
+    detectDuplicateCampaign(plan, existing.map((issue) => ({
+      ...issue,
+      projectMilestone: { name: "Other milestone" },
+    }))).status,
+    "none",
+  );
+});
+
+test("confirmed live creation returns already_exists without mutation for duplicate campaigns", async () => {
+  let issueCalls = 0;
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async findExistingCampaignIssues() {
+        return plan.issues.map((issue, index) => ({
+          description: issue.description,
+          id: `existing-${index}`,
+          identifier: `MAR-E${index}`,
+          projectMilestone: { name: defaultMilestone },
+          state: { name: issue.state, type: "unstarted" },
+          title: issue.title,
+        }));
+      },
+      async createIssue() {
+        issueCalls += 1;
+        return { id: "unexpected" };
+      },
+      async createRelation() {
+        throw new Error("relations should not be created for duplicate campaigns");
+      },
+    },
+    options: liveOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "already_exists");
+  assert.equal(result.live_creation.allowed, false);
+  assert.equal(result.live_creation.duplicate_check.status, "already_exists");
+  assert.equal(result.live_creation.created_issues.length, 0);
+  assert.equal(issueCalls, 0);
+});
+
+test("partial existing campaigns fail closed before live mutation", async () => {
+  let issueCalls = 0;
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async findExistingCampaignIssues() {
+        return [{
+          description: issueByRole(plan, "Architect").description,
+          id: "existing-architect",
+          identifier: "MAR-P1",
+          projectMilestone: { name: defaultMilestone },
+          state: { name: "Todo", type: "unstarted" },
+          title: issueByRole(plan, "Architect").title,
+        }];
+      },
+      async createIssue() {
+        issueCalls += 1;
+        return { id: "unexpected" };
+      },
+      async createRelation() {
+        throw new Error("relations should not be created for partial campaigns");
+      },
+    },
+    options: liveOptionsFor(plan),
+  });
+
+  assert.equal(result.status, "partial_exists");
+  assert.equal(result.live_creation.allowed, false);
+  assert.equal(result.live_creation.duplicate_check.status, "partial_exists");
+  assert.equal(result.live_creation.created_issues.length, 0);
+  assert.equal(issueCalls, 0);
+});
+
 test("confirmed live creation passes with exact reviewed Linear team", async () => {
   const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
   const linear = linearFetchFixture(plan);
@@ -416,10 +542,11 @@ test("confirmed live creation passes with exact reviewed Linear team", async () 
 
   assert.equal(result.status, "live-created");
   assert.equal(result.live_creation.created_issues.length, 5);
-  assert.equal(result.live_creation.relation_count, 4);
+  assert.equal(result.live_creation.relation_count, 7);
+  assert.equal(result.live_creation.dogfood_evidence.duplicate_check.status, "none");
   assert.equal(linear.contextTeamName(), defaultLinearTeamName);
   assert.equal(linear.issueCreateCount(), 5);
-  assert.equal(linear.relationCreateCount(), 4);
+  assert.equal(linear.relationCreateCount(), 7);
 });
 
 test("confirmed live creation uses only the injected Linear mutation client", async () => {
@@ -428,6 +555,10 @@ test("confirmed live creation uses only the injected Linear mutation client", as
   const result = await createLiveCampaignFromPlan(plan, {
     env: { LINEAR_API_TOKEN: fakeToken },
     linearClient: {
+      async findExistingCampaignIssues() {
+        calls.push({ type: "findExistingCampaignIssues" });
+        return [];
+      },
       async createIssue(issue, context) {
         calls.push({ context, issue, type: "createIssue" });
         return {
@@ -447,9 +578,10 @@ test("confirmed live creation uses only the injected Linear mutation client", as
   assert.equal(result.mode, "live");
   assert.equal(result.live_creation.allowed, true);
   assert.equal(result.live_creation.created_issues.length, 5);
-  assert.equal(result.live_creation.relation_count, 4);
+  assert.equal(result.live_creation.relation_count, 7);
+  assert.equal(calls.filter((call) => call.type === "findExistingCampaignIssues").length, 1);
   assert.equal(calls.filter((call) => call.type === "createIssue").length, 5);
-  assert.equal(calls.filter((call) => call.type === "createRelation").length, 4);
+  assert.equal(calls.filter((call) => call.type === "createRelation").length, 7);
   assert.equal(JSON.stringify(result).includes(fakeToken), false);
   assert.equal(result.live_creation.dogfood_evidence.forbidden_side_effects.github_label_mutation, false);
   assert.equal(result.live_creation.dogfood_evidence.forbidden_side_effects.movement_file_touched, false);
@@ -462,6 +594,9 @@ test("partial live failures report created issues without cleanup or continuatio
   const result = await createLiveCampaignFromPlan(plan, {
     env: { LINEAR_API_TOKEN: fakeToken },
     linearClient: {
+      async findExistingCampaignIssues() {
+        return [];
+      },
       async createIssue(issue) {
         issueCalls += 1;
         if (issueCalls === 3) {
@@ -520,6 +655,9 @@ function linearFetchFixture(plan, {
       requests.push(body);
       if (body.query.includes("CampaignFactoryLiveContext")) {
         return jsonResponse({ data: linearContextData(plan, { projectTeamName, teamName }) });
+      }
+      if (body.query.includes("CampaignFactoryFindDuplicateIssues")) {
+        return jsonResponse({ data: { issues: { nodes: [] } } });
       }
       if (body.query.includes("CampaignFactoryCreateIssue")) {
         issueCount += 1;

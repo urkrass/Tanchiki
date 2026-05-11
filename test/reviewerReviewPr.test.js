@@ -7,6 +7,7 @@ import { test } from "node:test";
 import {
   createGitHubClient,
   evaluateReviewGates,
+  findDuplicateReview,
   getReviewBodyRefusalReason,
   main,
   parseArgs,
@@ -508,6 +509,35 @@ test("review-pr comment can report metadata and check blockers without approving
   assert.match(result.approvalOnlyRefusals.join("\n"), /Required checks/);
 });
 
+test("review-pr duplicate detection is scoped to head SHA decision and body", () => {
+  const body = "CHANGES REQUESTED: focused finding.";
+  const duplicate = findDuplicateReview([
+    {
+      body,
+      commit_id: "abc123",
+      id: 44,
+      state: "CHANGES_REQUESTED",
+      user: { login: "tanchiki-reviewer[bot]" },
+    },
+  ], {
+    body,
+    event: "REQUEST_CHANGES",
+    headSha: "abc123",
+  });
+
+  assert.equal(duplicate.id, 44);
+  assert.equal(findDuplicateReview([{ ...duplicate, commit_id: "def456" }], {
+    body,
+    event: "REQUEST_CHANGES",
+    headSha: "abc123",
+  }), null);
+  assert.equal(findDuplicateReview([{ ...duplicate, body: "CHANGES REQUESTED: different." }], {
+    body,
+    event: "REQUEST_CHANGES",
+    headSha: "abc123",
+  }), null);
+});
+
 test("review-pr constructed GitHub client is limited to PR inspection and review submission", async () => {
   const requests = [];
   const fetchImpl = async (url, init = {}) => {
@@ -533,6 +563,9 @@ test("review-pr constructed GitHub client is limited to PR inspection and review
     if (parsedUrl.pathname.endsWith("/commits/abc123/status")) {
       return jsonResponse({ statuses: [] });
     }
+    if (parsedUrl.pathname.endsWith("/pulls/7/reviews") && parsedUrl.search === "?per_page=100") {
+      return jsonResponse([]);
+    }
     if (parsedUrl.pathname.endsWith("/pulls/7/reviews")) {
       return jsonResponse({ id: 1 });
     }
@@ -554,6 +587,7 @@ test("review-pr constructed GitHub client is limited to PR inspection and review
   await client.getIssue(7);
   await client.listPullRequestFiles(7);
   await client.getChecks("abc123");
+  await client.listPullRequestReviews(7);
   await client.submitReview(7, {
     body: "CHANGES REQUESTED: focused finding.",
     event: "REQUEST_CHANGES",
@@ -565,6 +599,7 @@ test("review-pr constructed GitHub client is limited to PR inspection and review
     { body: null, method: "GET", path: "/repos/urkrass/Tanchiki/pulls/7/files?per_page=100&page=1" },
     { body: null, method: "GET", path: "/repos/urkrass/Tanchiki/commits/abc123/check-runs?per_page=100" },
     { body: null, method: "GET", path: "/repos/urkrass/Tanchiki/commits/abc123/status" },
+    { body: null, method: "GET", path: "/repos/urkrass/Tanchiki/pulls/7/reviews?per_page=100" },
     {
       body: {
         body: "CHANGES REQUESTED: focused finding.",

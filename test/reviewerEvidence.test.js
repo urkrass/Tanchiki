@@ -1797,6 +1797,7 @@ async function makeReviewerAgentFetch({
     ["/repos/urkrass/Tanchiki/commits/abc123/status", {
       json: { statuses: checks.statuses || [] },
     }],
+    ["/repos/urkrass/Tanchiki/pulls/119/reviews?per_page=100", { json: [] }],
   ]);
 
   return async (url, init = {}) => {
@@ -1840,7 +1841,7 @@ async function makeReviewerAgentFetch({
     }
 
     assert.equal(init.method, "GET");
-    assert.doesNotMatch(path, /reviews|merge|labels/i);
+    assert.doesNotMatch(path, /merge|labels/i);
 
     if (path === "/repos/urkrass/Tanchiki/pulls/119" && init.headers.Accept.includes("diff")) {
       return textResponse("diff --git a/scripts/reviewer-agent.js b/scripts/reviewer-agent.js\n");
