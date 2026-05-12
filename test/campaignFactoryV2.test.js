@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   campaignFactorySchemaVersion,
   buildRepairConfirmationPhrase,
+  buildRepairConfirmationToken,
   createLiveCampaignFromPlan,
   createLinearCampaignClient,
   defaultActiveProject,
@@ -297,8 +298,11 @@ test("dry-run preview exposes live gate hash and confirmation without allowing m
     plan.live_creation.confirmation_phrase,
     `CREATE LIVE CAMPAIGN: ${plan.campaign.name} IN ${defaultActiveProject}`,
   );
+  assert.equal(plan.live_creation.repair_confirmation_token, buildRepairConfirmationToken(plan));
+  assert.match(plan.live_creation.repair_confirmation_token, /^REPAIR-LIVE-CAMPAIGN-RELATIONS-[a-f0-9]{64}$/);
   assert.equal(plan.live_creation.required_flags.includes("--live"), true);
   assert.equal(markdown.includes(plan.live_creation.preview_hash), true);
+  assert.equal(markdown.includes(plan.live_creation.repair_confirmation_token), true);
 });
 
 test("live creation stops before mutation without explicit operator confirmation", async () => {
@@ -691,6 +695,95 @@ test("explicit relation repair mode repairs only issues-only campaigns", async (
   assert.equal(result.live_creation.created_relations.length, 7);
   assert.equal(result.live_creation.relation_verification.actual_relation_count, 7);
   assert.deepEqual(result.live_creation.relation_verification.missing_relation_edges, []);
+});
+
+test("relation repair mode accepts ASCII confirmation token for Windows-safe repair", async () => {
+  const emDash = String.fromCharCode(0x2014);
+  const plan = planCampaignIdea(safeHarnessIdea({
+    campaign: `Campaign Factory v2.3.4 ${emDash} repair confirmation`,
+  }), { mode: "dry-run" });
+  const existingIssues = existingCampaignIssues(plan, "MAR-W", "windows-token-repair");
+  const relationEdges = [];
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async findExistingCampaignIssues() {
+        return withMachineRelations(plan, existingIssues, relationEdges);
+      },
+      async createIssue() {
+        throw new Error("repair token mode must not create issues");
+      },
+      async createRelation(relation) {
+        relationEdges.push({
+          blockedIssueId: relation.blockedIssueId,
+          blockingIssueId: relation.blockingIssueId,
+        });
+        return { id: `${relation.blockingIssueId}->${relation.blockedIssueId}` };
+      },
+    },
+    options: {
+      ...repairOptionsFor(plan),
+      confirmationPhrase: buildRepairConfirmationToken(plan),
+    },
+  });
+
+  assert.equal(result.status, "relations-repaired");
+  assert.equal(result.live_creation.allowed, true);
+  assert.equal(result.live_creation.created_issues.length, 0);
+  assert.equal(result.live_creation.created_relations.length, 7);
+  assert.equal(result.live_creation.relation_verification.actual_relation_count, 7);
+});
+
+test("relation repair mode rejects mojibake em dash confirmation before mutation", async () => {
+  let mutationCalls = 0;
+  const emDash = String.fromCharCode(0x2014);
+  const mojibakeEmDash = String.fromCharCode(0x0442, 0x0410, 0x0424);
+  const plan = planCampaignIdea(safeHarnessIdea({
+    campaign: `Campaign Factory v2.3.4 ${emDash} repair confirmation`,
+  }), { mode: "dry-run" });
+  const mojibakePhrase = buildRepairConfirmationPhrase(plan).replaceAll(emDash, mojibakeEmDash);
+  const result = await createLiveCampaignFromPlan(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    linearClient: {
+      async findExistingCampaignIssues() {
+        return existingCampaignIssues(plan, "MAR-M", "mojibake-repair");
+      },
+      async createIssue() {
+        mutationCalls += 1;
+        return { id: "unexpected" };
+      },
+      async createRelation() {
+        mutationCalls += 1;
+        return { id: "unexpected" };
+      },
+    },
+    options: {
+      ...repairOptionsFor(plan),
+      confirmationPhrase: mojibakePhrase,
+    },
+  });
+
+  assert.notEqual(mojibakePhrase, buildRepairConfirmationPhrase(plan));
+  assert.equal(result.status, "rejected");
+  assert.equal(result.live_creation.allowed, false);
+  assert.ok(result.live_creation.findings.some((finding) => finding.id === "confirmation-phrase-mismatch"));
+  assert.equal(result.live_creation.findings.some((finding) => finding.id === "preview-hash-mismatch"), false);
+  assert.equal(mutationCalls, 0);
+});
+
+test("repair confirmation token does not weaken preview hash validation", () => {
+  const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
+  const findings = getLiveCampaignPreflightFindings(plan, {
+    env: { LINEAR_API_TOKEN: fakeToken },
+    options: {
+      ...repairOptionsFor(plan),
+      confirmationPhrase: buildRepairConfirmationToken(plan),
+      previewHash: "wrong-preview-hash",
+    },
+  });
+
+  assert.ok(findings.some((finding) => finding.id === "preview-hash-mismatch"));
+  assert.equal(findings.some((finding) => finding.id === "confirmation-phrase-mismatch"), false);
 });
 
 test("relation repair mode requires exact repair confirmation", async () => {
