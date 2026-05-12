@@ -472,10 +472,10 @@ export function getLiveCampaignPreflightFindings(plan, { env = {}, options = {} 
     findings.push(liveFinding("operator-repair-confirmation-required", "Live relation repair requires explicit operator confirmation."));
   }
 
-  const expectedPhrase = repairRequested
-    ? buildRepairConfirmationPhrase(plan)
-    : plan?.live_creation?.confirmation_phrase || buildLiveConfirmationPhrase(plan);
-  if (stringValue(options.confirmationPhrase) !== expectedPhrase) {
+  const expectedConfirmations = repairRequested
+    ? [buildRepairConfirmationPhrase(plan), buildRepairConfirmationToken(plan)]
+    : [plan?.live_creation?.confirmation_phrase || buildLiveConfirmationPhrase(plan)];
+  if (!expectedConfirmations.includes(stringValue(options.confirmationPhrase))) {
     findings.push(liveFinding("confirmation-phrase-mismatch", "Live campaign confirmation phrase does not match the planned campaign, action, and active project."));
   }
 
@@ -515,6 +515,10 @@ export function buildRepairConfirmationPhrase(plan) {
   return `REPAIR LIVE CAMPAIGN RELATIONS: ${plan?.campaign?.name || ""} IN ${plan?.active_linear_project || ""}`;
 }
 
+export function buildRepairConfirmationToken(plan) {
+  return `REPAIR-LIVE-CAMPAIGN-RELATIONS-${hashCampaignPlan(plan)}`;
+}
+
 export function formatCampaignPlanMarkdown(plan) {
   const lines = [
     `# ${plan.campaign?.name || "Campaign Factory v2 Plan"}`,
@@ -542,6 +546,7 @@ export function formatCampaignPlanMarkdown(plan) {
     `- Allowed: ${plan.live_creation?.allowed === true ? "yes" : "no"}`,
     `- Reason: ${plan.live_creation?.reason || "not specified"}`,
     `- Preview hash: ${plan.live_creation?.preview_hash || "none"}`,
+    `- Repair confirmation token: ${plan.live_creation?.repair_confirmation_token || "none"}`,
   ];
   return lines.join("\n");
 }
@@ -1468,6 +1473,7 @@ function attachLiveCreationPreview(plan) {
       preview_hash: previewHash,
       reason: plan.live_creation?.reason || "dry-run output must be reviewed before live creation",
       repair_confirmation_phrase: buildRepairConfirmationPhrase(plan),
+      repair_confirmation_token: buildRepairConfirmationToken(plan),
       repair_required_flags: [
         "--live",
         "--repair-relations",
@@ -1786,6 +1792,7 @@ function stripHashFields(value) {
         "confirmation_phrase",
         "preview_hash",
         "repair_confirmation_phrase",
+        "repair_confirmation_token",
         "repair_required_flags",
         "required_flags",
       ].includes(key))
@@ -2162,9 +2169,9 @@ function usageText() {
     "  node scripts/campaign-factory-v2.js --fixture path/to/fixture.json [--json]",
     "  node scripts/campaign-factory-v2.js --input path/to/input.json [--markdown]",
     "  node scripts/campaign-factory-v2.js --fixture path/to/fixture.json --live --confirm-create-live-campaign --confirmation-phrase <phrase> --preview-hash <hash>",
-    "  node scripts/campaign-factory-v2.js --fixture path/to/fixture.json --live --repair-relations --confirm-repair-relations --confirmation-phrase <phrase> --preview-hash <hash>",
+    "  node scripts/campaign-factory-v2.js --fixture path/to/fixture.json --live --repair-relations --confirm-repair-relations --confirmation-phrase <repair-phrase-or-token> --preview-hash <hash>",
     "",
-    "Campaign Factory v2 defaults to fixture/dry-run planning. Live Linear campaign creation and relation repair are gated by reviewed preview hash, explicit confirmation, process-scoped Linear auth, and pre-mutation revalidation.",
+    "Campaign Factory v2 defaults to fixture/dry-run planning. Live Linear campaign creation and relation repair are gated by reviewed preview hash, explicit confirmation, process-scoped Linear auth, and pre-mutation revalidation. Relation repair may use the ASCII repair_confirmation_token from the reviewed dry-run preview to avoid shell encoding drift.",
   ].join("\n");
 }
 
