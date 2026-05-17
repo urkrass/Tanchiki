@@ -991,7 +991,6 @@ function linearFetchFixture(plan, {
         return jsonResponse({
           data: {
             issueRelationCreate: {
-              relation: { id: `linear-relation-${relationCount}` },
               success: true,
             },
           },
