@@ -604,6 +604,7 @@ export function decideNextCampaignAction(state) {
     return reviewerAgentAction({
       campaignName,
       pr,
+      producer: coder,
       reviewer,
       roleIssueIds,
       state,
@@ -805,6 +806,7 @@ function handleActiveIssue({ activeIssue, campaignName, coder, release, reviewer
     return reviewerAgentAction({
       campaignName,
       pr: prSelection.pr,
+      producer: coder,
       reviewer,
       roleIssueIds,
       state,
@@ -894,7 +896,7 @@ function doneSyncAction({ campaignName, issue, issueRole, pr, reviewResult, role
   };
 }
 
-function reviewerAgentAction({ campaignName, pr, reviewer, roleIssueIds, state }) {
+function reviewerAgentAction({ campaignName, pr, producer, reviewer, roleIssueIds, state }) {
   return {
     action: "reviewer-agent",
     activeProject: state.activeProject,
@@ -902,10 +904,11 @@ function reviewerAgentAction({ campaignName, pr, reviewer, roleIssueIds, state }
     currentState: "reviewer-agent-ready",
     issueId: reviewer.id,
     kind: "reviewer-agent",
+    producerIssueId: producer.id,
     prNumber: pr.number,
     reason: "reviewer-agent-ready",
     roleIssueIds,
-    summary: `Run Reviewer Agent for ${reviewer.id} and PR #${pr.number}`,
+    summary: `Run Reviewer Agent for ${reviewer.id} and PR #${pr.number} using producer ${producer.id} metadata`,
   };
 }
 
@@ -1466,12 +1469,13 @@ async function applyLiveDecision({ decision, env, fetchImpl, reviewerAgentMainIm
 async function runReviewerAgentForDecision({ decision, env, fetchImpl, reviewerAgentMainImpl }) {
   const tempDir = await mkdtemp(join(tmpdir(), "tanchiki-campaign-run-"));
   const artifactPath = join(tempDir, `reviewer-agent-${decision.prNumber}.json`);
+  const evidenceIssueId = decision.producerIssueId || decision.issueId;
   try {
     const dryRunOutput = [];
     const dryRunExit = await reviewerAgentMainImpl({
       argv: [
         "--pr", String(decision.prNumber),
-        "--issue", decision.issueId,
+        "--issue", evidenceIssueId,
         "--dry-run",
         "--output", artifactPath,
       ],

@@ -731,6 +731,35 @@ test("reviewer-agent live path requires complete Reviewer App auth set", async (
   assert.doesNotMatch(JSON.stringify(result), /secret-gh-token|secret-openai-token|secret-reviewer-app-id/);
 });
 
+test("reviewer-agent live path uses producer issue for metadata preflight", async () => {
+  const reviewerCalls = [];
+  const result = await runCampaignStateMachine({
+    env: {
+      GH_TOKEN: "secret-gh-token",
+      OPENAI_API_KEY: "secret-openai-token",
+      GITHUB_REVIEWER_APP_ID: "reviewer-app-id",
+      GITHUB_REVIEWER_INSTALLATION_ID: "reviewer-installation-id",
+      GITHUB_REVIEWER_PRIVATE_KEY_PATH: "C:\\keys\\reviewer.pem",
+    },
+    reviewerAgentMainImpl: async ({ argv }) => {
+      reviewerCalls.push(argv);
+      return 0;
+    },
+    state: state({
+      coder: { status: "In Review" },
+      test: { status: "Done" },
+      reviewer: { labels: [...issue("reviewer").labels, "automation-ready"], status: "Todo" },
+      prs: [readyPr()],
+    }),
+  });
+
+  assert.equal(result.reason, "reviewer-agent-submitted");
+  assert.equal(result.steps[0].issue, "MAR-364");
+  assert.deepEqual(reviewerCalls[0].slice(0, 4), ["--pr", "201", "--issue", "MAR-362"]);
+  assert.equal(reviewerCalls[0][4], "--dry-run");
+  assert.equal(reviewerCalls[1][0], "--submit-from");
+});
+
 test("dry-run performs no mutation or Reviewer submission and max steps stops safely", async () => {
   const reviewerCalls = [];
   const result = await runCampaignStateMachine({
