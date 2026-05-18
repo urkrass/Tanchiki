@@ -18,6 +18,7 @@ export const defaultReviewCadence = "paired-review";
 export const defaultModelHint = "frontier";
 export const defaultLinearTeamName = "Marsel";
 export const linearApiUrl = "https://api.linear.app/graphql";
+export const evidenceLedgerSchemaVersion = "tanchiki.campaign_factory.evidence_ledger.v1";
 
 export const defaultHardRules = [
   "no live campaign creation without explicit operator confirmation",
@@ -765,6 +766,12 @@ function buildDuplicateRejectedPlan(plan, duplicateCheck) {
       created_relations: [],
       created_issues: [],
       duplicate_check: duplicateCheck,
+      evidence_ledger: buildCampaignEvidenceLedger(plan, {
+        createdIssues: [],
+        createdRelations: [],
+        duplicateCheck,
+        phase: "duplicate-noop",
+      }),
       findings: [finding],
       relation_verification: duplicateCheck.relation_check,
       reason,
@@ -1470,6 +1477,9 @@ function attachLiveCreationPreview(plan) {
       ...plan.live_creation,
       allowed: false,
       confirmation_phrase: buildLiveConfirmationPhrase(plan),
+      evidence_ledger: buildCampaignEvidenceLedger(plan, {
+        phase: "dry-run-preview",
+      }),
       preview_hash: previewHash,
       reason: plan.live_creation?.reason || "dry-run output must be reviewed before live creation",
       repair_confirmation_phrase: buildRepairConfirmationPhrase(plan),
@@ -1772,6 +1782,56 @@ function liveFinding(id, message, evidence = id) {
   return { evidence, id, message };
 }
 
+function buildCampaignEvidenceLedger(plan, {
+  createdIssues = [],
+  createdRelations = [],
+  duplicateCheck = null,
+  phase,
+} = {}) {
+  const relationCheck = duplicateCheck?.relation_check || null;
+  return {
+    schema_version: evidenceLedgerSchemaVersion,
+    phase,
+    active_linear_project: plan.active_linear_project || null,
+    active_repo: plan.active_repo || null,
+    campaign: plan.campaign?.name || null,
+    created_issue_count: createdIssues.length,
+    created_relation_count: createdRelations.length,
+    duplicate_check_required: true,
+    duplicate_status: duplicateCheck?.status || "not-run",
+    expected_relation_graph: plan.live_schema?.expected_relation_graph || plan.dependency_graph || [],
+    first_runnable_issue: plan.first_runnable_issue || null,
+    forbidden_side_effects: forbiddenSideEffectsEvidence(),
+    idempotency_key: plan.campaign?.idempotency_key || null,
+    issue_sequence: (plan.issues || []).map((issue) => ({
+      blocked_by: [...(issue.blocked_by || [])],
+      blocks: [...(issue.blocks || [])],
+      labels: [...(issue.labels || [])],
+      role: issue.role || null,
+      state: issue.state || null,
+      temporary_id: issue.temporary_id || null,
+    })),
+    live_mutation_allowed: false,
+    matched_issue_count: duplicateCheck?.matched_issue_count || 0,
+    milestone: plan.milestone || null,
+    operator_confirmation_required: true,
+    relation_count: relationCheck?.actual_relation_count || 0,
+    relation_readback_required: true,
+    relation_source: relationCheck?.relation_source || "Linear machine-state relations",
+  };
+}
+
+function forbiddenSideEffectsEvidence() {
+  return {
+    dependency_changes: false,
+    gameplay_changes: false,
+    github_label_mutation: false,
+    movement_file_touched: false,
+    stop_label_removal: false,
+    workflow_changes: false,
+  };
+}
+
 function isBlockedByRelationType(type = "") {
   const normalized = String(type).toLowerCase().replace(/[^a-z]/g, "");
   return normalized === "blockedby" || normalized === "isblockedby";
@@ -1790,6 +1850,7 @@ function stripHashFields(value) {
     return Object.fromEntries(Object.entries(value)
       .filter(([key]) => ![
         "confirmation_phrase",
+        "evidence_ledger",
         "preview_hash",
         "repair_confirmation_phrase",
         "repair_confirmation_token",

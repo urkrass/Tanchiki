@@ -305,6 +305,31 @@ test("dry-run preview exposes live gate hash and confirmation without allowing m
   assert.equal(markdown.includes(plan.live_creation.repair_confirmation_token), true);
 });
 
+test("dry-run preview includes a redacted evidence ledger for operator audit", () => {
+  const plan = planCampaignIdea(safeHarnessIdea({
+    goal: `Generate a safe dry-run plan using fixture marker ${fakeToken}.`,
+  }), {
+    env: { GH_TOKEN: fakeToken },
+    mode: "dry-run",
+  });
+  const ledger = plan.live_creation.evidence_ledger;
+
+  assert.equal(ledger.schema_version, "tanchiki.campaign_factory.evidence_ledger.v1");
+  assert.equal(ledger.phase, "dry-run-preview");
+  assert.equal(ledger.live_mutation_allowed, false);
+  assert.equal(ledger.operator_confirmation_required, true);
+  assert.equal(ledger.duplicate_check_required, true);
+  assert.equal(ledger.relation_readback_required, true);
+  assert.deepEqual(
+    ledger.issue_sequence.map((issue) => issue.temporary_id),
+    plan.issues.map((issue) => issue.temporary_id),
+  );
+  assert.deepEqual(ledger.expected_relation_graph, plan.live_schema.expected_relation_graph);
+  assert.equal(ledger.forbidden_side_effects.github_label_mutation, false);
+  assert.equal(ledger.forbidden_side_effects.movement_file_touched, false);
+  assert.equal(JSON.stringify(ledger).includes(fakeToken), false);
+});
+
 test("live creation stops before mutation without explicit operator confirmation", async () => {
   let calls = 0;
   const plan = planCampaignIdea(safeHarnessIdea(), { mode: "dry-run" });
@@ -489,6 +514,11 @@ test("confirmed live creation returns already_exists without mutation for duplic
   assert.equal(result.live_creation.allowed, false);
   assert.equal(result.live_creation.duplicate_check.status, "already_exists");
   assert.equal(result.live_creation.duplicate_check.relation_check.actual_relation_count, 7);
+  assert.equal(result.live_creation.evidence_ledger.phase, "duplicate-noop");
+  assert.equal(result.live_creation.evidence_ledger.duplicate_status, "already_exists");
+  assert.equal(result.live_creation.evidence_ledger.created_issue_count, 0);
+  assert.equal(result.live_creation.evidence_ledger.created_relation_count, 0);
+  assert.equal(result.live_creation.evidence_ledger.relation_count, 7);
   assert.equal(result.live_creation.created_issues.length, 0);
   assert.equal(result.live_creation.created_relations.length, 0);
   assert.equal(issueCalls, 0);
