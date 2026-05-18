@@ -1946,7 +1946,6 @@ export function createLinearCampaignClient({ fetchImpl = fetch, token }) {
         `mutation CampaignFactoryCreateRelation($input: IssueRelationCreateInput!) {
           issueRelationCreate(input: $input) {
             success
-            relation { id }
           }
         }`,
         {
@@ -1960,7 +1959,7 @@ export function createLinearCampaignClient({ fetchImpl = fetch, token }) {
       if (data.issueRelationCreate?.success !== true) {
         throw new CampaignFactoryError("linear-relation-create-failed", "Linear issueRelationCreate did not report success.");
       }
-      return data.issueRelationCreate.relation;
+      return { id: `${blockingIssueId}->${blockedIssueId}` };
     },
     async createRelation(input) {
       return this.createBlockingRelation(input);
